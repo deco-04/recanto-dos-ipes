@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sítio Recanto dos Ipês — Seu Refúgio na Serra</title>
+  <meta name="description" content="Sítio com lazer completo, piscina aquecida e sauna. Jaboticatubas, MG. A 30 minutos da Serra do Cipó. Até 20 hóspedes.">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- AOS -->
+  <link href="https://unpkg.com/aos@2.3.4/dist/aos.css" rel="stylesheet">
+  <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            forest: { DEFAULT: '#2D5A27', light: '#3D7A35', dark: '#1E3D1A' },
+            gold:   { DEFAULT: '#C9A84C', light: '#DFC070', dark: '#A8893A' },
+            beige:  { DEFAULT: '#F7F3ED', dark: '#EDE7DC' },
+            stone:  { DEFAULT: '#6B6B6B', light: '#9A9A9A' },
+          },
+          fontFamily: {
+            serif: ['Playfair Display', 'Georgia', 'serif'],
+            sans:  ['Inter', 'system-ui', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; color: #1A1A1A; background: #F7F3ED; }
+    .font-serif { font-family: 'Playfair Display', serif; }
+
+    /* Hero parallax overlay */
+    .hero-overlay {
+      background: linear-gradient(
+        160deg,
+        rgba(30, 61, 26, 0.72) 0%,
+        rgba(45, 90, 39, 0.55) 50%,
+        rgba(201, 168, 76, 0.25) 100%
+      );
+    }
+
+    /* Navbar scroll effect */
+    #navbar { transition: background 0.3s, box-shadow 0.3s, padding 0.3s; }
+    #navbar.scrolled { background: rgba(30,61,26,0.97); box-shadow: 0 2px 24px rgba(0,0,0,0.18); padding-top: 0.6rem; padding-bottom: 0.6rem; }
+
+    /* Gold underline accent */
+    .gold-underline::after {
+      content: '';
+      display: block;
+      width: 60px;
+      height: 3px;
+      background: #C9A84C;
+      margin-top: 10px;
+    }
+    .gold-underline-center::after {
+      content: '';
+      display: block;
+      width: 60px;
+      height: 3px;
+      background: #C9A84C;
+      margin: 10px auto 0;
+    }
+
+    /* Card hover */
+    .feature-card { transition: transform 0.25s, box-shadow 0.25s; }
+    .feature-card:hover { transform: translateY(-5px); box-shadow: 0 16px 40px rgba(45,90,39,0.12); }
+
+    /* Review card */
+    .review-card { transition: transform 0.2s; }
+    .review-card:hover { transform: translateY(-3px); }
+
+    /* Pill badge */
+    .pill { display: inline-flex; align-items: center; gap: 6px; background: rgba(201,168,76,0.15); border: 1px solid rgba(201,168,76,0.4); border-radius: 999px; padding: 4px 14px; font-size: 0.82rem; color: #A8893A; font-weight: 500; }
+
+    /* Room card scrollbar */
+    .rooms-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+    .rooms-scroll::-webkit-scrollbar { display: none; }
+
+    /* Amenity item */
+    .amenity-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #EDE7DC; }
+
+    /* Mobile menu */
+    #mobile-menu { transition: max-height 0.35s ease, opacity 0.3s; max-height: 0; opacity: 0; overflow: hidden; }
+    #mobile-menu.open { max-height: 400px; opacity: 1; }
+  </style>
+</head>
+
+<body class="antialiased">
+
+<!-- ═══════════════════════════════════════════
+     NAVBAR
+════════════════════════════════════════════ -->
+<nav id="navbar" class="fixed top-0 left-0 right-0 z-50 px-6 py-5">
+  <div class="max-w-6xl mx-auto flex items-center justify-between">
+
+    <!-- Logo -->
+    <a href="#inicio" class="flex items-center gap-2.5 group">
+      <div class="w-8 h-8 rounded-full bg-gold flex items-center justify-center flex-shrink-0">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white"/>
+        </svg>
+      </div>
+      <div>
+        <div class="text-white font-serif text-base font-semibold leading-tight">Recanto dos Ipês</div>
+        <div class="text-gold text-xs font-light tracking-wide">Jaboticatubas · MG</div>
+      </div>
+    </a>
+
+    <!-- Desktop Nav -->
+    <div class="hidden md:flex items-center gap-7 text-sm text-white/85 font-medium">
+      <a href="#sobre" class="hover:text-gold transition-colors">O Sítio</a>
+      <a href="#diferenciais" class="hover:text-gold transition-colors">Diferenciais</a>
+      <a href="#espacos" class="hover:text-gold transition-colors">Espaços</a>
+      <a href="#avaliacoes" class="hover:text-gold transition-colors">Avaliações</a>
+      <a href="#localizacao" class="hover:text-gold transition-colors">Localização</a>
+      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+         class="bg-gold hover:bg-gold-dark text-white px-5 py-2 rounded-full transition-colors font-semibold text-sm">
+        Reserve Agora
+      </a>
+    </div>
+
+    <!-- Mobile hamburger -->
+    <button id="menu-btn" class="md:hidden text-white p-1" aria-label="Menu">
+      <svg id="icon-menu" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+      <svg id="icon-close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Mobile menu -->
+  <div id="mobile-menu" class="md:hidden bg-forest-dark/95 backdrop-blur mt-2 rounded-2xl mx-0">
+    <div class="flex flex-col gap-1 p-4 text-white text-sm font-medium">
+      <a href="#sobre"        class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">O Sítio</a>
+      <a href="#diferenciais" class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">Diferenciais</a>
+      <a href="#espacos"      class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">Espaços</a>
+      <a href="#avaliacoes"   class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">Avaliações</a>
+      <a href="#localizacao"  class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">Localização</a>
+      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+         class="mt-2 bg-gold text-white text-center py-3 px-3 rounded-xl font-semibold">Reserve pelo Airbnb</a>
+    </div>
+  </div>
+</nav>
+
+
+<!-- ═══════════════════════════════════════════
+     HERO
+════════════════════════════════════════════ -->
+<section id="inicio" class="relative min-h-screen flex items-center justify-center overflow-hidden">
+
+  <!-- Background image -->
+  <div class="absolute inset-0 bg-cover bg-center bg-no-repeat"
+       style="background-image: url('https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=1920&q=80');">
+  </div>
+  <div class="hero-overlay absolute inset-0"></div>
+
+  <!-- Content -->
+  <div class="relative z-10 text-center px-6 max-w-4xl mx-auto pt-24">
+
+    <!-- Badge -->
+    <div class="inline-flex items-center gap-2 bg-white/15 backdrop-blur border border-white/25 rounded-full px-4 py-1.5 mb-6"
+         data-aos="fade-down" data-aos-duration="600">
+      <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+      </svg>
+      <span class="text-white text-sm font-medium">4,95 · 44 avaliações · Preferido dos Hóspedes</span>
+    </div>
+
+    <h1 class="font-serif text-white text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight mb-5"
+        data-aos="fade-up" data-aos-duration="700" data-aos-delay="100">
+      Seu refúgio no campo,<br>
+      <em class="text-gold not-italic">a 30 minutos da Serra do Cipó</em>
+    </h1>
+
+    <p class="text-white/80 text-lg md:text-xl max-w-2xl mx-auto mb-8 font-light leading-relaxed"
+       data-aos="fade-up" data-aos-duration="700" data-aos-delay="200">
+      Piscina aquecida, sauna, lazer completo e natureza em cada detalhe —
+      um sítio construído com amor, pensado para reunir quem você ama.
+    </p>
+
+    <!-- CTAs -->
+    <div class="flex flex-col sm:flex-row gap-3 justify-center"
+         data-aos="fade-up" data-aos-duration="700" data-aos-delay="300">
+      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+         class="bg-gold hover:bg-gold-dark text-white font-semibold px-8 py-4 rounded-full transition-all text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5">
+        Ver Disponibilidade no Airbnb
+      </a>
+      <a href="#sobre"
+         class="bg-white/15 hover:bg-white/25 backdrop-blur border border-white/40 text-white font-medium px-8 py-4 rounded-full transition-all text-base">
+        Conheça o Sítio ↓
+      </a>
+    </div>
+
+  </div>
+
+  <!-- Scroll indicator -->
+  <div class="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+    <svg class="w-6 h-6 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+    </svg>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     HIGHLIGHTS BAR
+════════════════════════════════════════════ -->
+<section class="bg-forest py-6 px-6">
+  <div class="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-0 divide-y-2 md:divide-y-0 md:divide-x divide-white/20">
+
+    <div class="flex items-center justify-center gap-3 py-3 md:py-0 px-4">
+      <svg class="w-7 h-7 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+      </svg>
+      <div>
+        <div class="text-white font-bold text-xl">+20</div>
+        <div class="text-white/70 text-xs uppercase tracking-wider">Hóspedes</div>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-center gap-3 py-3 md:py-0 px-4">
+      <svg class="w-7 h-7 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+      </svg>
+      <div>
+        <div class="text-white font-bold text-xl">4 Quartos</div>
+        <div class="text-white/70 text-xs uppercase tracking-wider">8 Camas</div>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-center gap-3 py-3 md:py-0 px-4">
+      <svg class="w-7 h-7 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+      </svg>
+      <div>
+        <div class="text-white font-bold text-xl">Piscina Solar</div>
+        <div class="text-white/70 text-xs uppercase tracking-wider">Aquecida todo o ano</div>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-center gap-3 py-3 md:py-0 px-4">
+      <svg class="w-7 h-7 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+      </svg>
+      <div>
+        <div class="text-white font-bold text-xl">30 min</div>
+        <div class="text-white/70 text-xs uppercase tracking-wider">Serra do Cipó</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     SOBRE NÓS — Brand Story
+════════════════════════════════════════════ -->
+<section id="sobre" class="py-20 md:py-28 px-6 bg-beige">
+  <div class="max-w-6xl mx-auto">
+
+    <div class="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
+
+      <!-- Text -->
+      <div data-aos="fade-right" data-aos-duration="700">
+        <div class="pill mb-5">Nossa história</div>
+        <h2 class="font-serif text-4xl md:text-5xl text-forest font-bold leading-tight mb-6 gold-underline">
+          Antes de ser um sítio,<br>era nosso lar.
+        </h2>
+        <p class="text-stone text-base md:text-lg leading-relaxed mb-5">
+          O Recanto dos Ipês nasceu de um amor muito simples: reunir a família. Cada tijolo foi colocado com as nossas próprias mãos, cada árvore plantada com cuidado — tudo pensado para criar um lugar de paz para quem amamos.
+        </p>
+        <p class="text-stone text-base md:text-lg leading-relaxed mb-5">
+          Eram risadas soltas, cheiro de comida no fogão, crianças correndo pelo quintal e rodas de conversa ao entardecer. Era o nosso refúgio. O nosso descanso. O nosso cantinho no mundo.
+        </p>
+        <p class="text-stone text-base md:text-lg leading-relaxed mb-8">
+          Hoje, abrimos esse espaço para você. O sítio fica em <strong class="text-forest">condomínio fechado, seguro e silencioso</strong>, com terreno totalmente cercado e pets bem-vindos — a 30 minutos da Serra do Cipó.
+        </p>
+
+        <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+           class="inline-flex items-center gap-2 bg-forest hover:bg-forest-light text-white font-semibold px-6 py-3 rounded-full transition-colors text-sm">
+          Reserve sua estadia
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+          </svg>
+        </a>
+      </div>
+
+      <!-- Image mosaic -->
+      <div class="relative" data-aos="fade-left" data-aos-duration="700" data-aos-delay="150">
+        <div class="relative rounded-2xl overflow-hidden shadow-2xl aspect-[4/3]">
+          <img src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80"
+               alt="Vista do sítio com natureza exuberante"
+               class="w-full h-full object-cover">
+        </div>
+        <!-- Floating card -->
+        <div class="absolute -bottom-5 -left-5 bg-white rounded-2xl shadow-xl p-4 flex items-center gap-3 z-10">
+          <div class="w-12 h-12 bg-forest/10 rounded-full flex items-center justify-center flex-shrink-0">
+            <svg class="w-6 h-6 text-forest" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="font-bold text-forest text-base">4,95 / 5,0</div>
+            <div class="text-stone text-xs">44 avaliações verificadas</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Four pillars -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-5 mt-16 md:mt-20">
+      <div class="text-center p-6 bg-white rounded-2xl shadow-sm" data-aos="fade-up" data-aos-delay="0">
+        <div class="text-3xl mb-3">🤝</div>
+        <div class="font-serif text-forest font-semibold text-base">Hospitalidade Genuína</div>
+      </div>
+      <div class="text-center p-6 bg-white rounded-2xl shadow-sm" data-aos="fade-up" data-aos-delay="100">
+        <div class="text-3xl mb-3">🌿</div>
+        <div class="font-serif text-forest font-semibold text-base">Conforto &amp; Natureza</div>
+      </div>
+      <div class="text-center p-6 bg-white rounded-2xl shadow-sm" data-aos="fade-up" data-aos-delay="200">
+        <div class="text-3xl mb-3">✨</div>
+        <div class="font-serif text-forest font-semibold text-base">Experiências Memoráveis</div>
+      </div>
+      <div class="text-center p-6 bg-white rounded-2xl shadow-sm" data-aos="fade-up" data-aos-delay="300">
+        <div class="text-3xl mb-3">❤️</div>
+        <div class="font-serif text-forest font-semibold text-base">Conexão Humana</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     DIFERENCIAIS — Feature Grid
+════════════════════════════════════════════ -->
+<section id="diferenciais" class="py-20 md:py-28 px-6 bg-white">
+  <div class="max-w-6xl mx-auto">
+
+    <div class="text-center mb-14" data-aos="fade-up">
+      <div class="pill justify-center mx-auto mb-4 inline-flex">Nossos Diferenciais</div>
+      <h2 class="font-serif text-4xl md:text-5xl text-forest font-bold leading-tight gold-underline-center">
+        Cada detalhe pensado<br>para você descansar de verdade
+      </h2>
+    </div>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+      <!-- Pool -->
+      <div class="feature-card bg-beige rounded-2xl overflow-hidden" data-aos="fade-up" data-aos-delay="0">
+        <div class="h-48 overflow-hidden">
+          <img src="https://images.unsplash.com/photo-1569152811536-fb47aced8409?auto=format&fit=crop&w=600&q=80"
+               alt="Piscina aquecida" class="w-full h-full object-cover">
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-2xl">🏊</span>
+            <h3 class="font-serif text-forest text-xl font-bold">Piscina Solar com Ozônio</h3>
+          </div>
+          <p class="text-stone text-sm leading-relaxed">
+            Aquecida por energia solar e tratada com sistema <strong class="text-forest">Panozon Blue Star</strong> — reduz o uso de cloro, deixando a água mais suave para a pele e o cabelo. Disponível 24h, o ano todo.
+          </p>
+        </div>
+      </div>
+
+      <!-- Sauna -->
+      <div class="feature-card bg-beige rounded-2xl overflow-hidden" data-aos="fade-up" data-aos-delay="100">
+        <div class="h-48 overflow-hidden">
+          <img src="https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80"
+               alt="Sauna privativa" class="w-full h-full object-cover">
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-2xl">🧖</span>
+            <h3 class="font-serif text-forest text-xl font-bold">Sauna Sodramar</h3>
+          </div>
+          <p class="text-stone text-sm leading-relaxed">
+            Sauna da marca <strong class="text-forest">Sodramar</strong> — referência em qualidade e confiabilidade. Aquece rapidamente, mantém temperatura estável. O convite perfeito para se desligar do mundo e se reconectar consigo mesmo.
+          </p>
+        </div>
+      </div>
+
+      <!-- Games room -->
+      <div class="feature-card bg-beige rounded-2xl overflow-hidden" data-aos="fade-up" data-aos-delay="200">
+        <div class="h-48 overflow-hidden">
+          <img src="https://images.unsplash.com/photo-1600520209768-14ba3cf8f3bb?auto=format&fit=crop&w=600&q=80"
+               alt="Salão de jogos" class="w-full h-full object-cover">
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-2xl">🎱</span>
+            <h3 class="font-serif text-forest text-xl font-bold">Salão de Jogos</h3>
+          </div>
+          <p class="text-stone text-sm leading-relaxed">
+            Sinuca e totó para animar o grupo — conforto e diversão sem sair do sítio. O clima gostoso de estar à vontade, como em casa.
+          </p>
+        </div>
+      </div>
+
+      <!-- Kitchen -->
+      <div class="feature-card bg-beige rounded-2xl overflow-hidden" data-aos="fade-up" data-aos-delay="0">
+        <div class="h-48 overflow-hidden">
+          <img src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=600&q=80"
+               alt="Cozinha completa" class="w-full h-full object-cover">
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-2xl">🍳</span>
+            <h3 class="font-serif text-forest text-xl font-bold">Cozinha Completa</h3>
+          </div>
+          <p class="text-stone text-sm leading-relaxed">
+            Fogão a gás, forno a lenha, airfryer, panelas de pressão, freezer e churrasqueira com todos os acessórios. Pensada para refeições em grupo e aquela churrascada inesquecível.
+          </p>
+        </div>
+      </div>
+
+      <!-- Sports -->
+      <div class="feature-card bg-beige rounded-2xl overflow-hidden" data-aos="fade-up" data-aos-delay="100">
+        <div class="h-48 overflow-hidden">
+          <img src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=600&q=80"
+               alt="Campo de futebol e vôlei" class="w-full h-full object-cover">
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-2xl">⚽</span>
+            <h3 class="font-serif text-forest text-xl font-bold">Campo &amp; Esporte</h3>
+          </div>
+          <p class="text-stone text-sm leading-relaxed">
+            Campo de futebol e rede de vôlei em amplas áreas ao ar livre. Diversão para todas as idades em meio a natureza.
+          </p>
+        </div>
+      </div>
+
+      <!-- Extra services -->
+      <div class="feature-card bg-forest rounded-2xl overflow-hidden" data-aos="fade-up" data-aos-delay="200">
+        <div class="p-8 h-full flex flex-col justify-between">
+          <div>
+            <div class="text-4xl mb-4">👨‍🍳</div>
+            <h3 class="font-serif text-white text-xl font-bold mb-3">Serviços Extras</h3>
+            <p class="text-white/75 text-sm leading-relaxed">
+              Quer aproveitar ainda mais sem se preocupar com o preparo das refeições? Oferecemos serviços adicionais de <strong class="text-gold">cozinheira e churrasqueiro</strong>, ideais para celebrações em família e grupos de amigos.
+            </p>
+          </div>
+          <div class="mt-6 inline-flex items-center gap-2 text-gold text-sm font-semibold">
+            <span>Consulte disponibilidade</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     COMODIDADES — Amenities
+════════════════════════════════════════════ -->
+<section class="py-20 md:py-24 px-6 bg-beige">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-12" data-aos="fade-up">
+      <h2 class="font-serif text-4xl text-forest font-bold gold-underline-center">O que o sítio oferece</h2>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-10" data-aos="fade-up" data-aos-delay="100">
+
+      <div>
+        <div class="amenity-item">
+          <svg class="w-5 h-5 text-forest flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-sm text-stone">Piscina externa aquecida (24h, coberta)</span>
+        </div>
+        <div class="amenity-item">
+          <svg class="w-5 h-5 text-forest flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-sm text-stone">Sauna privativa (Sodramar)</span>
+        </div>
+        <div class="amenity-item">
+          <svg class="w-5 h-5 text-forest flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-sm text-stone">Cozinha totalmente equipada</span>
+        </div>
+        <div class="amenity-item">
+          <svg class="w-5 h-5 text-forest flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-sm text-stone">Fogão e forno a lenha</span>
+        </div>
+        <div class="amenity-item">
+          <svg class="w-5 h-5 text-forest flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-sm text-stone">Salão de jogos (sinuca e totó)</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="amenity-item">
+          <svg class="w-5 h-5 text-forest flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-sm text-stone">Campo de futebol e rede de vôlei</span>
+        </div>
+        <div class="amenity-item">
+          <svg class="w-5 h-5 text-forest flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-sm text-stone">Wi-Fi e espaço de trabalho</span>
+        </div>
+        <div class="amenity-item">
+          <svg class="w-5 h-5 text-forest flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-sm text-stone">Estacionamento gratuito</span>
+        </div>
+        <div class="amenity-item">
+          <svg class="w-5 h-5 text-forest flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-sm text-stone">Chuveiro externo</span>
+        </div>
+        <div class="amenity-item">
+          <svg class="w-5 h-5 text-forest flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-sm text-stone">Enxoval completo incluso</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="amenity-item">
+          <svg class="w-5 h-5 text-forest flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-sm text-stone">Condomínio fechado e seguro</span>
+        </div>
+        <div class="amenity-item">
+          <svg class="w-5 h-5 text-forest flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-sm text-stone">Câmeras de segurança externas</span>
+        </div>
+        <div class="amenity-item">
+          <svg class="w-5 h-5 text-forest flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-sm text-stone">Self check-in (cofre de chaves)</span>
+        </div>
+        <div class="amenity-item">
+          <svg class="w-5 h-5 text-forest flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-sm text-stone">Permitido animais de estimação</span>
+        </div>
+        <div class="amenity-item">
+          <svg class="w-5 h-5 text-forest flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-sm text-stone">Terreno totalmente cercado</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     ESPAÇOS — Rooms
+════════════════════════════════════════════ -->
+<section id="espacos" class="py-20 md:py-24 px-6 bg-white overflow-hidden">
+  <div class="max-w-6xl mx-auto">
+    <div class="text-center mb-12" data-aos="fade-up">
+      <div class="pill justify-center mx-auto mb-4 inline-flex">Onde você vai dormir</div>
+      <h2 class="font-serif text-4xl text-forest font-bold gold-underline-center">Quartos confortáveis para toda a turma</h2>
+    </div>
+
+    <!-- Scrollable cards -->
+    <div class="rooms-scroll flex gap-5 overflow-x-auto pb-4 -mx-6 px-6" data-aos="fade-up" data-aos-delay="100">
+
+      <div class="flex-shrink-0 w-64 bg-beige rounded-2xl overflow-hidden shadow-sm">
+        <img src="https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=400&q=80"
+             alt="Quarto 1" class="w-full h-40 object-cover">
+        <div class="p-4">
+          <div class="font-serif text-forest font-bold mb-1">Quarto 1</div>
+          <div class="text-stone text-xs">1 cama queen · 1 colchão extra</div>
+        </div>
+      </div>
+
+      <div class="flex-shrink-0 w-64 bg-beige rounded-2xl overflow-hidden shadow-sm">
+        <img src="https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=400&q=80"
+             alt="Quarto 2" class="w-full h-40 object-cover">
+        <div class="p-4">
+          <div class="font-serif text-forest font-bold mb-1">Quarto 2</div>
+          <div class="text-stone text-xs">1 cama queen · 1 solteiro · 1 colchão extra</div>
+        </div>
+      </div>
+
+      <div class="flex-shrink-0 w-64 bg-beige rounded-2xl overflow-hidden shadow-sm">
+        <img src="https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=400&q=80"
+             alt="Quarto 3" class="w-full h-40 object-cover">
+        <div class="p-4">
+          <div class="font-serif text-forest font-bold mb-1">Quarto 3</div>
+          <div class="text-stone text-xs">1 cama queen · 1 solteiro · 1 colchão extra</div>
+        </div>
+      </div>
+
+      <div class="flex-shrink-0 w-64 bg-beige rounded-2xl overflow-hidden shadow-sm">
+        <img src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=400&q=80"
+             alt="Quarto 4" class="w-full h-40 object-cover">
+        <div class="p-4">
+          <div class="font-serif text-forest font-bold mb-1">Quarto 4</div>
+          <div class="text-stone text-xs">1 cama queen · 1 solteiro</div>
+        </div>
+      </div>
+
+      <div class="flex-shrink-0 w-64 bg-beige rounded-2xl overflow-hidden shadow-sm">
+        <img src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=400&q=80"
+             alt="Sala de estar" class="w-full h-40 object-cover">
+        <div class="p-4">
+          <div class="font-serif text-forest font-bold mb-1">Sala de Estar</div>
+          <div class="text-stone text-xs">1 sofá-cama · 2 colchões extra</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     AVALIAÇÕES — Reviews
+════════════════════════════════════════════ -->
+<section id="avaliacoes" class="py-20 md:py-28 px-6 bg-beige">
+  <div class="max-w-6xl mx-auto">
+
+    <!-- Rating summary -->
+    <div class="text-center mb-14" data-aos="fade-up">
+      <div class="inline-flex items-center gap-3 mb-5">
+        <div class="flex gap-1">
+          <svg class="w-6 h-6 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-6 h-6 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-6 h-6 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-6 h-6 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-6 h-6 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        </div>
+        <span class="font-serif text-forest text-4xl font-bold">4,95</span>
+      </div>
+      <div class="font-serif text-3xl md:text-4xl text-forest font-bold mb-2 gold-underline-center">O que nossos hóspedes dizem</div>
+      <p class="text-stone mt-4">44 avaliações verificadas · 95% com 5 estrelas · Preferido dos Hóspedes no Airbnb</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6">
+
+      <div class="review-card bg-white rounded-2xl p-6 shadow-sm" data-aos="fade-up" data-aos-delay="0">
+        <div class="flex gap-1 mb-3">
+          <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        </div>
+        <p class="text-stone text-sm leading-relaxed mb-4 italic">
+          "Excelente estadia! Nossa experiência foi ótima do início ao fim. A Sthefane foi uma anfitriã extremamente atenciosa e prestativa. O sítio é lindo, muito bem cuidado."
+        </p>
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-forest/20 flex items-center justify-center text-forest font-bold text-sm">L</div>
+          <div>
+            <div class="text-forest text-sm font-semibold">Lina</div>
+            <div class="text-stone text-xs">Fevereiro 2026</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="review-card bg-white rounded-2xl p-6 shadow-sm" data-aos="fade-up" data-aos-delay="100">
+        <div class="flex gap-1 mb-3">
+          <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        </div>
+        <p class="text-stone text-sm leading-relaxed mb-4 italic">
+          "Piscina ótima com aquecimento solar. A sauna é excelente, com aquecimento a lenha. Lugar tranquilo e agradável, perfeito para descansar com a família."
+        </p>
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold-dark font-bold text-sm">A</div>
+          <div>
+            <div class="text-forest text-sm font-semibold">Ana</div>
+            <div class="text-stone text-xs">Outubro 2025</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="review-card bg-white rounded-2xl p-6 shadow-sm" data-aos="fade-up" data-aos-delay="200">
+        <div class="flex gap-1 mb-3">
+          <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        </div>
+        <p class="text-stone text-sm leading-relaxed mb-4 italic">
+          "Excelente custo/benefício. O local tem ótima estrutura para um fim de semana ou feriado entre amigos. Todos adoraram, especialmente a piscina e o espaço verde."
+        </p>
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-forest/20 flex items-center justify-center text-forest font-bold text-sm">T</div>
+          <div>
+            <div class="text-forest text-sm font-semibold">Thalles</div>
+            <div class="text-stone text-xs">Abril 2025</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Link to all reviews -->
+    <div class="text-center mt-10" data-aos="fade-up">
+      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+         class="inline-flex items-center gap-2 text-forest font-semibold text-sm border-b-2 border-gold pb-0.5 hover:text-forest-dark transition-colors">
+        Ver todas as 44 avaliações no Airbnb
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+        </svg>
+      </a>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     LOCALIZAÇÃO
+════════════════════════════════════════════ -->
+<section id="localizacao" class="py-20 md:py-24 px-6 bg-white">
+  <div class="max-w-6xl mx-auto">
+
+    <div class="grid md:grid-cols-2 gap-12 items-center">
+
+      <!-- Text -->
+      <div data-aos="fade-right" data-aos-duration="700">
+        <div class="pill mb-5">Onde fica</div>
+        <h2 class="font-serif text-4xl text-forest font-bold leading-tight mb-6 gold-underline">
+          Jaboticatubas, MG<br>no coração da Serra
+        </h2>
+
+        <div class="space-y-4 mb-8">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-full bg-forest/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg class="w-4 h-4 text-forest" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              </svg>
+            </div>
+            <div>
+              <div class="font-semibold text-forest text-sm">Condomínio Fechado e Seguro</div>
+              <div class="text-stone text-sm mt-0.5">Terreno totalmente cercado, acesso controlado, câmeras externas</div>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-full bg-forest/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg class="w-4 h-4 text-forest" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+            </div>
+            <div>
+              <div class="font-semibold text-forest text-sm">30 min da Serra do Cipó</div>
+              <div class="text-stone text-sm mt-0.5">Perfeito para excursões ao parque nacional e cachoeiras</div>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-full bg-forest/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg class="w-4 h-4 text-forest" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+              </svg>
+            </div>
+            <div>
+              <div class="font-semibold text-forest text-sm">5 min de São José de Almeida</div>
+              <div class="text-stone text-sm mt-0.5">Mercado, padaria e distribuidoras perto do sítio</div>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-full bg-forest/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg class="w-4 h-4 text-forest" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div>
+              <div class="font-semibold text-forest text-sm">Check-in após 09h · Checkout até 17h</div>
+              <div class="text-stone text-sm mt-0.5">Self check-in com cofre de chaves · Pets bem-vindos</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Map placeholder -->
+      <div class="rounded-2xl overflow-hidden shadow-lg aspect-video" data-aos="fade-left" data-aos-duration="700" data-aos-delay="100">
+        <iframe
+          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d60053.87!2d-43.7!3d-19.5!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xa68c7ba2bd9f29%3A0x4b7e8b4e4e7e8b4e!2sJaboticatubas%2C%20MG!5e0!3m2!1spt-BR!2sbr!4v1617000000000!5m2!1spt-BR!2sbr"
+          width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy"
+          title="Localização Sítio Recanto dos Ipês - Jaboticatubas MG">
+        </iframe>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     CTA SECTION
+════════════════════════════════════════════ -->
+<section class="py-20 md:py-28 px-6 bg-forest relative overflow-hidden">
+  <!-- Decorative circles -->
+  <div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none"></div>
+  <div class="absolute bottom-0 left-0 w-48 h-48 bg-gold/10 rounded-full -translate-x-1/3 translate-y-1/3 pointer-events-none"></div>
+
+  <div class="max-w-3xl mx-auto text-center relative z-10" data-aos="fade-up">
+    <div class="text-5xl mb-5">🌿</div>
+    <h2 class="font-serif text-white text-4xl md:text-5xl font-bold leading-tight mb-5">
+      Pronto para criar<br>novas memórias?
+    </h2>
+    <p class="text-white/75 text-lg mb-8 max-w-xl mx-auto leading-relaxed">
+      Como o canto dos ipês, queremos que cada estadia desperte lembranças, sorrisos e a vontade de voltar.
+    </p>
+    <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+       class="inline-flex items-center gap-3 bg-gold hover:bg-gold-dark text-white font-bold px-10 py-4 rounded-full transition-all text-lg shadow-2xl hover:shadow-gold/30 hover:-translate-y-0.5">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C8.676 2 6 4.676 6 8c0 5.25 6 14 6 14s6-8.75 6-14c0-3.324-2.676-6-6-6zm0 8c-1.105 0-2-.895-2-2s.895-2 2-2 2 .895 2 2-.895 2-2 2z"/>
+      </svg>
+      Verificar Disponibilidade no Airbnb
+    </a>
+    <div class="mt-5 flex items-center justify-center gap-4 text-white/60 text-sm">
+      <span class="flex items-center gap-1.5">
+        <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        4,95 · 44 avaliações
+      </span>
+      <span>·</span>
+      <span>Superhost verificado</span>
+      <span>·</span>
+      <span>Responde em até 1 hora</span>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     FOOTER
+════════════════════════════════════════════ -->
+<footer class="bg-forest-dark py-10 px-6">
+  <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full bg-gold flex items-center justify-center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white"/>
+        </svg>
+      </div>
+      <div>
+        <div class="text-white font-serif font-semibold">Recanto dos Ipês</div>
+        <div class="text-white/50 text-xs">Jaboticatubas · Minas Gerais</div>
+      </div>
+    </div>
+
+    <p class="text-white/40 text-xs text-center">
+      © 2025 Sítio Recanto dos Ipês — Todos os direitos reservados
+    </p>
+
+    <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+       class="text-white/60 hover:text-gold text-xs transition-colors underline underline-offset-2">
+      Ver no Airbnb
+    </a>
+
+  </div>
+</footer>
+
+
+<!-- ═══════════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════════════ -->
+<script>
+  // Init AOS
+  AOS.init({ once: true, offset: 60, easing: 'ease-out-cubic' });
+
+  // Navbar scroll effect
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    navbar.classList.toggle('scrolled', window.scrollY > 60);
+  });
+
+  // Mobile menu toggle
+  const menuBtn = document.getElementById('menu-btn');
+  const mobileMenu = document.getElementById('mobile-menu');
+  const iconMenu = document.getElementById('icon-menu');
+  const iconClose = document.getElementById('icon-close');
+
+  menuBtn.addEventListener('click', () => {
+    const isOpen = mobileMenu.classList.toggle('open');
+    iconMenu.classList.toggle('hidden', isOpen);
+    iconClose.classList.toggle('hidden', !isOpen);
+  });
+
+  function closeMobileMenu() {
+    mobileMenu.classList.remove('open');
+    iconMenu.classList.remove('hidden');
+    iconClose.classList.add('hidden');
+  }
+</script>
+
+</body>
+</html>
