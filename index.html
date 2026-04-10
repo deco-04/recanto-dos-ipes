@@ -9,7 +9,7 @@
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -23,14 +23,15 @@
       theme: {
         extend: {
           colors: {
-            forest: { DEFAULT: '#2D5A27', light: '#3D7A35', dark: '#1E3D1A' },
-            gold:   { DEFAULT: '#C9A84C', light: '#DFC070', dark: '#A8893A' },
-            beige:  { DEFAULT: '#F7F3ED', dark: '#EDE7DC' },
-            stone:  { DEFAULT: '#6B6B6B', light: '#9A9A9A' },
+            forest:    { DEFAULT: '#261C15', light: '#3D2B1F', dark: '#150F0A' },
+            gold:      { DEFAULT: '#C5D86D', light: '#D4E48A', dark: '#9BAB52' },
+            beige:     { DEFAULT: '#F7F7F2', dark: '#E4E6C3' },
+            stone:     { DEFAULT: '#6B6B6B', light: '#9A9A9A' },
+            terracota: { DEFAULT: '#F05D23' },
           },
           fontFamily: {
-            serif: ['Playfair Display', 'Georgia', 'serif'],
-            sans:  ['Inter', 'system-ui', 'sans-serif'],
+            serif: ['Merriweather', 'Georgia', 'serif'],
+            sans:  ['Lato', 'system-ui', 'sans-serif'],
           },
         }
       }
@@ -39,22 +40,22 @@
 
   <style>
     html { scroll-behavior: smooth; }
-    body { font-family: 'Inter', sans-serif; color: #1A1A1A; background: #F7F3ED; }
-    .font-serif { font-family: 'Playfair Display', serif; }
+    body { font-family: 'Lato', sans-serif; color: #1A1A1A; background: #F7F7F2; }
+    .font-serif { font-family: 'Merriweather', serif; }
 
     /* Hero parallax overlay */
     .hero-overlay {
       background: linear-gradient(
         160deg,
-        rgba(30, 61, 26, 0.72) 0%,
-        rgba(45, 90, 39, 0.55) 50%,
-        rgba(201, 168, 76, 0.25) 100%
+        rgba(38, 28, 21, 0.78) 0%,
+        rgba(38, 28, 21, 0.50) 55%,
+        rgba(197, 216, 109, 0.20) 100%
       );
     }
 
     /* Navbar scroll effect */
     #navbar { transition: background 0.3s, box-shadow 0.3s, padding 0.3s; }
-    #navbar.scrolled { background: rgba(30,61,26,0.97); box-shadow: 0 2px 24px rgba(0,0,0,0.18); padding-top: 0.6rem; padding-bottom: 0.6rem; }
+    #navbar.scrolled { background: rgba(38,28,21,0.97); box-shadow: 0 2px 24px rgba(0,0,0,0.22); padding-top: 0.6rem; padding-bottom: 0.6rem; }
 
     /* Gold underline accent */
     .gold-underline::after {
@@ -62,7 +63,7 @@
       display: block;
       width: 60px;
       height: 3px;
-      background: #C9A84C;
+      background: #C5D86D;
       margin-top: 10px;
     }
     .gold-underline-center::after {
@@ -70,7 +71,7 @@
       display: block;
       width: 60px;
       height: 3px;
-      background: #C9A84C;
+      background: #C5D86D;
       margin: 10px auto 0;
     }
 
@@ -83,14 +84,14 @@
     .review-card:hover { transform: translateY(-3px); }
 
     /* Pill badge */
-    .pill { display: inline-flex; align-items: center; gap: 6px; background: rgba(201,168,76,0.15); border: 1px solid rgba(201,168,76,0.4); border-radius: 999px; padding: 4px 14px; font-size: 0.82rem; color: #A8893A; font-weight: 500; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; background: rgba(155,171,82,0.15); border: 1px solid rgba(155,171,82,0.4); border-radius: 999px; padding: 4px 14px; font-size: 0.82rem; color: #7A8A3A; font-weight: 500; }
 
     /* Room card scrollbar */
     .rooms-scroll { -ms-overflow-style: none; scrollbar-width: none; }
     .rooms-scroll::-webkit-scrollbar { display: none; }
 
     /* Amenity item */
-    .amenity-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #EDE7DC; }
+    .amenity-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #E4E6C3; }
 
     /* Mobile menu */
     #mobile-menu { transition: max-height 0.35s ease, opacity 0.3s; max-height: 0; opacity: 0; overflow: hidden; }
@@ -107,15 +108,17 @@
   <div class="max-w-6xl mx-auto flex items-center justify-between">
 
     <!-- Logo -->
-    <a href="#inicio" class="flex items-center gap-2.5 group">
-      <div class="w-8 h-8 rounded-full bg-gold flex items-center justify-center flex-shrink-0">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white"/>
-        </svg>
-      </div>
-      <div>
-        <div class="text-white font-serif text-base font-semibold leading-tight">Recanto dos Ipês</div>
-        <div class="text-gold text-xs font-light tracking-wide">Jaboticatubas · MG</div>
+    <a href="#inicio" class="flex items-center group">
+      <img src="https://drive.google.com/uc?export=view&id=1uwQ0O63Rcoyun9Ndvqc6KnomboeTxau-"
+           alt="Recanto dos Ipês"
+           class="h-12 w-auto object-contain"
+           style="filter: brightness(0) invert(1);"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+      <div style="display:none" class="items-center gap-2.5">
+        <div>
+          <div class="text-white font-serif text-base font-semibold leading-tight">Recanto dos Ipês</div>
+          <div class="text-gold text-xs font-light tracking-wide">Jaboticatubas · MG</div>
+        </div>
       </div>
     </a>
 
@@ -165,7 +168,7 @@
 
   <!-- Background image -->
   <div class="absolute inset-0 bg-cover bg-center bg-no-repeat"
-       style="background-image: url('https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=1920&q=80');">
+       style="background-image: url('https://drive.google.com/uc?export=view&id=1tcXD7VsxgcSCwSOUorPjyRZYvWAma4Df');">
   </div>
   <div class="hero-overlay absolute inset-0"></div>
 
@@ -183,14 +186,14 @@
 
     <h1 class="font-serif text-white text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight mb-5"
         data-aos="fade-up" data-aos-duration="700" data-aos-delay="100">
-      Seu refúgio no campo,<br>
-      <em class="text-gold not-italic">a 30 minutos da Serra do Cipó</em>
+      Um refúgio vivo,<br>
+      <em class="text-gold not-italic">onde cada detalhe nutre memórias</em>
     </h1>
 
     <p class="text-white/80 text-lg md:text-xl max-w-2xl mx-auto mb-8 font-light leading-relaxed"
        data-aos="fade-up" data-aos-duration="700" data-aos-delay="200">
-      Piscina aquecida, sauna, lazer completo e natureza em cada detalhe —
-      um sítio construído com amor, pensado para reunir quem você ama.
+      Hospitalidade autêntica na Serra do Cipó — piscina aquecida, sauna, lazer completo
+      e natureza em cada detalhe, a 30 minutos de Jaboticatubas, MG.
     </p>
 
     <!-- CTAs -->
@@ -304,7 +307,7 @@
       <!-- Image mosaic -->
       <div class="relative" data-aos="fade-left" data-aos-duration="700" data-aos-delay="150">
         <div class="relative rounded-2xl overflow-hidden shadow-2xl aspect-[4/3]">
-          <img src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80"
+          <img src="https://drive.google.com/uc?export=view&id=11Z-N_Do_370m5JdP_Dr06PyMHz60SIQc"
                alt="Vista do sítio com natureza exuberante"
                class="w-full h-full object-cover">
         </div>
@@ -365,7 +368,7 @@
       <!-- Pool -->
       <div class="feature-card bg-beige rounded-2xl overflow-hidden" data-aos="fade-up" data-aos-delay="0">
         <div class="h-48 overflow-hidden">
-          <img src="https://images.unsplash.com/photo-1569152811536-fb47aced8409?auto=format&fit=crop&w=600&q=80"
+          <img src="https://drive.google.com/uc?export=view&id=1Oif23FgQubtxryood4TtUiYd3Okg31Yn"
                alt="Piscina aquecida" class="w-full h-full object-cover">
         </div>
         <div class="p-6">
@@ -382,7 +385,7 @@
       <!-- Sauna -->
       <div class="feature-card bg-beige rounded-2xl overflow-hidden" data-aos="fade-up" data-aos-delay="100">
         <div class="h-48 overflow-hidden">
-          <img src="https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80"
+          <img src="https://drive.google.com/uc?export=view&id=1xMEaTh3giADu1pRSgIKDnK67tT2_DoJv"
                alt="Sauna privativa" class="w-full h-full object-cover">
         </div>
         <div class="p-6">
@@ -399,7 +402,7 @@
       <!-- Games room -->
       <div class="feature-card bg-beige rounded-2xl overflow-hidden" data-aos="fade-up" data-aos-delay="200">
         <div class="h-48 overflow-hidden">
-          <img src="https://images.unsplash.com/photo-1600520209768-14ba3cf8f3bb?auto=format&fit=crop&w=600&q=80"
+          <img src="https://drive.google.com/uc?export=view&id=1kiHS62jD5yCWrJlaxwyFMzgwJDVI6v8d"
                alt="Salão de jogos" class="w-full h-full object-cover">
         </div>
         <div class="p-6">
@@ -416,7 +419,7 @@
       <!-- Kitchen -->
       <div class="feature-card bg-beige rounded-2xl overflow-hidden" data-aos="fade-up" data-aos-delay="0">
         <div class="h-48 overflow-hidden">
-          <img src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=600&q=80"
+          <img src="https://drive.google.com/uc?export=view&id=1k77ewvidjM9QwqfgP9q_kFYwFg18K8EN"
                alt="Cozinha completa" class="w-full h-full object-cover">
         </div>
         <div class="p-6">
@@ -433,7 +436,7 @@
       <!-- Sports -->
       <div class="feature-card bg-beige rounded-2xl overflow-hidden" data-aos="fade-up" data-aos-delay="100">
         <div class="h-48 overflow-hidden">
-          <img src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=600&q=80"
+          <img src="https://drive.google.com/uc?export=view&id=1xhKJ7soiy5jDzgJ2GAam3OdXo3klRgh8"
                alt="Campo de futebol e vôlei" class="w-full h-full object-cover">
         </div>
         <div class="p-6">
@@ -570,7 +573,7 @@
     <div class="rooms-scroll flex gap-5 overflow-x-auto pb-4 -mx-6 px-6" data-aos="fade-up" data-aos-delay="100">
 
       <div class="flex-shrink-0 w-64 bg-beige rounded-2xl overflow-hidden shadow-sm">
-        <img src="https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=400&q=80"
+        <img src="https://drive.google.com/uc?export=view&id=1D_PDswcOHFGauN7fE1yl3DRXvOXSH_dL"
              alt="Quarto 1" class="w-full h-40 object-cover">
         <div class="p-4">
           <div class="font-serif text-forest font-bold mb-1">Quarto 1</div>
@@ -579,7 +582,7 @@
       </div>
 
       <div class="flex-shrink-0 w-64 bg-beige rounded-2xl overflow-hidden shadow-sm">
-        <img src="https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=400&q=80"
+        <img src="https://drive.google.com/uc?export=view&id=1xhKJ7soiy5jDzgJ2GAam3OdXo3klRgh8"
              alt="Quarto 2" class="w-full h-40 object-cover">
         <div class="p-4">
           <div class="font-serif text-forest font-bold mb-1">Quarto 2</div>
@@ -588,7 +591,7 @@
       </div>
 
       <div class="flex-shrink-0 w-64 bg-beige rounded-2xl overflow-hidden shadow-sm">
-        <img src="https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=400&q=80"
+        <img src="https://drive.google.com/uc?export=view&id=1DmMGsK78xKXfHIA31sm0dL8hcbq28wfL"
              alt="Quarto 3" class="w-full h-40 object-cover">
         <div class="p-4">
           <div class="font-serif text-forest font-bold mb-1">Quarto 3</div>
@@ -597,7 +600,7 @@
       </div>
 
       <div class="flex-shrink-0 w-64 bg-beige rounded-2xl overflow-hidden shadow-sm">
-        <img src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=400&q=80"
+        <img src="https://drive.google.com/uc?export=view&id=1xMEaTh3giADu1pRSgIKDnK67tT2_DoJv"
              alt="Quarto 4" class="w-full h-40 object-cover">
         <div class="p-4">
           <div class="font-serif text-forest font-bold mb-1">Quarto 4</div>
@@ -606,7 +609,7 @@
       </div>
 
       <div class="flex-shrink-0 w-64 bg-beige rounded-2xl overflow-hidden shadow-sm">
-        <img src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=400&q=80"
+        <img src="https://drive.google.com/uc?export=view&id=1tcXD7VsxgcSCwSOUorPjyRZYvWAma4Df"
              alt="Sala de estar" class="w-full h-40 object-cover">
         <div class="p-4">
           <div class="font-serif text-forest font-bold mb-1">Sala de Estar</div>
@@ -847,12 +850,12 @@
   <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
 
     <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-full bg-gold flex items-center justify-center">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white"/>
-        </svg>
-      </div>
-      <div>
+      <img src="https://drive.google.com/uc?export=view&id=1uwQ0O63Rcoyun9Ndvqc6KnomboeTxau-"
+           alt="Recanto dos Ipês"
+           class="h-10 w-auto object-contain"
+           style="filter: brightness(0) invert(0.6);"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+      <div style="display:none">
         <div class="text-white font-serif font-semibold">Recanto dos Ipês</div>
         <div class="text-white/50 text-xs">Jaboticatubas · Minas Gerais</div>
       </div>
