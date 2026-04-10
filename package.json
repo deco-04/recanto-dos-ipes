@@ -1,0 +1,11 @@
+{
+  "name": "recanto-dos-ipes",
+  "version": "1.0.0",
+  "description": "Sítio Recanto dos Ipês — one-page website",
+  "scripts": {
+    "start": "npx serve . --listen $PORT --no-clipboard"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
