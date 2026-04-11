@@ -1,11 +1,35 @@
 {
   "name": "recanto-dos-ipes",
-  "version": "1.0.0",
-  "description": "Sítio Recanto dos Ipês — one-page website",
+  "version": "2.0.0",
+  "description": "Sítio Recanto dos Ipês — website + booking system",
+  "main": "server.js",
   "scripts": {
-    "start": "npx serve . --listen $PORT --no-clipboard"
+    "start": "node server.js",
+    "download-images": "node scripts/download-images.js",
+    "db:migrate": "prisma migrate deploy",
+    "db:generate": "prisma generate",
+    "db:seed": "node scripts/seed-pricing.js",
+    "db:studio": "prisma studio",
+    "db:dev": "prisma migrate dev"
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.14.0",
+    "compression": "^1.7.4",
+    "connect-pg-simple": "^9.0.1",
+    "express": "^4.18.2",
+    "express-session": "^1.18.0",
+    "node-cron": "^3.0.3",
+    "node-ical": "^0.18.0",
+    "nodemailer": "^6.9.13",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
+    "stripe": "^15.7.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "prisma": "^5.14.0"
   }
 }

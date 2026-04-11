@@ -1,6 +1,12 @@
 # Claude internal
 .claude/
 
+# Node
+node_modules/
+*.tmp
+*.log
+package-lock.json
+
 # OS
 .DS_Store
 Thumbs.db
