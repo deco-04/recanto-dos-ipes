@@ -5,93 +5,93 @@
 
   <!-- Homepage -->
   <url>
-    <loc>https://recanto-dos-ipes-production.up.railway.app/</loc>
+    <loc>https://sitiorecantodosipes.com/</loc>
     <lastmod>2026-04-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://recanto-dos-ipes-production.up.railway.app/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://sitiorecantodosipes.com/"/>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/rancho.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/rancho.jpg</image:loc>
       <image:title>Rancho coberto do Sítio Recanto dos Ipês — área de convivência e churrasqueira</image:title>
       <image:caption>Rancho coberto com mesas de madeira rústica e churrasqueira — Sítio Recanto dos Ipês, Jaboticatubas, MG</image:caption>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/quarto-suite.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/quarto-suite.jpg</image:loc>
       <image:title>Quarto suíte do Sítio Recanto dos Ipês — cama queen com enxoval completo</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/quarto-casal.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/quarto-casal.jpg</image:loc>
       <image:title>Quarto casal do Sítio Recanto dos Ipês — cama queen, guarda-roupa e penteadeira</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/quarto-solteiro.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/quarto-solteiro.jpg</image:loc>
       <image:title>Quarto solteiro do Sítio Recanto dos Ipês — 2 camas de solteiro com enxoval</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/cozinha-1.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/cozinha-1.jpg</image:loc>
       <image:title>Cozinha completa do Sítio Recanto dos Ipês — fogão a gás, coifa e bancadas</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/cozinha-2.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/cozinha-2.jpg</image:loc>
       <image:title>Cozinha do Sítio Recanto dos Ipês — geladeira e fogão completo</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/jogos.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/jogos.jpg</image:loc>
       <image:title>Salão de jogos do Sítio Recanto dos Ipês — mesa de sinuca e área de convivência</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/jogos-sinuca.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/jogos-sinuca.jpg</image:loc>
       <image:title>Mesa de sinuca do Sítio Recanto dos Ipês</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/banheiro.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/banheiro.jpg</image:loc>
       <image:title>Banheiro completo do Sítio Recanto dos Ipês</image:title>
     </image:image>
   </url>
 
   <!-- Gallery page -->
   <url>
-    <loc>https://recanto-dos-ipes-production.up.railway.app/galeria</loc>
+    <loc>https://sitiorecantodosipes.com/galeria</loc>
     <lastmod>2026-04-10</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/rancho.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/rancho.jpg</image:loc>
       <image:title>Rancho coberto — Galeria do Sítio Recanto dos Ipês</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/quarto-suite.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/quarto-suite.jpg</image:loc>
       <image:title>Quarto suíte — Galeria do Sítio Recanto dos Ipês</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/quarto-casal.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/quarto-casal.jpg</image:loc>
       <image:title>Quarto casal — Galeria do Sítio Recanto dos Ipês</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/quarto-solteiro.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/quarto-solteiro.jpg</image:loc>
       <image:title>Quarto solteiro — Galeria do Sítio Recanto dos Ipês</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/banheiro.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/banheiro.jpg</image:loc>
       <image:title>Banheiro completo — Galeria do Sítio Recanto dos Ipês</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/cozinha-1.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/cozinha-1.jpg</image:loc>
       <image:title>Cozinha completa — Galeria do Sítio Recanto dos Ipês</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/jogos.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/jogos.jpg</image:loc>
       <image:title>Salão de jogos — Galeria do Sítio Recanto dos Ipês</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/jogos-sinuca.jpg</image:loc>
+      <image:loc>https://sitiorecantodosipes.com/images/jogos-sinuca.jpg</image:loc>
       <image:title>Sinuca de taco — Galeria do Sítio Recanto dos Ipês</image:title>
     </image:image>
   </url>
 
   <!-- FAQ page -->
   <url>
-    <loc>https://recanto-dos-ipes-production.up.railway.app/faq</loc>
+    <loc>https://sitiorecantodosipes.com/faq</loc>
     <lastmod>2026-04-10</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>

@@ -19,6 +19,24 @@ app.use((_req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  // HSTS — only over HTTPS in production
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  // Content-Security-Policy — allows CDNs used by the site
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com https://js.stripe.com https://maps.googleapis.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com https://cdn.tailwindcss.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: https:",
+    "frame-src https://js.stripe.com https://www.google.com",
+    "connect-src 'self' https://api.stripe.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+  ].join('; '));
   next();
 });
 
@@ -29,8 +47,12 @@ app.post('/api/webhooks/stripe',
     const sig    = req.headers['stripe-signature'];
     const secret = process.env.STRIPE_WEBHOOK_SECRET;
 
+    if (!secret && process.env.NODE_ENV === 'production') {
+      console.error('[stripe] STRIPE_WEBHOOK_SECRET not set in production — rejecting webhook');
+      return res.status(400).send('Webhook Error: missing secret');
+    }
     if (!secret) {
-      console.warn('[stripe] STRIPE_WEBHOOK_SECRET not set — skipping signature verification');
+      console.warn('[stripe] STRIPE_WEBHOOK_SECRET not set — skipping signature verification (dev only)');
     }
 
     let event;
@@ -100,6 +122,10 @@ const sessionStore = process.env.DATABASE_URL
       createTableIfMissing: false, // table managed by Prisma
     })
   : new session.MemoryStore();
+
+if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
+  console.error('[session] FATAL: SESSION_SECRET is not set in production. Sessions are insecure.');
+}
 
 app.use(session({
   store:             sessionStore,
