@@ -1,183 +1,261 @@
 /**
- * Recanto dos Ipês — Availability Calendar Widget
- * Vanilla JS, uses Tailwind CDN already loaded on the page.
+ * Recanto dos Ipês — Availability & Pricing Calendar Widget
+ * - 1-year rolling window (today → today+12 months)
+ * - Price per night shown on every available day
+ * - Tier color coding: Feriado / Alta temporada / Temporada máxima
+ * - Auto-refreshes availability + pricing every 5 minutes
+ * - Dynamic demand indicator when <30% of month is available
  */
 (function () {
   'use strict';
 
-  // ── State ──────────────────────────────────────────────────────────────────
+  // ── Constants ─────────────────────────────────────────────────────────────
+  const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+  const MAX_MONTHS_AHEAD = 12;
+  const MAX_GUESTS       = 20;
+  const BASE_LIMIT       = 11;
+
+  const TIER = {
+    LOW: {
+      bg:     '#F7F7F2',
+      border: '#E4E6C3',
+      text:   '#4A4A3A',
+      badge:  '#E4E6C3',
+      badgeText: '#4A4A3A',
+      label:  'Baixa temporada',
+      dot:    '#9BAB52',
+    },
+    MID: {
+      bg:     '#F0FDF4',
+      border: '#86EFAC',
+      text:   '#166534',
+      badge:  '#DCFCE7',
+      badgeText: '#166534',
+      label:  'Feriado',
+      dot:    '#22C55E',
+    },
+    HIGH_MID: {
+      bg:     '#FFFBEB',
+      border: '#FCD34D',
+      text:   '#92400E',
+      badge:  '#FEF3C7',
+      badgeText: '#92400E',
+      label:  'Alta temporada',
+      dot:    '#F59E0B',
+    },
+    PEAK: {
+      bg:     '#FFF1F2',
+      border: '#FDA4AF',
+      text:   '#9F1239',
+      badge:  '#FFE4E6',
+      badgeText: '#9F1239',
+      label:  'Temporada máxima',
+      dot:    '#F43F5E',
+    },
+  };
+
+  const PRICE_DISPLAY = {
+    LOW:      'R$720',
+    MID:      'R$850',
+    HIGH_MID: 'R$1.050',
+    PEAK:     'R$1.300',
+  };
+
+  // ── State ─────────────────────────────────────────────────────────────────
   const state = {
-    blockedDates: new Set(),
-    pricingPeriods: [],
-    tiers: {},
-    checkIn:    null,
-    checkOut:   null,
-    guestCount: 1,
-    hasPet:     false,
-    currentMonth: new Date(),
+    blockedDates:   new Set(),
+    pricingPeriods: [],      // [{startDate, endDate, tier, pricePerNight, name}]
+    checkIn:        null,
+    checkOut:       null,
+    guestCount:     2,
+    hasPet:         false,
+    currentMonth:   new Date(),
     selectingCheckOut: false,
-    quoteTimer: null,
+    quoteTimer:     null,
+    refreshTimer:   null,
+    loading:        true,
   };
 
-  const TIER_COLORS = {
-    LOW:      { bg: '#F7F7F2', text: '#1A1A1A', label: 'Baixa temporada' },
-    MID:      { bg: '#DCFCE7', text: '#166534', label: 'Feriado' },
-    HIGH_MID: { bg: '#FEF9C3', text: '#854D0E', label: 'Alta temporada' },
-    PEAK:     { bg: '#FEE2E2', text: '#991B1B', label: 'Temporada máxima' },
-  };
+  // Clamp currentMonth to [today, today+12months]
+  const TODAY = new Date();
+  TODAY.setHours(0, 0, 0, 0);
+  const MIN_MONTH = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+  const MAX_MONTH = new Date(TODAY.getFullYear(), TODAY.getMonth() + MAX_MONTHS_AHEAD, 1);
 
-  // ── Init ───────────────────────────────────────────────────────────────────
+  // ── Init ──────────────────────────────────────────────────────────────────
   async function init() {
     const container = document.getElementById('calendar-widget');
     if (!container) return;
 
+    state.currentMonth = new Date(MIN_MONTH);
     render(container);
+    await refresh();
+
+    // Auto-refresh every 5 minutes
+    state.refreshTimer = setInterval(refresh, REFRESH_INTERVAL);
+  }
+
+  async function refresh() {
     await Promise.all([loadAvailability(), loadPricing()]);
     renderCalendar();
+    renderLegend();
   }
 
   async function loadAvailability() {
     try {
-      const start = toISO(new Date());
-      const end   = toISO(addDays(new Date(), 365));
+      const start = toISO(TODAY);
+      const end   = toISO(new Date(TODAY.getFullYear(), TODAY.getMonth() + 13, 0));
       const res   = await fetch(`/api/bookings/availability?start=${start}&end=${end}`);
       if (!res.ok) return;
       const data  = await res.json();
       state.blockedDates = new Set(data.blockedDates || []);
-    } catch (e) { console.warn('Calendar: failed to load availability', e); }
+      state.loading = false;
+    } catch (e) {
+      console.warn('[Calendar] availability fetch failed', e);
+      state.loading = false;
+    }
   }
 
   async function loadPricing() {
     try {
-      const [calRes, tiersRes] = await Promise.all([
-        fetch('/api/pricing/calendar'),
-        fetch('/api/pricing/tiers'),
-      ]);
-      if (calRes.ok)   { const d = await calRes.json();   state.pricingPeriods = d.periods || []; }
-      if (tiersRes.ok) { const d = await tiersRes.json(); state.tiers = d; }
-    } catch (e) { console.warn('Calendar: failed to load pricing', e); }
+      const res = await fetch('/api/pricing/calendar');
+      if (!res.ok) return;
+      const data = await res.json();
+      state.pricingPeriods = data.periods || [];
+    } catch (e) {
+      console.warn('[Calendar] pricing fetch failed', e);
+    }
   }
 
-  // ── Rendering ──────────────────────────────────────────────────────────────
+  // ── Layout ────────────────────────────────────────────────────────────────
   function render(container) {
     container.innerHTML = `
-      <div class="grid lg:grid-cols-2 gap-8 items-start">
+      <div class="grid lg:grid-cols-[1fr_340px] gap-8 items-start">
 
-        <!-- Calendar panel -->
+        <!-- ── Calendar side ─────────────────────────────────────────── -->
         <div>
-          <!-- Month nav -->
-          <div class="flex items-center justify-between mb-4">
-            <button id="cal-prev" class="p-2 rounded-full hover:bg-stone/10 transition-colors text-forest" aria-label="Mês anterior">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+
+          <!-- Month navigation -->
+          <div class="flex items-center justify-between mb-5">
+            <button id="cal-prev" aria-label="Mês anterior"
+              class="w-9 h-9 flex items-center justify-center rounded-full border border-beige-dark hover:bg-beige text-forest transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/>
               </svg>
             </button>
-            <span id="cal-month-label" class="font-serif font-bold text-forest text-lg capitalize"></span>
-            <button id="cal-next" class="p-2 rounded-full hover:bg-stone/10 transition-colors text-forest" aria-label="Próximo mês">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+
+            <div class="text-center">
+              <div id="cal-month-label" class="font-serif font-bold text-forest text-lg capitalize"></div>
+              <div id="cal-demand-badge" class="hidden text-xs font-semibold mt-0.5"></div>
+            </div>
+
+            <button id="cal-next" aria-label="Próximo mês"
+              class="w-9 h-9 flex items-center justify-center rounded-full border border-beige-dark hover:bg-beige text-forest transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
               </svg>
             </button>
           </div>
 
           <!-- Day-of-week headers -->
-          <div class="grid grid-cols-7 mb-1">
+          <div class="grid grid-cols-7 mb-1.5">
             ${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(d =>
-              `<div class="text-center text-xs font-semibold text-stone pb-1">${d}</div>`
+              `<div class="text-center text-xs font-semibold text-stone/70 pb-2 tracking-wide">${d}</div>`
             ).join('')}
           </div>
 
           <!-- Calendar grid -->
-          <div id="cal-grid" class="grid grid-cols-7 gap-0.5"></div>
+          <div id="cal-grid" class="grid grid-cols-7 gap-1"></div>
 
-          <!-- Pricing legend -->
-          <div class="flex flex-wrap gap-2 mt-4" id="cal-legend">
-            ${Object.entries(TIER_COLORS).map(([tier, c]) =>
-              `<span class="text-xs px-2.5 py-1 rounded-full font-medium" style="background:${c.bg};color:${c.text}">${c.label}</span>`
-            ).join('')}
-            <span class="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-200 text-gray-500">Indisponível</span>
+          <!-- Sync status -->
+          <div class="flex items-center gap-1.5 mt-3">
+            <span id="cal-sync-dot" class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+            <span id="cal-sync-label" class="text-xs text-stone/60">Sincronizado com Airbnb e Booking.com</span>
           </div>
+
+          <!-- Legend -->
+          <div id="cal-legend" class="flex flex-wrap gap-2 mt-4"></div>
         </div>
 
-        <!-- Summary / options panel -->
-        <div class="space-y-5">
+        <!-- ── Options + summary side ────────────────────────────────── -->
+        <div class="space-y-4">
 
-          <!-- Selected dates display -->
+          <!-- Selected dates -->
           <div class="bg-beige rounded-2xl p-5 border border-beige-dark">
-            <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="grid grid-cols-2 gap-4 mb-3">
               <div>
                 <div class="text-xs font-semibold text-stone uppercase tracking-wider mb-1">Check-in</div>
-                <div id="disp-checkin" class="text-forest font-semibold text-sm">—</div>
+                <div id="disp-checkin" class="text-forest font-bold text-sm">—</div>
               </div>
               <div>
                 <div class="text-xs font-semibold text-stone uppercase tracking-wider mb-1">Check-out</div>
-                <div id="disp-checkout" class="text-forest font-semibold text-sm">—</div>
+                <div id="disp-checkout" class="text-forest font-bold text-sm">—</div>
               </div>
             </div>
-            <p id="cal-hint" class="text-xs text-stone italic">Selecione a data de check-in no calendário</p>
+            <p id="cal-hint" class="text-xs text-stone/70 italic">Selecione a data de check-in no calendário</p>
           </div>
 
-          <!-- Guest count -->
+          <!-- Guests -->
           <div class="bg-white rounded-2xl p-5 border border-beige-dark">
-            <label class="block text-sm font-semibold text-forest mb-3">Hóspedes</label>
-            <div class="flex items-center gap-4">
-              <button id="guests-minus" class="w-9 h-9 rounded-full border-2 border-gold flex items-center justify-center text-forest font-bold hover:bg-gold hover:text-white transition-colors text-lg leading-none">−</button>
-              <span id="guests-count" class="text-xl font-bold text-forest w-8 text-center">1</span>
-              <button id="guests-plus"  class="w-9 h-9 rounded-full border-2 border-gold flex items-center justify-center text-forest font-bold hover:bg-gold hover:text-white transition-colors text-lg leading-none">+</button>
-              <span class="text-xs text-stone ml-1">máx. 20</span>
+            <div class="flex items-center justify-between mb-3">
+              <label class="text-sm font-semibold text-forest">Hóspedes</label>
+              <span id="guest-extra-note" class="text-xs text-amber-700 hidden">+R$50/pessoa/noite</span>
             </div>
-            <p class="text-xs text-stone mt-2">Base: até 11 hóspedes · Adicional: R$50/pessoa/noite</p>
+            <div class="flex items-center gap-4">
+              <button id="guests-minus"
+                class="w-9 h-9 rounded-full border-2 border-gold flex items-center justify-center text-forest font-bold hover:bg-gold hover:text-white transition-colors text-lg leading-none">−</button>
+              <span id="guests-count" class="text-xl font-bold text-forest w-8 text-center">2</span>
+              <button id="guests-plus"
+                class="w-9 h-9 rounded-full border-2 border-gold flex items-center justify-center text-forest font-bold hover:bg-gold hover:text-white transition-colors text-lg leading-none">+</button>
+              <span class="text-xs text-stone ml-1">máx. 20 pessoas</span>
+            </div>
+            <p class="text-xs text-stone/60 mt-2">Preço base inclui até 11 hóspedes</p>
           </div>
 
-          <!-- Pet toggle -->
-          <div class="bg-white rounded-2xl p-5 border border-beige-dark flex items-center justify-between">
+          <!-- Pet -->
+          <div class="bg-white rounded-2xl p-4 border border-beige-dark flex items-center justify-between">
             <div>
-              <div class="text-sm font-semibold text-forest">Pet</div>
-              <div class="text-xs text-stone">Taxa única de R$50</div>
+              <div class="text-sm font-semibold text-forest">🐾 Pet</div>
+              <div class="text-xs text-stone/70 mt-0.5">Taxa única de R$50 por reserva</div>
             </div>
             <button id="pet-toggle" role="switch" aria-checked="false"
-              class="relative w-12 h-6 rounded-full bg-stone/30 transition-colors duration-200 focus:outline-none">
+              class="relative w-12 h-6 rounded-full bg-stone/25 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-1">
               <span class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200"></span>
             </button>
           </div>
 
           <!-- Price breakdown -->
-          <div id="price-panel" class="bg-forest rounded-2xl p-5 text-white hidden">
-            <div id="price-loading" class="text-center text-white/60 text-sm py-2 hidden">Calculando…</div>
-            <div id="price-breakdown"></div>
+          <div id="price-panel" class="rounded-2xl overflow-hidden hidden">
+            <div id="price-loading" class="bg-forest/90 p-5 text-center text-white/60 text-sm hidden">
+              Calculando preço…
+            </div>
+            <div id="price-breakdown" class="bg-forest text-white p-5"></div>
           </div>
 
           <!-- CTA -->
-          <button id="cal-cta"
-            class="w-full bg-gold hover:bg-gold-dark text-white font-bold py-4 rounded-2xl transition-all text-base shadow-lg hover:shadow-xl disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gold"
-            disabled>
+          <button id="cal-cta" disabled
+            class="w-full bg-gold hover:bg-gold-dark text-white font-bold py-4 rounded-2xl transition-all text-base shadow-lg hover:shadow-xl disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gold">
             Verificar disponibilidade
           </button>
 
-          <p class="text-xs text-stone text-center">
-            Ou reserve diretamente pelo
-            <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
-               class="text-forest font-semibold underline underline-offset-2 hover:text-gold transition-colors">Airbnb</a>
+          <p class="text-xs text-stone/60 text-center leading-relaxed">
+            Reserve com segurança — pagamento por cartão de crédito<br>
+            ou pelo <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+              class="text-forest font-semibold underline underline-offset-2 hover:text-gold transition-colors">Airbnb</a>
           </p>
         </div>
       </div>
     `;
 
-    // Event listeners
-    document.getElementById('cal-prev').addEventListener('click', () => {
-      state.currentMonth = addMonths(state.currentMonth, -1);
-      renderCalendar();
-    });
-    document.getElementById('cal-next').addEventListener('click', () => {
-      state.currentMonth = addMonths(state.currentMonth, 1);
-      renderCalendar();
-    });
+    // ── Event listeners ──────────────────────────────────────────────────────
+    document.getElementById('cal-prev').addEventListener('click', prevMonth);
+    document.getElementById('cal-next').addEventListener('click', nextMonth);
 
     document.getElementById('guests-minus').addEventListener('click', () => {
       if (state.guestCount > 1) { state.guestCount--; updateGuestDisplay(); scheduleQuote(); }
     });
     document.getElementById('guests-plus').addEventListener('click', () => {
-      if (state.guestCount < 20) { state.guestCount++; updateGuestDisplay(); scheduleQuote(); }
+      if (state.guestCount < MAX_GUESTS) { state.guestCount++; updateGuestDisplay(); scheduleQuote(); }
     });
 
     const petBtn = document.getElementById('pet-toggle');
@@ -201,112 +279,212 @@
     });
   }
 
+  // ── Month navigation ──────────────────────────────────────────────────────
+  function prevMonth() {
+    const prev = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() - 1, 1);
+    if (prev < MIN_MONTH) return;
+    state.currentMonth = prev;
+    renderCalendar();
+  }
+
+  function nextMonth() {
+    const next = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + 1, 1);
+    if (next > MAX_MONTH) return;
+    state.currentMonth = next;
+    renderCalendar();
+  }
+
+  // ── Calendar render ───────────────────────────────────────────────────────
   function renderCalendar() {
     const grid  = document.getElementById('cal-grid');
     const label = document.getElementById('cal-month-label');
+    const prevBtn = document.getElementById('cal-prev');
+    const nextBtn = document.getElementById('cal-next');
     if (!grid || !label) return;
 
     const year  = state.currentMonth.getFullYear();
     const month = state.currentMonth.getMonth();
 
-    label.textContent = new Date(year, month, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    // Month label
+    label.textContent = new Date(year, month, 1)
+      .toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
-    const firstDay = new Date(year, month, 1).getDay(); // 0 = Sunday
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const today = new Date(); today.setHours(0,0,0,0);
+    // Disable nav buttons at boundaries
+    const thisMonth = new Date(year, month, 1);
+    prevBtn.disabled = thisMonth <= MIN_MONTH;
+    nextBtn.disabled = new Date(year, month + 1, 1) > MAX_MONTH;
+    prevBtn.style.opacity = prevBtn.disabled ? '0.3' : '1';
+    nextBtn.style.opacity = nextBtn.disabled ? '0.3' : '1';
 
+    // Count available days for demand indicator
+    const daysInMonth     = new Date(year, month + 1, 0).getDate();
+    const firstDay        = new Date(year, month, 1).getDay();
+    let availableCount    = 0;
+    let totalFutureDays   = 0;
+
+    // Build cells
     let html = '';
-
-    // Empty cells before first day
-    for (let i = 0; i < firstDay; i++) {
-      html += '<div></div>';
-    }
+    for (let i = 0; i < firstDay; i++) html += '<div></div>';
 
     for (let d = 1; d <= daysInMonth; d++) {
       const date    = new Date(year, month, d);
       const dateStr = toISO(date);
-      const isPast  = date < today;
+      const isPast  = date < TODAY;
       const isBlocked = state.blockedDates.has(dateStr) || isPast;
-      const tier    = !isBlocked ? getTierForDate(dateStr) : null;
+      const tier    = getTierForDate(dateStr);
+      const priceDisplay = tier ? PRICE_DISPLAY[tier] : PRICE_DISPLAY.LOW;
+
+      if (!isPast) {
+        totalFutureDays++;
+        if (!isBlocked) availableCount++;
+      }
+
       const isCheckIn  = state.checkIn  && toISO(state.checkIn)  === dateStr;
       const isCheckOut = state.checkOut && toISO(state.checkOut) === dateStr;
       const isInRange  = state.checkIn && state.checkOut &&
                          date > state.checkIn && date < state.checkOut;
+      const isToday    = toISO(date) === toISO(TODAY);
 
-      let bg    = '#F7F7F2';
-      let color = '#1A1A1A';
-
-      if (isBlocked) { bg = '#E5E7EB'; color = '#9CA3AF'; }
-      else if (tier && TIER_COLORS[tier]) { bg = TIER_COLORS[tier].bg; color = TIER_COLORS[tier].text; }
-
-      let classes = 'relative flex items-center justify-center rounded-lg text-sm font-medium transition-all select-none ';
-      let style   = `background:${bg};color:${color};height:36px;`;
-      let attrs   = '';
-
-      if (isBlocked) {
-        classes += 'cursor-not-allowed line-through opacity-60';
-      } else {
-        classes += 'cursor-pointer hover:ring-2 hover:ring-forest';
-        attrs    = `data-date="${dateStr}"`;
-      }
-
-      if (isCheckIn || isCheckOut) {
-        style += 'background:#261C15;color:#ffffff;font-weight:700;';
-      } else if (isInRange) {
-        style += 'background:#C5D86D33;';
-      }
-
-      html += `<div class="${classes}" style="${style}" ${attrs}>${d}</div>`;
+      html += buildDayCell({ d, dateStr, isBlocked, isPast, tier, priceDisplay,
+                              isCheckIn, isCheckOut, isInRange, isToday });
     }
 
     grid.innerHTML = html;
 
-    // Click handlers for date cells
+    // Demand badge
+    showDemandBadge(availableCount, totalFutureDays, month === TODAY.getMonth() && year === TODAY.getFullYear());
+
+    // Click handlers
     grid.querySelectorAll('[data-date]').forEach(cell => {
       cell.addEventListener('click', () => handleDateClick(cell.dataset.date));
     });
   }
 
+  function buildDayCell({ d, dateStr, isBlocked, isPast, tier, priceDisplay,
+                           isCheckIn, isCheckOut, isInRange, isToday }) {
+    if (isBlocked) {
+      const pastStyle = isPast
+        ? 'background:#F3F4F6;color:#D1D5DB;'
+        : 'background:#F3F4F6;color:#9CA3AF;';
+      return `
+        <div class="relative flex flex-col items-center justify-center rounded-lg text-xs select-none cursor-not-allowed"
+             style="${pastStyle}height:52px;">
+          <span class="${isPast ? 'line-through text-gray-400' : 'text-gray-400'} font-medium text-sm leading-tight">${d}</span>
+          ${!isPast ? '<span class="text-gray-300 text-[9px] leading-tight mt-0.5">ocupado</span>' : ''}
+        </div>`;
+    }
+
+    const t = TIER[tier] || TIER.LOW;
+
+    let bgStyle   = `background:${t.bg};color:${t.text};border:1px solid ${t.border};`;
+    let extraClass = '';
+
+    if (isCheckIn || isCheckOut) {
+      bgStyle   = 'background:#261C15;color:#ffffff;border:1px solid #261C15;';
+      extraClass = 'ring-2 ring-forest ring-offset-1';
+    } else if (isInRange) {
+      bgStyle = `background:#C5D86D22;color:${t.text};border:1px solid #C5D86D55;`;
+    }
+
+    const todayDot = isToday
+      ? '<span class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-gold"></span>'
+      : '';
+
+    return `
+      <div class="relative flex flex-col items-center justify-center rounded-lg text-xs cursor-pointer
+                  hover:ring-2 hover:ring-forest hover:ring-offset-1 transition-all select-none ${extraClass}"
+           style="${bgStyle}height:52px;"
+           data-date="${dateStr}"
+           title="${t.label} · ${priceDisplay}/noite">
+        <span class="font-semibold text-sm leading-tight">${d}</span>
+        <span class="text-[9px] leading-tight mt-0.5 opacity-75">${priceDisplay}</span>
+        ${todayDot}
+      </div>`;
+  }
+
+  function showDemandBadge(available, total, isCurrentMonth) {
+    const badge = document.getElementById('cal-demand-badge');
+    if (!badge || total === 0) { badge && badge.classList.add('hidden'); return; }
+
+    const pct = available / total;
+    if (pct < 0.30) {
+      badge.textContent = '🔥 Alta demanda — poucas datas disponíveis';
+      badge.className   = 'text-xs font-semibold mt-0.5 text-rose-600';
+      badge.classList.remove('hidden');
+    } else if (pct < 0.55) {
+      badge.textContent = '⚡ Demanda moderada';
+      badge.className   = 'text-xs font-semibold mt-0.5 text-amber-600';
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  }
+
+  // ── Legend ────────────────────────────────────────────────────────────────
+  function renderLegend() {
+    const el = document.getElementById('cal-legend');
+    if (!el) return;
+
+    // Only show tiers that are actually in the next 12 months
+    const activeTiers = new Set(state.pricingPeriods.map(p => p.tier));
+    // Always show at least LOW
+    activeTiers.add('LOW');
+
+    const order = ['LOW', 'MID', 'HIGH_MID', 'PEAK'];
+    el.innerHTML = order
+      .filter(t => activeTiers.has(t))
+      .map(t => {
+        const c = TIER[t];
+        return `<span class="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium"
+                      style="background:${c.badge};color:${c.badgeText}">
+                  <span class="w-2 h-2 rounded-full inline-block" style="background:${c.dot}"></span>
+                  ${c.label} · ${PRICE_DISPLAY[t]}/noite
+                </span>`;
+      }).join('') +
+      `<span class="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500">
+         <span class="w-2 h-2 rounded-full inline-block bg-gray-300"></span>
+         Indisponível
+       </span>`;
+  }
+
+  // ── Date click logic ──────────────────────────────────────────────────────
   function handleDateClick(dateStr) {
     const date = new Date(dateStr + 'T12:00:00');
 
     if (!state.selectingCheckOut) {
-      // First click = check-in
-      state.checkIn  = date;
-      state.checkOut = null;
+      state.checkIn           = date;
+      state.checkOut          = null;
       state.selectingCheckOut = true;
-      document.getElementById('cal-hint').textContent = 'Agora selecione o check-out';
+      setHint('Agora selecione a data de check-out');
       document.getElementById('disp-checkin').textContent  = formatDate(date);
       document.getElementById('disp-checkout').textContent = '—';
       document.getElementById('cal-cta').disabled = true;
-      document.getElementById('cal-cta').textContent = 'Verificar disponibilidade';
+      document.getElementById('cal-cta').textContent = 'Selecione o check-out';
       hidePrice();
     } else {
-      // Second click = check-out
       if (date <= state.checkIn) {
-        // Reset — clicked before check-in
+        // Restart from new check-in
         state.checkIn  = date;
         state.checkOut = null;
         document.getElementById('disp-checkin').textContent  = formatDate(date);
         document.getElementById('disp-checkout').textContent = '—';
+        setHint('Agora selecione a data de check-out');
         hidePrice();
         renderCalendar();
         return;
       }
 
-      // Check no blocked dates in range
-      const hasBlock = hasBlockedInRange(state.checkIn, date);
-      if (hasBlock) {
-        document.getElementById('cal-hint').textContent = 'Há datas indisponíveis no período. Escolha outras datas.';
-        state.checkOut = null;
+      if (hasBlockedInRange(state.checkIn, date)) {
+        setHint('Há datas indisponíveis neste período. Escolha outras datas.');
+        state.checkOut          = null;
         state.selectingCheckOut = false;
         renderCalendar();
         return;
       }
 
-      state.checkOut = date;
+      state.checkOut          = date;
       state.selectingCheckOut = false;
-      document.getElementById('cal-hint').textContent = '';
+      setHint('');
       document.getElementById('disp-checkout').textContent = formatDate(date);
       document.getElementById('cal-cta').disabled = false;
       document.getElementById('cal-cta').textContent = 'Reservar agora →';
@@ -326,10 +504,16 @@
     return false;
   }
 
+  function setHint(text) {
+    const el = document.getElementById('cal-hint');
+    if (el) el.textContent = text;
+  }
+
+  // ── Quote ─────────────────────────────────────────────────────────────────
   function scheduleQuote() {
     if (!state.checkIn || !state.checkOut) return;
     clearTimeout(state.quoteTimer);
-    state.quoteTimer = setTimeout(fetchQuote, 400);
+    state.quoteTimer = setTimeout(fetchQuote, 350);
   }
 
   async function fetchQuote() {
@@ -337,9 +521,10 @@
 
     const panel   = document.getElementById('price-panel');
     const loading = document.getElementById('price-loading');
+    const breakdown = document.getElementById('price-breakdown');
     panel.classList.remove('hidden');
     loading.classList.remove('hidden');
-    document.getElementById('price-breakdown').innerHTML = '';
+    breakdown.innerHTML = '';
 
     try {
       const params = new URLSearchParams({
@@ -350,77 +535,75 @@
       });
       const res  = await fetch(`/api/bookings/quote?${params.toString()}`);
       const data = await res.json();
+      loading.classList.add('hidden');
 
       if (!res.ok) {
-        document.getElementById('price-breakdown').innerHTML =
-          `<p class="text-red-300 text-sm">${data.error || 'Erro ao calcular'}</p>`;
-        loading.classList.add('hidden');
+        breakdown.innerHTML = `<p class="text-red-300 text-sm">${data.error || 'Erro ao calcular'}</p>`;
         return;
       }
-
-      loading.classList.add('hidden');
       renderPriceBreakdown(data);
     } catch (e) {
       loading.classList.add('hidden');
-      document.getElementById('price-breakdown').innerHTML =
-        '<p class="text-red-300 text-sm">Erro ao calcular preço</p>';
+      breakdown.innerHTML = '<p class="text-red-300 text-sm">Erro ao calcular preço</p>';
     }
   }
 
   function renderPriceBreakdown(q) {
+    const tierInfo = TIER[q.tier] || TIER.LOW;
     const rows = [
-      [`${q.nights} noite${q.nights > 1 ? 's' : ''} × ${q.formatted.baseRatePerNight}`,
-       q.formatted.baseSubtotal],
+      [`${q.nights} noite${q.nights > 1 ? 's' : ''} × ${q.formatted.baseRatePerNight}`, q.formatted.baseSubtotal],
     ];
-
     if (q.extraGuests > 0) {
-      rows.push([
-        `${q.extraGuests} hóspede${q.extraGuests > 1 ? 's' : ''} extra × R$50 × ${q.nights}n`,
-        q.formatted.extraGuestFee,
-      ]);
+      rows.push([`${q.extraGuests} hóspede${q.extraGuests > 1 ? 's' : ''} extra × R$50 × ${q.nights}n`, q.formatted.extraGuestFee]);
     }
-
     if (q.hasPet) {
-      rows.push(['Pet (taxa única)', q.formatted.petFee]);
+      rows.push(['🐾 Pet (taxa única)', q.formatted.petFee]);
     }
 
-    const html = `
+    document.getElementById('price-breakdown').innerHTML = `
       <div class="space-y-2 text-sm">
-        <div class="text-xs text-white/60 uppercase tracking-wider mb-3 font-semibold">${q.seasonName}</div>
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-xs font-bold uppercase tracking-wider text-white/50">Temporada</span>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
+                style="background:${tierInfo.dot}22;color:${tierInfo.dot}">
+            ${tierInfo.label}
+          </span>
+        </div>
         ${rows.map(([label, val]) => `
           <div class="flex justify-between gap-2">
-            <span class="text-white/75">${label}</span>
-            <span class="font-semibold">${val}</span>
+            <span class="text-white/70">${label}</span>
+            <span class="font-semibold tabular-nums">${val}</span>
+          </div>`).join('')}
+        <div class="border-t border-white/15 mt-3 pt-3 flex justify-between items-end">
+          <div>
+            <div class="font-bold text-base">Total</div>
+            <div class="text-white/50 text-xs">Pagamento seguro por cartão</div>
           </div>
-        `).join('')}
-        <div class="border-t border-white/20 mt-3 pt-3 flex justify-between">
-          <span class="font-bold">Total</span>
-          <span class="font-bold text-gold text-lg">${q.formatted.totalAmount}</span>
+          <span class="font-bold text-2xl" style="color:#C5D86D">${q.formatted.totalAmount}</span>
         </div>
-      </div>
-    `;
-
-    document.getElementById('price-breakdown').innerHTML = html;
+      </div>`;
   }
 
   function hidePrice() {
     document.getElementById('price-panel')?.classList.add('hidden');
   }
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
   function updateGuestDisplay() {
     document.getElementById('guests-count').textContent = String(state.guestCount);
+    const note = document.getElementById('guest-extra-note');
+    if (note) {
+      note.classList.toggle('hidden', state.guestCount <= BASE_LIMIT);
+    }
   }
 
   function getTierForDate(dateStr) {
-    for (const period of state.pricingPeriods) {
-      if (dateStr >= period.startDate && dateStr <= period.endDate) {
-        return period.tier;
-      }
+    for (const p of state.pricingPeriods) {
+      if (dateStr >= p.startDate && dateStr <= p.endDate) return p.tier;
     }
     return 'LOW';
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
   function toISO(date) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -428,23 +611,11 @@
     return `${y}-${m}-${d}`;
   }
 
-  function addDays(date, n) {
-    const d = new Date(date);
-    d.setDate(d.getDate() + n);
-    return d;
-  }
-
-  function addMonths(date, n) {
-    const d = new Date(date);
-    d.setMonth(d.getMonth() + n);
-    return d;
-  }
-
   function formatDate(date) {
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
-  // ── Boot ───────────────────────────────────────────────────────────────────
+  // ── Boot ──────────────────────────────────────────────────────────────────
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
