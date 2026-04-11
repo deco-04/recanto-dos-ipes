@@ -265,8 +265,12 @@ app.use(express.static(ROOT, {
 }));
 
 // ── Named page routes (clean URLs without .html) ─────────────────────────────
-app.get('/galeria', (_req, res) => res.sendFile(path.join(ROOT, 'galeria.html')));
-app.get('/faq',     (_req, res) => res.sendFile(path.join(ROOT, 'faq.html')));
+app.get('/galeria',   (_req, res) => res.sendFile(path.join(ROOT, 'galeria.html')));
+app.get('/faq',       (_req, res) => res.sendFile(path.join(ROOT, 'faq.html')));
+// Public app pages (in /public/ — not at ROOT, so need explicit routes)
+app.get('/booking',   (_req, res) => res.sendFile(path.join(ROOT, 'public', 'booking.html')));
+app.get('/login',     (_req, res) => res.sendFile(path.join(ROOT, 'public', 'login.html')));
+app.get('/dashboard', (_req, res) => res.sendFile(path.join(ROOT, 'public', 'dashboard.html')));
 
 // ── Fallback → index.html (SPA-safe, but not for /api routes) ────────────────
 app.use((req, res, next) => {
