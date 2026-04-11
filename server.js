@@ -157,8 +157,7 @@ app.use('/images', express.static(path.join(ROOT, 'images'), {
 // ── Staff upload storage (replaces Cloudinary) ────────────────────────────────
 const { UPLOAD_DIR } = require('./routes/uploads');
 app.use('/uploads', express.static(UPLOAD_DIR, {
-  maxAge: '365d',
-  immutable: true,
+  maxAge: '60d',
   etag: true,
   setHeaders(res) {
     res.setHeader('Access-Control-Allow-Origin', process.env.STAFF_APP_ORIGIN || '*');
