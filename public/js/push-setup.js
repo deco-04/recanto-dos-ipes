@@ -36,17 +36,26 @@ async function setupPushNotifications(apiBase) {
     return;
   }
 
-  subscription = await registration.pushManager.subscribe({
-    userVisibleOnly:      true,
-    applicationServerKey: _urlBase64ToUint8Array(publicKey),
-  });
+  try {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly:      true,
+      applicationServerKey: _urlBase64ToUint8Array(publicKey),
+    });
+  } catch (err) {
+    console.warn('[push] Subscribe failed:', err.message || err);
+    return;
+  }
 
-  await fetch(`${apiBase}/api/staff/push/subscribe`, {
+  const subRes = await fetch(`${apiBase}/api/staff/push/subscribe`, {
     method:      'POST',
     headers:     { 'Content-Type': 'application/json' },
     credentials: 'include',
     body:        JSON.stringify({ subscription }),
   });
+  if (!subRes.ok) {
+    console.warn('[push] Failed to save subscription:', subRes.status);
+    return;
+  }
 
   console.log('[push] Subscribed successfully');
 }
