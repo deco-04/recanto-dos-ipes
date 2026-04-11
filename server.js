@@ -11,6 +11,22 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 
+// ── Startup env validation — crash fast in production ─────────────────────────
+if (process.env.NODE_ENV === 'production') {
+  const REQUIRED_ENV = [
+    'DATABASE_URL',
+    'SESSION_SECRET',
+    'STRIPE_SECRET_KEY',
+    'STRIPE_PUBLISHABLE_KEY',
+    'ADMIN_SECRET',
+  ];
+  const missing = REQUIRED_ENV.filter(k => !process.env[k]);
+  if (missing.length > 0) {
+    console.error(`[startup] FATAL: Missing required env vars: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+}
+
 // ── Gzip / Brotli ─────────────────────────────────────────────────────────────
 app.use(compression({ level: 6 }));
 
@@ -21,6 +37,7 @@ app.use((_req, res, next) => {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
   // HSTS — only over HTTPS in production
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
@@ -124,9 +141,7 @@ const sessionStore = process.env.DATABASE_URL
     })
   : new session.MemoryStore();
 
-if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
-  console.error('[session] FATAL: SESSION_SECRET is not set in production. Sessions are insecure.');
-}
+// SESSION_SECRET is validated above (process.exit(1) if missing in production)
 
 app.use(session({
   store:             sessionStore,
@@ -160,7 +175,13 @@ app.use('/uploads', express.static(UPLOAD_DIR, {
   maxAge: '60d',
   etag: true,
   setHeaders(res) {
-    res.setHeader('Access-Control-Allow-Origin', process.env.STAFF_APP_ORIGIN || '*');
+    const origin = process.env.STAFF_APP_ORIGIN;
+    // In production, only expose uploads to the staff app origin (never '*')
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    } else if (process.env.NODE_ENV !== 'production') {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    }
   },
 }));
 
@@ -245,11 +266,21 @@ app.use((req, res, next) => {
 });
 
 // ── Global error handler ──────────────────────────────────────────────────────
+// Logs full error server-side; never exposes internal details to the client.
 app.use((err, req, res, _next) => {
-  console.error('[server] Unhandled error:', err);
   const status = err.status || 500;
+  // Log with stack in dev, message-only in prod to avoid leaking file paths
+  if (process.env.NODE_ENV === 'production') {
+    console.error(`[server] Error ${status} on ${req.method} ${req.path}:`, err.message);
+  } else {
+    console.error('[server] Unhandled error:', err);
+  }
   if (req.path.startsWith('/api/')) {
-    return res.status(status).json({ error: err.message || 'Erro interno do servidor' });
+    // In production, return a generic message — never expose err.message or stack
+    const clientMsg = process.env.NODE_ENV === 'production'
+      ? 'Erro interno do servidor'
+      : (err.message || 'Erro interno do servidor');
+    return res.status(status).json({ error: clientMsg });
   }
   res.status(status).sendFile(path.join(ROOT, 'index.html'));
 });

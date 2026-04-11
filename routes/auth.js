@@ -10,11 +10,12 @@ const { sendOtpEmail } = require('../lib/mailer');
 
 const router = express.Router();
 
-// ── In-memory rate limiting (3 OTPs per email per hour) ──────────────────────
+// ── In-memory rate limiting ───────────────────────────────────────────────────
+// send-code: max 3 OTPs per email per hour (prevents OTP spam)
 const otpRateLimit = new Map(); // email → { count, resetAt }
 
 function checkOtpRateLimit(email) {
-  const now  = Date.now();
+  const now   = Date.now();
   const entry = otpRateLimit.get(email);
 
   if (!entry || entry.resetAt < now) {
@@ -26,6 +27,30 @@ function checkOtpRateLimit(email) {
 
   entry.count++;
   return true;
+}
+
+// verify-code: max 5 failed attempts per email → 15-min lockout (prevents OTP brute-force)
+const verifyFailures = new Map(); // email → { failures, lockedUntil }
+
+function isVerifyLocked(email) {
+  const entry = verifyFailures.get(email);
+  if (!entry) return false;
+  return entry.lockedUntil > Date.now();
+}
+
+function recordVerifyFailure(email) {
+  const now   = Date.now();
+  const entry = verifyFailures.get(email) || { failures: 0, lockedUntil: 0 };
+  entry.failures += 1;
+  if (entry.failures >= 5) {
+    entry.lockedUntil = now + 15 * 60 * 1000; // 15-min lockout
+    entry.failures    = 0;                     // reset counter after lockout
+  }
+  verifyFailures.set(email, entry);
+}
+
+function clearVerifyFailures(email) {
+  verifyFailures.delete(email);
 }
 
 // ── Google OAuth strategy (only when credentials are configured) ───────────────
@@ -112,6 +137,11 @@ router.post('/verify-code', async (req, res) => {
       purpose: z.enum(['LOGIN', 'LINK_BOOKING']).optional().default('LOGIN'),
     }).parse(req.body);
 
+    // Brute-force guard: 5 failed attempts → 15-min lockout
+    if (isVerifyLocked(email)) {
+      return res.status(429).json({ error: 'Muitas tentativas incorretas. Aguarde 15 minutos e solicite um novo código.' });
+    }
+
     const record = await prisma.verificationCode.findFirst({
       where: {
         email,
@@ -124,8 +154,12 @@ router.post('/verify-code', async (req, res) => {
     });
 
     if (!record) {
+      recordVerifyFailure(email);
       return res.status(401).json({ error: 'Código inválido ou expirado.' });
     }
+
+    // Successful verification — clear failure counter
+    clearVerifyFailures(email);
 
     // Mark used
     await prisma.verificationCode.update({
