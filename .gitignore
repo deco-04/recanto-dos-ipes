@@ -7,6 +7,14 @@ node_modules/
 *.log
 package-lock.json
 
+# Environment secrets (never commit these)
+.env
+.env.local
+.env.production
+
+# Prisma migrations (commit these for production deploys)
+# prisma/migrations/
+
 # OS
 .DS_Store
 Thumbs.db

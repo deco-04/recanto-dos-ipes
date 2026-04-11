@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Galeria de Fotos — Sítio Recanto dos Ipês | Jaboticatubas, MG</title>
+  <meta name="description" content="Veja as fotos do Sítio Recanto dos Ipês em Jaboticatubas, MG — piscina aquecida solar, sauna Sodramar, quartos, cozinha completa, área de jogos e campo esportivo. A 30 min da Serra do Cipó.">
+
+  <!-- Canonical -->
+  <link rel="canonical" href="https://recanto-dos-ipes-production.up.railway.app/galeria">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://recanto-dos-ipes-production.up.railway.app/galeria">
+  <meta property="og:title" content="Galeria de Fotos — Sítio Recanto dos Ipês | Jaboticatubas, MG">
+  <meta property="og:description" content="Piscina aquecida solar, sauna, quartos confortáveis, cozinha completa, área de jogos e campo esportivo. Até 20 hóspedes em Jaboticatubas, MG.">
+  <meta property="og:image" content="https://recanto-dos-ipes-production.up.railway.app/images/hero.jpg">
+  <meta property="og:locale" content="pt_BR">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- AOS -->
+  <link href="https://unpkg.com/aos@2.3.4/dist/aos.css" rel="stylesheet">
+  <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+
+  <!-- Schema.org ImageGallery JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ImageGallery",
+    "name": "Galeria de Fotos — Sítio Recanto dos Ipês",
+    "description": "Fotos do Sítio Recanto dos Ipês em Jaboticatubas, MG. Piscina aquecida solar, sauna Sodramar, quartos, cozinha completa, área de jogos e campo esportivo.",
+    "url": "https://recanto-dos-ipes-production.up.railway.app/galeria",
+    "image": [
+      {
+        "@type": "ImageObject",
+        "contentUrl": "https://recanto-dos-ipes-production.up.railway.app/images/hero.jpg",
+        "name": "Fachada principal do Sítio Recanto dos Ipês",
+        "description": "Vista externa principal do sítio em Jaboticatubas, MG"
+      },
+      {
+        "@type": "ImageObject",
+        "contentUrl": "https://recanto-dos-ipes-production.up.railway.app/images/sobre.jpg",
+        "name": "Área de convivência interna",
+        "description": "Sala de estar e área comum interna do sítio"
+      },
+      {
+        "@type": "ImageObject",
+        "contentUrl": "https://recanto-dos-ipes-production.up.railway.app/images/room-1.jpg",
+        "name": "Quarto 1 — cama queen",
+        "description": "Quarto 1 com cama de casal queen size"
+      },
+      {
+        "@type": "ImageObject",
+        "contentUrl": "https://recanto-dos-ipes-production.up.railway.app/images/room-2.jpg",
+        "name": "Quarto 2 — cama queen + solteiro",
+        "description": "Quarto 2 com cama queen e cama de solteiro"
+      },
+      {
+        "@type": "ImageObject",
+        "contentUrl": "https://recanto-dos-ipes-production.up.railway.app/images/pool.jpg",
+        "name": "Piscina aquecida solar — Sistema Panozon Blue Star",
+        "description": "Piscina aquecida por energia solar com sistema de tratamento Panozon Blue Star"
+      },
+      {
+        "@type": "ImageObject",
+        "contentUrl": "https://recanto-dos-ipes-production.up.railway.app/images/sauna.jpg",
+        "name": "Sauna Sodramar",
+        "description": "Sauna seca da marca Sodramar"
+      },
+      {
+        "@type": "ImageObject",
+        "contentUrl": "https://recanto-dos-ipes-production.up.railway.app/images/kitchen.jpg",
+        "name": "Cozinha completa com fogão a lenha e churrasqueira",
+        "description": "Cozinha equipada com fogão a lenha, airfryer e churrasqueira"
+      },
+      {
+        "@type": "ImageObject",
+        "contentUrl": "https://recanto-dos-ipes-production.up.railway.app/images/games.jpg",
+        "name": "Área de jogos — sinuca e totó",
+        "description": "Sala de jogos com mesa de sinuca e totó"
+      },
+      {
+        "@type": "ImageObject",
+        "contentUrl": "https://recanto-dos-ipes-production.up.railway.app/images/sports.jpg",
+        "name": "Campo de futebol e quadra de vôlei",
+        "description": "Área esportiva com campo de futebol e quadra de vôlei"
+      }
+    ],
+    "author": {
+      "@type": "LocalBusiness",
+      "name": "Sítio Recanto dos Ipês",
+      "url": "https://recanto-dos-ipes-production.up.railway.app",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Jaboticatubas",
+        "addressRegion": "MG",
+        "addressCountry": "BR"
+      }
+    }
+  }
+  </script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            forest:    { DEFAULT: '#261C15', light: '#3D2B1F', dark: '#150F0A' },
+            gold:      { DEFAULT: '#C5D86D', light: '#D4E48A', dark: '#9BAB52' },
+            beige:     { DEFAULT: '#F7F7F2', dark: '#E4E6C3' },
+            stone:     { DEFAULT: '#6B6B6B', light: '#9A9A9A' },
+            terracota: { DEFAULT: '#F05D23' },
+          },
+          fontFamily: {
+            serif: ['Merriweather', 'Georgia', 'serif'],
+            sans:  ['Lato', 'system-ui', 'sans-serif'],
+          },
+          aspectRatio: {
+            '4/3': '4 / 3',
+          },
+        }
+      }
+    }
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Lato', sans-serif; color: #1A1A1A; background: #F7F7F2; }
+    .font-serif { font-family: 'Merriweather', serif; }
+
+    /* Navbar scroll effect */
+    #navbar { transition: background 0.3s, box-shadow 0.3s, padding 0.3s; }
+    #navbar.scrolled { background: rgba(21,15,10,0.97); box-shadow: 0 2px 24px rgba(0,0,0,0.22); padding-top: 0.6rem; padding-bottom: 0.6rem; }
+
+    /* Gold underline accent */
+    .gold-underline::after {
+      content: '';
+      display: block;
+      width: 52px;
+      height: 3px;
+      background: #C5D86D;
+      margin-top: 10px;
+    }
+
+    /* Mobile menu */
+    #mobile-menu { transition: max-height 0.35s ease, opacity 0.3s; max-height: 0; opacity: 0; overflow: hidden; }
+    #mobile-menu.open { max-height: 440px; opacity: 1; }
+
+    /* Gallery image hover */
+    .gallery-img-wrapper { overflow: hidden; }
+    .gallery-img-wrapper img {
+      transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    .gallery-img-wrapper:hover img { transform: scale(1.05); }
+
+    /* Filter pills */
+    .filter-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 1px solid #C5D86D;
+      border-radius: 999px;
+      padding: 6px 18px;
+      font-size: 0.83rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      color: #261C15;
+      background: transparent;
+      white-space: nowrap;
+    }
+    .filter-pill:hover { background: rgba(197,216,109,0.25); }
+    .filter-pill.active { background: #C5D86D; color: #261C15; }
+
+    /* Hero overlay */
+    .hero-overlay {
+      background: linear-gradient(
+        160deg,
+        rgba(21,15,10,0.82) 0%,
+        rgba(38,28,21,0.58) 60%,
+        rgba(197,216,109,0.15) 100%
+      );
+    }
+
+    /* Lightbox */
+    #lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(10,7,5,0.94);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      align-items: center;
+      justify-content: center;
+    }
+    #lightbox.open { display: flex; }
+
+    #lightbox-img {
+      max-width: min(90vw, 1100px);
+      max-height: 82vh;
+      width: auto;
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+      object-fit: contain;
+      transition: opacity 0.2s;
+    }
+    #lightbox-img.fading { opacity: 0; }
+
+    #lightbox-caption {
+      position: absolute;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(21,15,10,0.85);
+      color: #F7F7F2;
+      border-radius: 999px;
+      padding: 6px 22px;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      max-width: 88vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #lightbox-counter {
+      position: absolute;
+      top: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(247,247,242,0.55);
+      font-size: 0.8rem;
+      letter-spacing: 0.05em;
+    }
+
+    .lb-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(247,247,242,0.12);
+      border: 1px solid rgba(247,247,242,0.2);
+      color: #F7F7F2;
+      border-radius: 50%;
+      width: 48px; height: 48px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .lb-btn:hover { background: rgba(197,216,109,0.3); }
+    #lb-prev { left: 18px; }
+    #lb-next { right: 18px; }
+    #lb-close {
+      position: absolute;
+      top: 16px; right: 16px;
+      background: rgba(247,247,242,0.12);
+      border: 1px solid rgba(247,247,242,0.2);
+      color: #F7F7F2;
+      border-radius: 50%;
+      width: 44px; height: 44px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 1.4rem;
+      line-height: 1;
+      transition: background 0.2s;
+    }
+    #lb-close:hover { background: rgba(197,216,109,0.3); }
+
+    /* Floating CTA */
+    #floating-cta {
+      position: fixed;
+      bottom: 28px;
+      right: 24px;
+      z-index: 800;
+    }
+
+    /* Pill filter bar scroll */
+    .filter-bar-scroll {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .filter-bar-scroll::-webkit-scrollbar { display: none; }
+
+    /* Section highlight for active filter */
+    .gallery-section { scroll-margin-top: 130px; }
+  </style>
+</head>
+
+<body class="antialiased">
+
+<!-- ═══════════════════════════════════════════
+     NAVBAR
+════════════════════════════════════════════ -->
+<nav id="navbar" class="fixed top-0 left-0 right-0 z-50 px-6 py-5 bg-forest-dark">
+  <div class="max-w-6xl mx-auto flex items-center justify-between">
+
+    <!-- Logo -->
+    <a href="/" class="flex items-center group">
+      <img src="/images/logo.png"
+           alt="Recanto dos Ipês"
+           class="h-12 w-auto object-contain"
+           style="filter: brightness(0) invert(1);"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+      <div style="display:none" class="items-center gap-2.5">
+        <div>
+          <div class="text-white font-serif text-base font-semibold leading-tight">Recanto dos Ipês</div>
+          <div class="text-gold text-xs font-light tracking-wide">Jaboticatubas · MG</div>
+        </div>
+      </div>
+    </a>
+
+    <!-- Desktop Nav -->
+    <div class="hidden md:flex items-center gap-7 text-sm text-white/85 font-medium">
+      <a href="/#sobre" class="hover:text-gold transition-colors">O Sítio</a>
+      <a href="/#diferenciais" class="hover:text-gold transition-colors">Diferenciais</a>
+      <a href="/#espacos" class="hover:text-gold transition-colors">Espaços</a>
+      <a href="/galeria" class="text-gold font-semibold transition-colors" aria-current="page">Galeria</a>
+      <a href="/#avaliacoes" class="hover:text-gold transition-colors">Avaliações</a>
+      <a href="/#localizacao" class="hover:text-gold transition-colors">Localização</a>
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="hover:text-gold transition-colors" aria-label="Instagram @recantodoipes">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+      </a>
+      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+         class="bg-gold hover:bg-gold-dark text-white px-5 py-2 rounded-full transition-colors font-semibold text-sm">
+        Reserve Agora
+      </a>
+    </div>
+
+    <!-- Mobile hamburger -->
+    <button id="menu-btn" class="md:hidden text-white p-1" aria-label="Abrir menu">
+      <svg id="icon-menu" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+      <svg id="icon-close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Mobile menu -->
+  <div id="mobile-menu" class="md:hidden bg-forest-dark/95 backdrop-blur mt-2 rounded-2xl mx-0">
+    <div class="flex flex-col gap-1 p-4 text-white text-sm font-medium">
+      <a href="/#sobre"        class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">O Sítio</a>
+      <a href="/#diferenciais" class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">Diferenciais</a>
+      <a href="/#espacos"      class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">Espaços</a>
+      <a href="/galeria"       class="py-2.5 px-3 rounded-xl bg-gold/20 text-gold font-semibold transition-colors" onclick="closeMobileMenu()">Galeria</a>
+      <a href="/#avaliacoes"   class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">Avaliações</a>
+      <a href="/#localizacao"  class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">Localização</a>
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="flex items-center gap-2 py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">
+        <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+        Instagram
+      </a>
+      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+         class="mt-2 bg-gold text-white text-center py-3 px-3 rounded-xl font-semibold" onclick="closeMobileMenu()">Reserve Agora</a>
+    </div>
+  </div>
+</nav>
+
+
+<!-- ═══════════════════════════════════════════
+     HERO BANNER
+════════════════════════════════════════════ -->
+<section class="relative h-72 md:h-96 flex items-end pb-10 overflow-hidden" aria-label="Cabeçalho da galeria">
+
+  <!-- Background image -->
+  <div class="absolute inset-0 bg-cover bg-center bg-no-repeat"
+       style="background-image: url('/images/hero.jpg');"
+       role="img" aria-label="Vista panorâmica do Sítio Recanto dos Ipês"></div>
+  <div class="hero-overlay absolute inset-0"></div>
+
+  <!-- Content -->
+  <div class="relative z-10 px-6 w-full max-w-6xl mx-auto">
+    <!-- Breadcrumb -->
+    <nav class="mb-3" aria-label="Caminho de navegação">
+      <ol class="flex items-center gap-2 text-white/60 text-sm">
+        <li><a href="/" class="hover:text-gold transition-colors">Início</a></li>
+        <li aria-hidden="true">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </li>
+        <li class="text-gold font-medium" aria-current="page">Galeria</li>
+      </ol>
+    </nav>
+
+    <h1 class="font-serif text-white text-3xl sm:text-4xl md:text-5xl font-bold leading-tight">
+      Galeria de Fotos
+    </h1>
+    <p class="text-white/70 mt-2 text-base md:text-lg font-light">
+      Conheça cada cantinho do Recanto dos Ipês antes de chegar
+    </p>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     STICKY FILTER BAR
+════════════════════════════════════════════ -->
+<div id="filter-bar" class="sticky top-[72px] z-40 bg-beige/95 backdrop-blur border-b border-beige-dark/60 py-3 px-6 shadow-sm">
+  <div class="max-w-6xl mx-auto">
+    <div class="flex items-center gap-2.5 overflow-x-auto filter-bar-scroll pb-0.5" role="list" aria-label="Filtrar por categoria">
+      <button class="filter-pill active" data-filter="all" role="listitem" aria-pressed="true">Todos</button>
+      <button class="filter-pill" data-filter="visao-geral" role="listitem" aria-pressed="false">Visão Geral</button>
+      <button class="filter-pill" data-filter="quartos" role="listitem" aria-pressed="false">Quartos</button>
+      <button class="filter-pill" data-filter="piscina" role="listitem" aria-pressed="false">Piscina</button>
+      <button class="filter-pill" data-filter="sauna" role="listitem" aria-pressed="false">Sauna</button>
+      <button class="filter-pill" data-filter="cozinha" role="listitem" aria-pressed="false">Cozinha</button>
+      <button class="filter-pill" data-filter="jogos" role="listitem" aria-pressed="false">Jogos</button>
+      <button class="filter-pill" data-filter="esporte" role="listitem" aria-pressed="false">Esporte</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     GALLERY MAIN CONTENT
+════════════════════════════════════════════ -->
+<main class="max-w-6xl mx-auto px-6 py-12 space-y-16" id="gallery-main">
+
+
+  <!-- ── VISÃO GERAL ── -->
+  <section id="visao-geral" class="gallery-section" data-category="visao-geral" data-aos="fade-up">
+    <div class="mb-6">
+      <h2 class="font-serif text-forest text-2xl font-bold gold-underline">Visão Geral</h2>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+
+      <div class="gallery-img-wrapper rounded-2xl cursor-pointer col-span-2 md:col-span-2 aspect-[4/3] relative"
+           onclick="openLightbox(0)"
+           tabindex="0"
+           role="button"
+           aria-label="Abrir foto: Fachada principal do Sítio Recanto dos Ipês">
+        <img src="/images/hero.jpg"
+             alt="Fachada principal do Sítio Recanto dos Ipês — vista externa com área verde"
+             class="w-full h-full object-cover rounded-2xl"
+             loading="lazy">
+        <div class="absolute inset-0 bg-forest/0 hover:bg-forest/15 rounded-2xl transition-colors duration-300 pointer-events-none"></div>
+      </div>
+
+      <div class="gallery-img-wrapper rounded-2xl cursor-pointer col-span-2 md:col-span-2 aspect-[4/3] relative"
+           onclick="openLightbox(1)"
+           tabindex="0"
+           role="button"
+           aria-label="Abrir foto: Área de convivência interna">
+        <img src="/images/sobre.jpg"
+             alt="Área de convivência interna do Sítio Recanto dos Ipês — sala ampla e aconchegante"
+             class="w-full h-full object-cover rounded-2xl"
+             loading="lazy">
+        <div class="absolute inset-0 bg-forest/0 hover:bg-forest/15 rounded-2xl transition-colors duration-300 pointer-events-none"></div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ── QUARTOS ── -->
+  <section id="quartos" class="gallery-section" data-category="quartos" data-aos="fade-up">
+    <div class="mb-6">
+      <h2 class="font-serif text-forest text-2xl font-bold gold-underline">Quartos</h2>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+
+      <div class="group col-span-1 md:col-span-2">
+        <div class="gallery-img-wrapper rounded-2xl cursor-pointer aspect-[4/3] relative"
+             onclick="openLightbox(2)"
+             tabindex="0"
+             role="button"
+             aria-label="Abrir foto: Quarto 1 — cama queen">
+          <img src="/images/room-1.jpg"
+               alt="Quarto 1 do Sítio Recanto dos Ipês — cama de casal queen size, decoração rústica"
+               class="w-full h-full object-cover rounded-2xl"
+               loading="lazy">
+          <div class="absolute inset-0 bg-forest/0 hover:bg-forest/15 rounded-2xl transition-colors duration-300 pointer-events-none"></div>
+        </div>
+        <p class="mt-2 text-sm text-stone font-medium px-1">Quarto 1 — cama queen</p>
+      </div>
+
+      <div class="group col-span-1 md:col-span-2">
+        <div class="gallery-img-wrapper rounded-2xl cursor-pointer aspect-[4/3] relative"
+             onclick="openLightbox(3)"
+             tabindex="0"
+             role="button"
+             aria-label="Abrir foto: Quarto 2 — cama queen + solteiro">
+          <img src="/images/room-2.jpg"
+               alt="Quarto 2 do Sítio Recanto dos Ipês — cama queen e cama de solteiro"
+               class="w-full h-full object-cover rounded-2xl"
+               loading="lazy">
+          <div class="absolute inset-0 bg-forest/0 hover:bg-forest/15 rounded-2xl transition-colors duration-300 pointer-events-none"></div>
+        </div>
+        <p class="mt-2 text-sm text-stone font-medium px-1">Quarto 2 — cama queen + solteiro</p>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ── PISCINA ── -->
+  <section id="piscina" class="gallery-section" data-category="piscina" data-aos="fade-up">
+    <div class="mb-6">
+      <h2 class="font-serif text-forest text-2xl font-bold gold-underline">Piscina</h2>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+
+      <div class="group col-span-2 md:col-span-3">
+        <div class="gallery-img-wrapper rounded-2xl cursor-pointer aspect-[4/3] relative"
+             onclick="openLightbox(4)"
+             tabindex="0"
+             role="button"
+             aria-label="Abrir foto: Piscina aquecida solar com sistema Panozon Blue Star">
+          <img src="/images/pool.jpg"
+               alt="Piscina aquecida por energia solar do Sítio Recanto dos Ipês — Sistema Panozon Blue Star"
+               class="w-full h-full object-cover rounded-2xl"
+               loading="lazy">
+          <div class="absolute inset-0 bg-forest/0 hover:bg-forest/15 rounded-2xl transition-colors duration-300 pointer-events-none"></div>
+        </div>
+        <p class="mt-2 text-sm text-stone font-medium px-1">Piscina aquecida solar · Sistema Panozon Blue Star</p>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ── SAUNA ── -->
+  <section id="sauna" class="gallery-section" data-category="sauna" data-aos="fade-up">
+    <div class="mb-6">
+      <h2 class="font-serif text-forest text-2xl font-bold gold-underline">Sauna</h2>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+
+      <div class="group col-span-2 md:col-span-2">
+        <div class="gallery-img-wrapper rounded-2xl cursor-pointer aspect-[4/3] relative"
+             onclick="openLightbox(5)"
+             tabindex="0"
+             role="button"
+             aria-label="Abrir foto: Sauna Sodramar">
+          <img src="/images/sauna.jpg"
+               alt="Sauna Sodramar do Sítio Recanto dos Ipês — sauna seca de madeira"
+               class="w-full h-full object-cover rounded-2xl"
+               loading="lazy">
+          <div class="absolute inset-0 bg-forest/0 hover:bg-forest/15 rounded-2xl transition-colors duration-300 pointer-events-none"></div>
+        </div>
+        <p class="mt-2 text-sm text-stone font-medium px-1">Sauna Sodramar</p>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ── COZINHA ── -->
+  <section id="cozinha" class="gallery-section" data-category="cozinha" data-aos="fade-up">
+    <div class="mb-6">
+      <h2 class="font-serif text-forest text-2xl font-bold gold-underline">Cozinha</h2>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+
+      <div class="group col-span-2 md:col-span-3">
+        <div class="gallery-img-wrapper rounded-2xl cursor-pointer aspect-[4/3] relative"
+             onclick="openLightbox(6)"
+             tabindex="0"
+             role="button"
+             aria-label="Abrir foto: Cozinha completa com fogão a lenha, airfryer e churrasqueira">
+          <img src="/images/kitchen.jpg"
+               alt="Cozinha completa do Sítio Recanto dos Ipês — fogão a lenha, airfryer e churrasqueira"
+               class="w-full h-full object-cover rounded-2xl"
+               loading="lazy">
+          <div class="absolute inset-0 bg-forest/0 hover:bg-forest/15 rounded-2xl transition-colors duration-300 pointer-events-none"></div>
+        </div>
+        <p class="mt-2 text-sm text-stone font-medium px-1">Cozinha completa · fogão a lenha, airfryer, churrasqueira</p>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ── ÁREA DE JOGOS ── -->
+  <section id="jogos" class="gallery-section" data-category="jogos" data-aos="fade-up">
+    <div class="mb-6">
+      <h2 class="font-serif text-forest text-2xl font-bold gold-underline">Área de Jogos</h2>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+
+      <div class="group col-span-2 md:col-span-2">
+        <div class="gallery-img-wrapper rounded-2xl cursor-pointer aspect-[4/3] relative"
+             onclick="openLightbox(7)"
+             tabindex="0"
+             role="button"
+             aria-label="Abrir foto: Área de jogos — sinuca e totó">
+          <img src="/images/games.jpg"
+               alt="Área de jogos do Sítio Recanto dos Ipês — mesa de sinuca e totó"
+               class="w-full h-full object-cover rounded-2xl"
+               loading="lazy">
+          <div class="absolute inset-0 bg-forest/0 hover:bg-forest/15 rounded-2xl transition-colors duration-300 pointer-events-none"></div>
+        </div>
+        <p class="mt-2 text-sm text-stone font-medium px-1">Sinuca e totó</p>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ── ÁREA ESPORTIVA ── -->
+  <section id="esporte" class="gallery-section" data-category="esporte" data-aos="fade-up">
+    <div class="mb-6">
+      <h2 class="font-serif text-forest text-2xl font-bold gold-underline">Área Esportiva</h2>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+
+      <div class="group col-span-2 md:col-span-3">
+        <div class="gallery-img-wrapper rounded-2xl cursor-pointer aspect-[4/3] relative"
+             onclick="openLightbox(8)"
+             tabindex="0"
+             role="button"
+             aria-label="Abrir foto: Campo de futebol e quadra de vôlei">
+          <img src="/images/sports.jpg"
+               alt="Área esportiva do Sítio Recanto dos Ipês — campo de futebol e quadra de vôlei"
+               class="w-full h-full object-cover rounded-2xl"
+               loading="lazy">
+          <div class="absolute inset-0 bg-forest/0 hover:bg-forest/15 rounded-2xl transition-colors duration-300 pointer-events-none"></div>
+        </div>
+        <p class="mt-2 text-sm text-stone font-medium px-1">Campo de futebol e vôlei</p>
+      </div>
+
+    </div>
+  </section>
+
+
+</main>
+
+
+<!-- ═══════════════════════════════════════════
+     FOOTER
+════════════════════════════════════════════ -->
+<footer class="bg-forest-dark py-10 px-6">
+  <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+
+    <div class="flex items-center gap-3">
+      <img src="/images/logo.png"
+           alt="Recanto dos Ipês"
+           class="h-10 w-auto object-contain"
+           style="filter: brightness(0) invert(0.6);"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+      <div style="display:none">
+        <div class="text-white font-serif font-semibold">Recanto dos Ipês</div>
+        <div class="text-white/50 text-xs">Jaboticatubas · Minas Gerais</div>
+      </div>
+    </div>
+
+    <p class="text-white/40 text-xs text-center">
+      © 2025 Sítio Recanto dos Ipês — Todos os direitos reservados
+    </p>
+
+    <div class="flex items-center gap-4">
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="text-white/60 hover:text-gold transition-colors" aria-label="Instagram @recantodoipes">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+      </a>
+      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+         class="text-white/60 hover:text-gold text-xs transition-colors underline underline-offset-2">
+        Ver no Airbnb
+      </a>
+    </div>
+
+  </div>
+</footer>
+
+
+<!-- ═══════════════════════════════════════════
+     FLOATING CTA
+════════════════════════════════════════════ -->
+<div id="floating-cta">
+  <a href="https://www.airbnb.com/h/recantodosipesmg"
+     target="_blank"
+     rel="noopener"
+     class="flex items-center gap-2.5 bg-gold hover:bg-gold-dark text-white font-semibold text-sm px-5 py-3.5 rounded-full shadow-xl hover:shadow-2xl transition-all hover:-translate-y-0.5"
+     aria-label="Reserve no Airbnb">
+    <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M11.996 0C5.372 0 0 5.373 0 12s5.372 12 11.996 12C18.624 24 24 18.627 24 12S18.624 0 11.996 0zM12 5.143c.96 0 1.736.776 1.736 1.736 0 .96-.776 1.736-1.736 1.736-.96 0-1.735-.776-1.735-1.736 0-.96.775-1.736 1.735-1.736zm4.4 12.343c-.17.244-.468.386-.78.356-.19-.018-.373-.1-.512-.239l-1.75-1.75a.548.548 0 00-.777 0l-1.75 1.75c-.14.14-.323.22-.513.239-.31.03-.609-.112-.78-.356l-1.18-1.7c-.156-.224-.19-.508-.09-.762.096-.245.304-.424.556-.48l1.44-.315V11.1c0-.426.22-.82.58-1.042.358-.22.806-.24 1.183-.05l.772.39.77-.39c.378-.19.825-.17 1.184.05.36.221.58.616.58 1.042v3.129l1.44.315c.252.056.46.235.556.48.1.254.066.538-.09.762l-1.14 1.7z"/>
+    </svg>
+    Reserve no Airbnb
+  </a>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     LIGHTBOX
+════════════════════════════════════════════ -->
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Visualizador de imagem">
+
+  <button id="lb-close" aria-label="Fechar galeria">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+    </svg>
+  </button>
+
+  <div id="lightbox-counter" aria-live="polite"></div>
+
+  <button id="lb-prev" class="lb-btn" aria-label="Foto anterior">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+  </button>
+
+  <img id="lightbox-img" src="" alt="" draggable="false">
+
+  <button id="lb-next" class="lb-btn" aria-label="Próxima foto">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+  </button>
+
+  <div id="lightbox-caption" aria-live="polite"></div>
+
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════════════ -->
+<script>
+  // ── AOS Init ──────────────────────────────
+  AOS.init({ once: true, offset: 60, easing: 'ease-out-cubic' });
+
+  // ── Navbar scroll effect ──────────────────
+  const navbar = document.getElementById('navbar');
+  // On galeria page the navbar starts opaque; keep scrolled state consistent
+  window.addEventListener('scroll', () => {
+    navbar.classList.toggle('scrolled', window.scrollY > 60);
+  });
+
+  // ── Mobile menu toggle ────────────────────
+  const menuBtn     = document.getElementById('menu-btn');
+  const mobileMenu  = document.getElementById('mobile-menu');
+  const iconMenu    = document.getElementById('icon-menu');
+  const iconClose   = document.getElementById('icon-close');
+
+  menuBtn.addEventListener('click', () => {
+    const isOpen = mobileMenu.classList.toggle('open');
+    iconMenu.classList.toggle('hidden', isOpen);
+    iconClose.classList.toggle('hidden', !isOpen);
+  });
+
+  function closeMobileMenu() {
+    mobileMenu.classList.remove('open');
+    iconMenu.classList.remove('hidden');
+    iconClose.classList.add('hidden');
+  }
+
+  // ── Gallery data ──────────────────────────
+  const IMAGES = [
+    { src: '/images/hero.jpg',    alt: 'Fachada principal do Sítio Recanto dos Ipês',    caption: 'Fachada principal — Sítio Recanto dos Ipês' },
+    { src: '/images/sobre.jpg',   alt: 'Área de convivência interna',                    caption: 'Área de convivência interna' },
+    { src: '/images/room-1.jpg',  alt: 'Quarto 1 — cama queen',                          caption: 'Quarto 1 — cama queen' },
+    { src: '/images/room-2.jpg',  alt: 'Quarto 2 — cama queen + solteiro',               caption: 'Quarto 2 — cama queen + solteiro' },
+    { src: '/images/pool.jpg',    alt: 'Piscina aquecida solar — Sistema Panozon Blue Star', caption: 'Piscina aquecida solar · Sistema Panozon Blue Star' },
+    { src: '/images/sauna.jpg',   alt: 'Sauna Sodramar',                                 caption: 'Sauna Sodramar' },
+    { src: '/images/kitchen.jpg', alt: 'Cozinha completa — fogão a lenha, airfryer, churrasqueira', caption: 'Cozinha completa · fogão a lenha, airfryer, churrasqueira' },
+    { src: '/images/games.jpg',   alt: 'Área de jogos — sinuca e totó',                  caption: 'Sinuca e totó' },
+    { src: '/images/sports.jpg',  alt: 'Campo de futebol e quadra de vôlei',             caption: 'Campo de futebol e vôlei' },
+  ];
+
+  // ── Lightbox logic ────────────────────────
+  const lightbox     = document.getElementById('lightbox');
+  const lbImg        = document.getElementById('lightbox-img');
+  const lbCaption    = document.getElementById('lightbox-caption');
+  const lbCounter    = document.getElementById('lightbox-counter');
+  const lbClose      = document.getElementById('lb-close');
+  const lbPrev       = document.getElementById('lb-prev');
+  const lbNext       = document.getElementById('lb-next');
+
+  let currentIndex = 0;
+
+  function openLightbox(index) {
+    currentIndex = index;
+    updateLightbox(false);
+    lightbox.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    lbClose.focus();
+  }
+
+  function closeLightbox() {
+    lightbox.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function updateLightbox(animate) {
+    const item = IMAGES[currentIndex];
+    if (animate) {
+      lbImg.classList.add('fading');
+      setTimeout(() => {
+        lbImg.src = item.src;
+        lbImg.alt = item.alt;
+        lbCaption.textContent = item.caption;
+        lbCounter.textContent = (currentIndex + 1) + ' / ' + IMAGES.length;
+        lbImg.classList.remove('fading');
+      }, 180);
+    } else {
+      lbImg.src = item.src;
+      lbImg.alt = item.alt;
+      lbCaption.textContent = item.caption;
+      lbCounter.textContent = (currentIndex + 1) + ' / ' + IMAGES.length;
+    }
+  }
+
+  function prevImage() {
+    currentIndex = (currentIndex - 1 + IMAGES.length) % IMAGES.length;
+    updateLightbox(true);
+  }
+
+  function nextImage() {
+    currentIndex = (currentIndex + 1) % IMAGES.length;
+    updateLightbox(true);
+  }
+
+  lbClose.addEventListener('click', closeLightbox);
+  lbPrev.addEventListener('click', prevImage);
+  lbNext.addEventListener('click', nextImage);
+
+  // Close on backdrop click
+  lightbox.addEventListener('click', (e) => {
+    if (e.target === lightbox) closeLightbox();
+  });
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (!lightbox.classList.contains('open')) return;
+    if (e.key === 'Escape')      closeLightbox();
+    if (e.key === 'ArrowLeft')   prevImage();
+    if (e.key === 'ArrowRight')  nextImage();
+  });
+
+  // Keyboard click on gallery items
+  document.querySelectorAll('[role="button"]').forEach((el) => {
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        el.click();
+      }
+    });
+  });
+
+  // Touch/swipe support
+  let touchStartX = 0;
+  lightbox.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].clientX;
+  }, { passive: true });
+  lightbox.addEventListener('touchend', (e) => {
+    const diff = touchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) {
+      diff > 0 ? nextImage() : prevImage();
+    }
+  }, { passive: true });
+
+  // ── Filter pills ──────────────────────────
+  const filterPills    = document.querySelectorAll('.filter-pill');
+  const gallerySections = document.querySelectorAll('.gallery-section');
+
+  filterPills.forEach((pill) => {
+    pill.addEventListener('click', () => {
+      const filter = pill.dataset.filter;
+
+      // Update active pill
+      filterPills.forEach((p) => {
+        p.classList.remove('active');
+        p.setAttribute('aria-pressed', 'false');
+      });
+      pill.classList.add('active');
+      pill.setAttribute('aria-pressed', 'true');
+
+      if (filter === 'all') {
+        // Show all sections
+        gallerySections.forEach((sec) => {
+          sec.style.display = '';
+        });
+      } else {
+        // Hide non-matching, show matching and scroll to it
+        gallerySections.forEach((sec) => {
+          if (sec.dataset.category === filter) {
+            sec.style.display = '';
+            setTimeout(() => {
+              sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 50);
+          } else {
+            sec.style.display = 'none';
+          }
+        });
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

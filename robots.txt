@@ -1,0 +1,35 @@
+User-agent: *
+Allow: /
+
+# Block internal/admin paths from indexing
+Disallow: /api/
+Disallow: /admin
+Disallow: /dashboard
+
+# Allow all major crawlers explicitly
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /images/
+
+User-agent: bingbot
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+# Sitemap
+Sitemap: https://recanto-dos-ipes-production.up.railway.app/sitemap.xml
+
+# Crawl delay (be friendly to our server)
+Crawl-delay: 1
