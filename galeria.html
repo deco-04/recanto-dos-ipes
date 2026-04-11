@@ -8,6 +8,8 @@
 
   <!-- Canonical -->
   <link rel="canonical" href="https://sitiorecantodosipes.com/galeria">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="shortcut icon" href="/favicon.svg">
 
   <!-- Open Graph -->
   <meta property="og:type" content="website">
@@ -329,7 +331,7 @@
           <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
         </svg>
       </a>
-      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+      <a href="/#reservas"
          class="bg-gold hover:bg-gold-dark text-white px-5 py-2 rounded-full transition-colors font-semibold text-sm">
         Reserve Agora
       </a>
@@ -362,7 +364,7 @@
         </svg>
         Instagram
       </a>
-      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+      <a href="/#reservas"
          class="mt-2 bg-gold text-white text-center py-3 px-3 rounded-xl font-semibold" onclick="closeMobileMenu()">Reserve Agora</a>
     </div>
   </div>
@@ -605,10 +607,15 @@
         <div class="text-center"><div class="text-white font-serif font-bold">Campo & Vôlei</div><div class="text-white/60 text-xs mt-1">📸 Fotos em breve</div></div>
       </div>
     </div>
-    <div class="mt-5 text-center">
+    <div class="mt-5 text-center flex flex-col sm:flex-row items-center justify-center gap-4">
       <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
          class="inline-flex items-center gap-2 text-forest font-semibold text-sm border-b-2 border-gold pb-0.5 hover:text-forest-dark transition-colors">
         Ver todas as fotos no Airbnb
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+      </a>
+      <a href="https://www.booking.com/hotel/br/sitio-recanto-dos-ipes-com-area-de-lazer-completa-e-piscina-aquecida" target="_blank" rel="noopener"
+         class="inline-flex items-center gap-2 text-forest font-semibold text-sm border-b-2 border-gold pb-0.5 hover:text-forest-dark transition-colors">
+        Ver no Booking.com
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
       </a>
     </div>
@@ -623,21 +630,22 @@
 <footer class="bg-forest-dark py-10 px-6">
   <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
 
-    <div class="flex items-center gap-3">
-      <img src="/images/logo.png"
-           alt="Recanto dos Ipês"
-           class="h-10 w-auto object-contain"
-           style="filter: brightness(0) invert(0.6);"
-           onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-      <div style="display:none">
-        <div class="text-white font-serif font-semibold">Recanto dos Ipês</div>
-        <div class="text-white/50 text-xs">Jaboticatubas · Minas Gerais</div>
+    <div class="flex flex-col gap-1">
+      <div class="flex items-center gap-3">
+        <img src="/images/logo.png"
+             alt="Recanto dos Ipês"
+             class="h-10 w-auto object-contain"
+             style="filter: brightness(0) invert(0.6);"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <div style="display:none">
+          <div class="text-white font-serif font-semibold">Recanto dos Ipês</div>
+        </div>
       </div>
     </div>
 
-    <p class="text-white/40 text-xs text-center">
-      © 2025 Sítio Recanto dos Ipês — Todos os direitos reservados
-    </p>
+    <div class="text-center">
+      <p class="text-white/40 text-xs">© 2026 Sítio Recanto dos Ipês — Todos os direitos reservados</p>
+    </div>
 
     <div class="flex items-center gap-5 flex-wrap justify-center">
       <a href="/faq" class="text-white/60 hover:text-gold text-xs transition-colors">Perguntas Frequentes</a>
@@ -651,6 +659,10 @@
          class="text-white/60 hover:text-gold text-xs transition-colors underline underline-offset-2">
         Ver no Airbnb
       </a>
+      <a href="https://www.booking.com/hotel/br/sitio-recanto-dos-ipes-com-area-de-lazer-completa-e-piscina-aquecida" target="_blank" rel="noopener"
+         class="text-white/60 hover:text-gold text-xs transition-colors underline underline-offset-2">
+        Ver no Booking.com
+      </a>
     </div>
 
   </div>
@@ -661,15 +673,13 @@
      FLOATING CTA
 ════════════════════════════════════════════ -->
 <div id="floating-cta">
-  <a href="https://www.airbnb.com/h/recantodosipesmg"
-     target="_blank"
-     rel="noopener"
+  <a href="/#reservas"
      class="flex items-center gap-2.5 bg-gold hover:bg-gold-dark text-white font-semibold text-sm px-5 py-3.5 rounded-full shadow-xl hover:shadow-2xl transition-all hover:-translate-y-0.5"
-     aria-label="Reserve no Airbnb">
-    <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M11.996 0C5.372 0 0 5.373 0 12s5.372 12 11.996 12C18.624 24 24 18.627 24 12S18.624 0 11.996 0zM12 5.143c.96 0 1.736.776 1.736 1.736 0 .96-.776 1.736-1.736 1.736-.96 0-1.735-.776-1.735-1.736 0-.96.775-1.736 1.735-1.736zm4.4 12.343c-.17.244-.468.386-.78.356-.19-.018-.373-.1-.512-.239l-1.75-1.75a.548.548 0 00-.777 0l-1.75 1.75c-.14.14-.323.22-.513.239-.31.03-.609-.112-.78-.356l-1.18-1.7c-.156-.224-.19-.508-.09-.762.096-.245.304-.424.556-.48l1.44-.315V11.1c0-.426.22-.82.58-1.042.358-.22.806-.24 1.183-.05l.772.39.77-.39c.378-.19.825-.17 1.184.05.36.221.58.616.58 1.042v3.129l1.44.315c.252.056.46.235.556.48.1.254.066.538-.09.762l-1.14 1.7z"/>
+     aria-label="Verificar disponibilidade">
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
     </svg>
-    Reserve no Airbnb
+    Verificar Datas
   </a>
 </div>
 

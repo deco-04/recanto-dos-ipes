@@ -242,6 +242,8 @@
             Reserve com segurança — pagamento por cartão de crédito<br>
             ou pelo <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
               class="text-forest font-semibold underline underline-offset-2 hover:text-gold transition-colors">Airbnb</a>
+            ou <a href="https://www.booking.com/hotel/br/sitio-recanto-dos-ipes-com-area-de-lazer-completa-e-piscina-aquecida" target="_blank" rel="noopener"
+              class="text-forest font-semibold underline underline-offset-2 hover:text-gold transition-colors">Booking.com</a>
           </p>
         </div>
       </div>
