@@ -27,19 +27,19 @@ router.get('/upcoming', async (req, res) => {
   try {
     const today = new Date(); today.setHours(0, 0, 0, 0);
 
-    const booking = await prisma.booking.findFirst({
+    const bookings = await prisma.booking.findMany({
       where: {
-        userId:   req.session.userId,
-        status:   'CONFIRMED',
-        checkIn:  { gt: today },
+        userId:  req.session.userId,
+        status:  'CONFIRMED',
+        checkIn: { gt: today },
       },
       orderBy: { checkIn: 'asc' },
     });
 
-    res.json({ booking: booking ? sanitizeBooking(booking) : null });
+    res.json({ bookings: bookings.map(sanitizeBooking) });
   } catch (err) {
     console.error('[dashboard] upcoming error:', err);
-    res.status(500).json({ error: 'Erro ao buscar próxima reserva' });
+    res.status(500).json({ error: 'Erro ao buscar próximas reservas' });
   }
 });
 

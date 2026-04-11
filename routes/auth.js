@@ -176,6 +176,12 @@ router.post('/verify-code', async (req, res) => {
       create: { email },
     });
 
+    // Auto-link any anonymous bookings made with this email
+    await prisma.booking.updateMany({
+      where: { guestEmail: email, userId: null },
+      data:  { userId: user.id },
+    }).catch(e => console.error('[auth] auto-link bookings error:', e.message));
+
     // Set session
     req.session.userId    = user.id;
     req.session.userEmail = user.email;
@@ -205,9 +211,16 @@ router.get('/google',
 // ── GET /api/auth/google/callback ─────────────────────────────────────────────
 router.get('/google/callback',
   passport.authenticate('google', { failureRedirect: '/login?error=google' }),
-  (req, res) => {
+  async (req, res) => {
     req.session.userId    = req.user.id;
     req.session.userEmail = req.user.email;
+
+    // Auto-link any anonymous bookings made with this Google account's email
+    await prisma.booking.updateMany({
+      where: { guestEmail: req.user.email, userId: null },
+      data:  { userId: req.user.id },
+    }).catch(e => console.error('[auth] auto-link bookings (google) error:', e.message));
+
     const next = req.session.returnTo || '/dashboard';
     delete req.session.returnTo;
     res.redirect(next);

@@ -41,8 +41,8 @@ const countdown = d => {
 
   // Upcoming
   if (upcomingRes.ok) {
-    const { booking } = await upcomingRes.json();
-    if (booking) renderUpcoming(booking);
+    const { bookings: upcomingBookings } = await upcomingRes.json();
+    if (upcomingBookings?.length > 0) renderUpcoming(upcomingBookings);
     else document.getElementById('no-upcoming').classList.remove('hidden');
   }
 
@@ -75,27 +75,29 @@ function renderCurrentStay(b) {
   `;
 }
 
-function renderUpcoming(b) {
+function renderUpcoming(bookings) {
   document.getElementById('upcoming-section').classList.remove('hidden');
-  document.getElementById('upcoming-card').innerHTML = `
-    <div class="flex items-start justify-between mb-4">
-      <div>
-        <p class="font-serif text-lg font-bold text-forest">Sítio Recanto dos Ipês</p>
-        <p class="text-stone text-sm">Jaboticatubas, MG</p>
+  document.getElementById('upcoming-card').innerHTML = bookings.map((b, i) => `
+    <div class="${i > 0 ? 'mt-4 pt-4 border-t border-beige-dark' : ''}">
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <p class="font-serif text-lg font-bold text-forest">Sítio Recanto dos Ipês</p>
+          <p class="text-stone text-sm">Jaboticatubas, MG</p>
+        </div>
+        <span class="bg-gold/20 text-gold-dark text-sm font-bold px-3 py-1 rounded-full">${countdown(b.checkIn)}</span>
       </div>
-      <span class="bg-gold/20 text-gold-dark text-sm font-bold px-3 py-1 rounded-full">${countdown(b.checkIn)}</span>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+        <div class="bg-beige rounded-xl p-3"><p class="text-xs text-stone mb-1">Check-in</p><p class="font-semibold text-forest">${fmtDate(b.checkIn)}</p></div>
+        <div class="bg-beige rounded-xl p-3"><p class="text-xs text-stone mb-1">Check-out</p><p class="font-semibold text-forest">${fmtDate(b.checkOut)}</p></div>
+        <div class="bg-beige rounded-xl p-3"><p class="text-xs text-stone mb-1">Noites</p><p class="font-semibold text-forest">${b.nights}</p></div>
+        <div class="bg-beige rounded-xl p-3"><p class="text-xs text-stone mb-1">Hóspedes</p><p class="font-semibold text-forest">${b.guestCount}</p></div>
+      </div>
+      <div class="flex items-center justify-between mt-4 pt-4 border-t border-beige-dark">
+        <p class="text-xs text-stone font-mono">Reserva nº ${b.invoiceNumber}</p>
+        <p class="font-bold text-forest text-lg">${fmtBRL(b.totalAmount)}</p>
+      </div>
     </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-      <div class="bg-beige rounded-xl p-3"><p class="text-xs text-stone mb-1">Check-in</p><p class="font-semibold text-forest">${fmtDate(b.checkIn)}</p></div>
-      <div class="bg-beige rounded-xl p-3"><p class="text-xs text-stone mb-1">Check-out</p><p class="font-semibold text-forest">${fmtDate(b.checkOut)}</p></div>
-      <div class="bg-beige rounded-xl p-3"><p class="text-xs text-stone mb-1">Noites</p><p class="font-semibold text-forest">${b.nights}</p></div>
-      <div class="bg-beige rounded-xl p-3"><p class="text-xs text-stone mb-1">Hóspedes</p><p class="font-semibold text-forest">${b.guestCount}</p></div>
-    </div>
-    <div class="flex items-center justify-between mt-4 pt-4 border-t border-beige-dark">
-      <p class="text-xs text-stone font-mono">Reserva nº ${b.invoiceNumber}</p>
-      <p class="font-bold text-forest text-lg">${fmtBRL(b.totalAmount)}</p>
-    </div>
-  `;
+  `).join('');
 }
 
 function renderPast(bookings) {
