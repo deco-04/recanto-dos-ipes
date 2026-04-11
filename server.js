@@ -154,6 +154,17 @@ app.use('/images', express.static(path.join(ROOT, 'images'), {
   etag: false,
 }));
 
+// ── Staff upload storage (replaces Cloudinary) ────────────────────────────────
+const { UPLOAD_DIR } = require('./routes/uploads');
+app.use('/uploads', express.static(UPLOAD_DIR, {
+  maxAge: '365d',
+  immutable: true,
+  etag: true,
+  setHeaders(res) {
+    res.setHeader('Access-Control-Allow-Origin', process.env.STAFF_APP_ORIGIN || '*');
+  },
+}));
+
 // ── Public assets (booking.html, dashboard.html, login.html, /js/*.js) ────────
 app.use(express.static(path.join(ROOT, 'public'), {
   setHeaders(res, filePath) {
@@ -165,13 +176,30 @@ app.use(express.static(path.join(ROOT, 'public'), {
   },
 }));
 
+// ── CORS for staff PWA (app.recantosdaserra.com) ──────────────────────────────
+const STAFF_ORIGIN = process.env.STAFF_APP_ORIGIN || 'https://app.recantosdaserra.com';
+function staffCors(req, res, next) {
+  const origin = req.headers.origin;
+  // Allow Railway preview URLs and the production domain
+  if (origin && (origin === STAFF_ORIGIN || origin.endsWith('.up.railway.app'))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else if (process.env.NODE_ENV !== 'production') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-staff-id');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+}
+
 // ── API routes ────────────────────────────────────────────────────────────────
 app.use('/api/auth',        require('./routes/auth'));
 app.use('/api/bookings',   require('./routes/bookings'));
 app.use('/api/pricing',    require('./routes/pricing'));
 app.use('/api/dashboard',  require('./routes/dashboard'));
-app.use('/api/staff/auth',  require('./routes/staff-auth'));
-app.use('/api/staff',      require('./routes/staff-portal'));
+app.use('/api/staff/auth',  staffCors, require('./routes/staff-auth'));
+app.use('/api/staff',       staffCors, require('./routes/staff-portal'));
+app.use('/api/uploads',     staffCors, require('./routes/uploads').router);
 
 // Admin — manual iCal sync trigger
 app.post('/api/admin/sync-ical', async (req, res) => {
