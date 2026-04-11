@@ -1,0 +1,146 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  phone     String?
+  cpf       String?  @unique
+  googleId  String?  @unique
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions Session[]
+  codes    VerificationCode[]
+  bookings Booking[]
+}
+
+// ── Sessions (express-session PostgreSQL store) ───────────────────────────────
+model Session {
+  id        String   @id
+  userId    String?
+  data      Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ── Verification Codes (email OTP) ────────────────────────────────────────────
+model VerificationCode {
+  id        String      @id @default(cuid())
+  email     String
+  code      String
+  purpose   CodePurpose
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime    @default(now())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  @@index([email])
+}
+
+enum CodePurpose {
+  LOGIN
+  LINK_BOOKING
+}
+
+// ── Bookings ──────────────────────────────────────────────────────────────────
+model Booking {
+  id                    String        @id @default(cuid())
+  userId                String?
+  guestName             String
+  guestEmail            String
+  guestPhone            String
+  guestCpf              String?
+  checkIn               DateTime      @db.Date
+  checkOut              DateTime      @db.Date
+  nights                Int
+  guestCount            Int
+  extraGuests           Int           @default(0)
+  hasPet                Boolean       @default(false)
+  baseRatePerNight      Decimal       @db.Decimal(10, 2)
+  extraGuestFee         Decimal       @db.Decimal(10, 2)
+  petFee                Decimal       @db.Decimal(10, 2)
+  totalAmount           Decimal       @db.Decimal(10, 2)
+  status                BookingStatus @default(PENDING)
+  stripePaymentIntentId String?       @unique
+  invoiceNumber         String        @unique @default(cuid())
+  notes                 String?
+  source                BookingSource @default(DIRECT)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([checkIn, checkOut])
+  @@index([guestEmail])
+  @@index([status])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  REFUNDED
+}
+
+enum BookingSource {
+  DIRECT
+  AIRBNB
+  BOOKING_COM
+}
+
+// ── Blocked Dates (from iCal sync) ────────────────────────────────────────────
+model BlockedDate {
+  id         String      @id @default(cuid())
+  date       DateTime    @db.Date
+  source     BlockSource
+  externalId String?
+  summary    String?
+  syncedAt   DateTime    @default(now())
+
+  @@unique([date, source])
+  @@index([date])
+}
+
+enum BlockSource {
+  AIRBNB
+  BOOKING_COM
+  MANUAL
+}
+
+// ── Seasonal Pricing ──────────────────────────────────────────────────────────
+model SeasonalPricing {
+  id            String      @id @default(cuid())
+  name          String
+  tier          PricingTier
+  startDate     DateTime    @db.Date
+  endDate       DateTime    @db.Date
+  pricePerNight Decimal     @db.Decimal(10, 2)
+  minNights     Int         @default(2)
+  createdAt     DateTime    @default(now())
+
+  @@index([startDate, endDate])
+}
+
+enum PricingTier {
+  LOW
+  MID
+  HIGH_MID
+  PEAK
+}

@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Perguntas Frequentes — Sítio Recanto dos Ipês | Jaboticatubas MG</title>
+  <meta name="description" content="Tire suas dúvidas sobre o Sítio Recanto dos Ipês: piscina aquecida, reservas, check-in, capacidade e localização em Jaboticatubas, a 30 min da Serra do Cipó.">
+
+  <!-- Canonical -->
+  <link rel="canonical" href="https://recanto-dos-ipes-production.up.railway.app/faq">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Perguntas Frequentes — Sítio Recanto dos Ipês | Jaboticatubas MG">
+  <meta property="og:description" content="Tire suas dúvidas sobre o Sítio Recanto dos Ipês: piscina aquecida, reservas, check-in, capacidade e localização em Jaboticatubas, a 30 min da Serra do Cipó.">
+  <meta property="og:url" content="https://recanto-dos-ipes-production.up.railway.app/faq">
+  <meta property="og:image" content="https://recanto-dos-ipes-production.up.railway.app/images/rancho.jpg">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="Sítio Recanto dos Ipês">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Perguntas Frequentes — Sítio Recanto dos Ipês">
+  <meta name="twitter:description" content="Piscina aquecida, sauna, 4 quartos, até 20 hóspedes. Jaboticatubas, MG — Serra do Cipó.">
+  <meta name="twitter:image" content="https://recanto-dos-ipes-production.up.railway.app/images/rancho.jpg">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- AOS -->
+  <link href="https://unpkg.com/aos@2.3.4/dist/aos.css" rel="stylesheet">
+  <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            forest:    { DEFAULT: '#261C15', light: '#3D2B1F', dark: '#150F0A' },
+            gold:      { DEFAULT: '#C5D86D', light: '#D4E48A', dark: '#9BAB52' },
+            beige:     { DEFAULT: '#F7F7F2', dark: '#E4E6C3' },
+            stone:     { DEFAULT: '#6B6B6B', light: '#9A9A9A' },
+            terracota: { DEFAULT: '#F05D23' },
+          },
+          fontFamily: {
+            serif: ['Merriweather', 'Georgia', 'serif'],
+            sans:  ['Lato', 'system-ui', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Lato', sans-serif; color: #1A1A1A; background: #F7F7F2; }
+    .font-serif { font-family: 'Merriweather', serif; }
+
+    .hero-overlay {
+      background: linear-gradient(
+        160deg,
+        rgba(38, 28, 21, 0.82) 0%,
+        rgba(38, 28, 21, 0.55) 55%,
+        rgba(197, 216, 109, 0.18) 100%
+      );
+    }
+
+    #navbar { transition: background 0.3s, box-shadow 0.3s, padding 0.3s; }
+    #navbar.scrolled { background: rgba(38,28,21,0.97); box-shadow: 0 2px 24px rgba(0,0,0,0.22); padding-top: 0.6rem; padding-bottom: 0.6rem; }
+
+    .gold-underline::after {
+      content: '';
+      display: block;
+      width: 60px;
+      height: 3px;
+      background: #C5D86D;
+      margin-top: 10px;
+    }
+    .gold-underline-center::after {
+      content: '';
+      display: block;
+      width: 60px;
+      height: 3px;
+      background: #C5D86D;
+      margin: 10px auto 0;
+    }
+
+    .pill { display: inline-flex; align-items: center; gap: 6px; background: rgba(155,171,82,0.15); border: 1px solid rgba(155,171,82,0.4); border-radius: 999px; padding: 4px 14px; font-size: 0.82rem; color: #7A8A3A; font-weight: 500; }
+
+    #mobile-menu { transition: max-height 0.35s ease, opacity 0.3s; max-height: 0; opacity: 0; overflow: hidden; }
+    #mobile-menu.open { max-height: 400px; opacity: 1; }
+
+    /* Filter tabs */
+    .filter-tab {
+      padding: 8px 20px;
+      border-radius: 999px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+      white-space: nowrap;
+    }
+    .filter-tab.active {
+      background: #261C15;
+      color: #C5D86D;
+      border-color: #261C15;
+    }
+    .filter-tab:not(.active) {
+      background: white;
+      color: #6B6B6B;
+      border-color: #E4E6C3;
+    }
+    .filter-tab:not(.active):hover {
+      border-color: #C5D86D;
+      color: #261C15;
+    }
+
+    /* Accordion */
+    .faq-item { border-bottom: 1px solid #E4E6C3; }
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s;
+    }
+    .faq-answer.open {
+      max-height: 800px;
+    }
+    .faq-icon {
+      transition: transform 0.3s ease;
+      flex-shrink: 0;
+    }
+    .faq-item.open .faq-icon {
+      transform: rotate(45deg);
+    }
+
+    /* FAQ section visibility */
+    .faq-section { display: block; }
+    .faq-section.hidden-section { display: none; }
+
+    /* Float button */
+    .float-btn {
+      position: fixed;
+      bottom: 28px;
+      right: 24px;
+      z-index: 40;
+      background: #C5D86D;
+      color: #261C15;
+      font-weight: 700;
+      font-size: 0.875rem;
+      padding: 14px 22px;
+      border-radius: 999px;
+      box-shadow: 0 8px 32px rgba(197,216,109,0.45);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .float-btn:hover {
+      background: #9BAB52;
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(197,216,109,0.55);
+    }
+  </style>
+
+  <!-- ═══════════════════════════════════════════
+       JSON-LD: FAQPage Schema
+  ════════════════════════════════════════════ -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "name": "Perguntas Frequentes — Sítio Recanto dos Ipês",
+    "url": "https://recanto-dos-ipes-production.up.railway.app/faq",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "O que é o Sítio Recanto dos Ipês?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "O Sítio Recanto dos Ipês é uma propriedade para temporada localizada em Jaboticatubas, Minas Gerais, dentro de um condomínio fechado e seguro, a apenas 30 minutos da Serra do Cipó e 5 minutos do distrito de São José de Almeida. O sítio oferece lazer completo com piscina aquecida solar, sauna, salão de jogos, campo de futebol e cozinha equipada, sendo ideal para grupos familiares e de amigos que buscam descanso e natureza em Minas Gerais."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Quantas pessoas cabem no Sítio Recanto dos Ipês?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "O Sítio Recanto dos Ipês comporta até 20 hóspedes. A propriedade tem capacidade generosa para grupos grandes, com 4 quartos, 8 camas fixas, além de sofá-cama e colchões extras na sala de estar, totalizando acomodação confortável para 20 pessoas."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Quantos quartos e camas tem o sítio?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "O sítio tem 4 quartos com 8 camas no total, distribuídas em camas de casal (queen) e camas de solteiro. Além dos quartos, a sala de estar conta com sofá-cama e colchões extras para acomodar grupos maiores. A propriedade também dispõe de 3 banheiros completos."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "O sítio é seguro para crianças?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Sim, o Sítio Recanto dos Ipês é seguro para crianças. A propriedade está localizada dentro de um condomínio fechado com portaria, o terreno é totalmente cercado e conta com câmeras de segurança externas. As áreas de lazer como o campo de futebol, a rede de vôlei e o salão de jogos são ótimas opções de entretenimento para os pequenos."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Animais de estimação são permitidos no sítio?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Sim, o Sítio Recanto dos Ipês aceita animais de estimação. O terreno cercado e o amplo espaço verde oferecem liberdade e segurança para que seus pets se sintam à vontade durante a estadia. Recomendamos informar sobre seus animais no momento da reserva."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Como fazer a reserva do Sítio Recanto dos Ipês?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "A reserva é feita diretamente pelo Airbnb, através do link airbnb.com/h/recantodosipesmg. Basta selecionar as datas desejadas, verificar a disponibilidade e concluir o pagamento pela plataforma. A anfitriã Sthefane, Superhost com 100% de taxa de resposta, confirma as reservas rapidamente."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Qual é o horário de check-in e check-out?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "O check-in no Sítio Recanto dos Ipês pode ser feito a partir das 09h00. O check-out deve ser realizado até as 17h00. Esses horários permitem que os hóspedes aproveitem o dia completo no sítio, inclusive chegando cedo para desfrutar das instalações ao longo de todo o dia."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Como funciona o check-in no sítio?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "O check-in é self check-in, realizado de forma autônoma através de um cofre de chaves (key safe) instalado na propriedade. Após a confirmação da reserva, a anfitriã Sthefane envia todas as instruções de acesso e o código do cofre com antecedência. Não é necessário aguardar a presença de ninguém para entrar."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "É possível fazer reserva direta sem usar o Airbnb?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Atualmente, as reservas são gerenciadas principalmente pelo Airbnb, que garante segurança tanto para o hóspede quanto para os anfitriões. Para consultas sobre reservas diretas ou condições especiais para grupos, entre em contato com a anfitriã Sthefane pelo próprio Airbnb ou pelo Instagram @recantodoipes."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Com quanto de antecedência devo reservar o sítio?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Recomendamos reservar com pelo menos 2 a 4 semanas de antecedência, especialmente para fins de semana, feriados e período de alta temporada (verão, Carnaval, Semana Santa e férias de julho). Para datas comemorativas e feriados prolongados, reservas com 1 a 2 meses de antecedência garantem maior segurança na disponibilidade."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "A piscina é aquecida? Como funciona o sistema?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Sim, a piscina do Sítio Recanto dos Ipês é aquecida por sistema solar, mantendo a temperatura agradável durante todo o ano — inclusive no inverno. O sistema de tratamento da água utiliza ozônio da marca Panozon Blue Star, que é mais eficiente e menos agressivo à pele do que o cloro convencional. A piscina fica disponível 24 horas por dia durante toda a estadia."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "A sauna é a lenha ou elétrica?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "A sauna do Sítio Recanto dos Ipês é a lenha, da marca Sodramar, proporcionando uma experiência mais autêntica e o calor característico das saunas tradicionais. A sauna a lenha aquece de forma homogênea e oferece uma experiência de relaxamento superior à sauna elétrica, sendo um dos pontos mais elogiados pelos hóspedes."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "O que tem na cozinha do sítio?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "A cozinha do Sítio Recanto dos Ipês é completa e equipada para grandes grupos. Conta com fogão a gás, fogão a lenha, forno a lenha, airfryer, freezer e churrasqueira coberta. Há utensílios, panelas, louças e talheres em quantidade suficiente para todos os hóspedes. É uma cozinha pensada tanto para o preparo de refeições do dia a dia quanto para churrascos e festas."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "O enxoval (lençóis, toalhas) está incluído na reserva?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Sim, o enxoval completo está incluído na diária sem custo adicional. A propriedade fornece lençóis, fronhas, toalhas de banho, cobertores e kit de higiene básica (sabonete, shampoo e papel higiênico). Você não precisa trazer nada além de suas roupas pessoais."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Tem área de churrasco no sítio?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Sim, o sítio possui churrasqueira coberta totalmente equipada, integrada à cozinha e área de lazer. O espaço é amplo, pensado para grupos grandes, com bancadas, pia e toda a estrutura necessária para um churrasco completo. Além disso, é possível contratar um churrasqueiro profissional para cuidar de tudo durante a sua estadia."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Quais opções de lazer e esporte tem no sítio?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "O Sítio Recanto dos Ipês oferece um leque completo de atividades: piscina aquecida solar com sistema Panozon, sauna Sodramar a lenha, salão de jogos com mesa de sinuca e totó (pebolim), campo de futebol gramado e rede de vôlei. Para quem prefere descanso, há amplos espaços verdes, varanda e o entorno natural da Serra do Cipó para caminhadas."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Tem Wi-Fi no sítio?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Sim, o Sítio Recanto dos Ipês conta com Wi-Fi disponível para os hóspedes. A conexão está disponível nas áreas internas da propriedade, permitindo que você fique conectado quando necessário, sem abrir mão do contato com a natureza."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "É possível contratar cozinheira ou churrasqueiro no sítio?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Sim, o Sítio Recanto dos Ipês oferece a possibilidade de contratar cozinheira e churrasqueiro profissionais como serviço adicional. Esse diferencial é muito apreciado por grupos que desejam aproveitar ao máximo o lazer sem se preocupar com o preparo das refeições. O serviço deve ser combinado com antecedência com a anfitriã Sthefane."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Onde fica o Sítio Recanto dos Ipês exatamente?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "O Sítio Recanto dos Ipês está localizado em Jaboticatubas, Minas Gerais, dentro de um condomínio fechado. As coordenadas são aproximadamente -19.515 de latitude e -43.74 de longitude. Fica a 5 minutos do distrito de São José de Almeida e a aproximadamente 30 minutos do centro de Jaboticatubas e da entrada do Parque Nacional da Serra do Cipó."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Qual a distância do sítio para a Serra do Cipó?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "O Sítio Recanto dos Ipês fica a aproximadamente 30 minutos de carro da Serra do Cipó (Parque Nacional da Serra do Cipó), uma das principais atrações naturais de Minas Gerais, famosa pelas cachoeiras, trilhas e piscinas naturais. A proximidade permite combinar o conforto e lazer do sítio com passeios ecológicos na região."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Tem mercado ou comércio perto do sítio?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "O distrito de São José de Almeida, a apenas 5 minutos do sítio, conta com mercadinhos, padaria e pequeno comércio local para compras básicas. Para um abastecimento mais completo, o município de Jaboticatubas fica a cerca de 30 minutos e possui supermercados, farmácias e serviços. Recomendamos fazer as compras principais antes de chegar ao sítio para maior comodidade."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Como chegar de carro ao Sítio Recanto dos Ipês?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "O acesso ao sítio é feito de carro pela MG-010 (Rodovia dos Inconfidentes), que liga Belo Horizonte a Jaboticatubas e à Serra do Cipó. A partir de Belo Horizonte, o trajeto leva aproximadamente 1 hora e 15 minutos. Após a confirmação da reserva, a anfitriã Sthefane envia o endereço exato, link do Google Maps e instruções detalhadas de acesso ao condomínio."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Qual a nota do Sítio Recanto dos Ipês no Airbnb?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "O Sítio Recanto dos Ipês possui avaliação de 4,95 em 5 estrelas no Airbnb, com 44 avaliações verificadas. A propriedade ostenta o selo 'Preferido dos Hóspedes' (Guest Favorite), concedido pelo Airbnb apenas aos imóveis com altíssima consistência nas avaliações, e a anfitriã Sthefane possui o status de Superhost com 100% de taxa de resposta."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "O que os hóspedes mais elogiam no sítio?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Nas avaliações do Airbnb, os hóspedes destacam principalmente a piscina com aquecimento solar (disponível mesmo no inverno), a sauna a lenha de qualidade, a atenção e prestatividade da anfitriã Sthefane, a limpeza impecável do imóvel, a estrutura completa para grandes grupos e o custo-benefício excelente. A localização tranquila dentro do condomínio fechado, com fácil acesso à Serra do Cipó, também é muito valorizada."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Qual é a política de cancelamento do sítio?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "A política de cancelamento é definida e gerenciada pelo Airbnb no momento da reserva. As condições específicas são exibidas antes de você confirmar a reserva na plataforma. Recomendamos verificar a política vigente diretamente no anúncio em airbnb.com/h/recantodosipesmg antes de finalizar sua reserva."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "O sítio tem estacionamento?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Sim, o Sítio Recanto dos Ipês dispõe de área de estacionamento dentro da propriedade, dentro do condomínio fechado, com segurança garantida pelas câmeras de monitoramento. Há espaço para acomodar os veículos dos hóspedes confortavelmente."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "O sítio é adequado para eventos e confraternizações?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Sim, o Sítio Recanto dos Ipês é ideal para confraternizações, aniversários, retiros empresariais e encontros de família. Com capacidade para até 20 pessoas, piscina aquecida, churrasqueira, salão de jogos e campo de futebol, o espaço oferece toda a infraestrutura para um evento memorável. Para eventos maiores, consulte a anfitriã Sthefane sobre condições especiais."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Quais são as atrações turísticas próximas ao sítio?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "A principal atração da região é o Parque Nacional da Serra do Cipó, a 30 minutos do sítio, com cachoeiras como a Cachoeira da Farofa, Cachoeira do Tabuleiro e as famosas piscinas naturais do Rio Cipó. A região também é conhecida pelo ecoturismo, trilhas, mountain bike e a charmosa cidade histórica de Conceição do Mato Dentro, a cerca de 1 hora. Para quem parte de Belo Horizonte, o trajeto é de aproximadamente 1h15."
+        }
+      }
+    ]
+  }
+  </script>
+
+  <!-- ═══════════════════════════════════════════
+       JSON-LD: LodgingBusiness Schema
+  ════════════════════════════════════════════ -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "LodgingBusiness",
+    "name": "Sítio Recanto dos Ipês",
+    "description": "Sítio para temporada com piscina aquecida solar, sauna a lenha, salão de jogos, campo de futebol e cozinha completa. Até 20 hóspedes, 4 quartos, 3 banheiros. Localizado em Jaboticatubas, MG, a 30 minutos da Serra do Cipó.",
+    "url": "https://recanto-dos-ipes-production.up.railway.app",
+    "telephone": "",
+    "image": "https://recanto-dos-ipes-production.up.railway.app/images/rancho.jpg",
+    "logo": "https://recanto-dos-ipes-production.up.railway.app/images/logo.png",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Jaboticatubas",
+      "addressRegion": "MG",
+      "addressCountry": "BR"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": -19.515,
+      "longitude": -43.74
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.95",
+      "reviewCount": "44",
+      "bestRating": "5",
+      "worstRating": "1"
+    },
+    "amenityFeature": [
+      { "@type": "LocationFeatureSpecification", "name": "Piscina aquecida solar", "value": true },
+      { "@type": "LocationFeatureSpecification", "name": "Sauna a lenha Sodramar", "value": true },
+      { "@type": "LocationFeatureSpecification", "name": "Salão de jogos (sinuca e totó)", "value": true },
+      { "@type": "LocationFeatureSpecification", "name": "Campo de futebol", "value": true },
+      { "@type": "LocationFeatureSpecification", "name": "Rede de vôlei", "value": true },
+      { "@type": "LocationFeatureSpecification", "name": "Churrasqueira coberta", "value": true },
+      { "@type": "LocationFeatureSpecification", "name": "Cozinha completa", "value": true },
+      { "@type": "LocationFeatureSpecification", "name": "Enxoval incluso", "value": true },
+      { "@type": "LocationFeatureSpecification", "name": "Wi-Fi", "value": true },
+      { "@type": "LocationFeatureSpecification", "name": "Animais de estimação permitidos", "value": true },
+      { "@type": "LocationFeatureSpecification", "name": "Self check-in", "value": true },
+      { "@type": "LocationFeatureSpecification", "name": "Condomínio fechado", "value": true },
+      { "@type": "LocationFeatureSpecification", "name": "Câmeras de segurança externas", "value": true },
+      { "@type": "LocationFeatureSpecification", "name": "Estacionamento", "value": true }
+    ],
+    "numberOfRooms": 4,
+    "petsAllowed": true,
+    "checkinTime": "09:00",
+    "checkoutTime": "17:00",
+    "sameAs": [
+      "https://www.airbnb.com/h/recantodosipesmg",
+      "https://www.instagram.com/recantodoipes/"
+    ]
+  }
+  </script>
+
+  <!-- ═══════════════════════════════════════════
+       JSON-LD: Speakable Schema (voice search)
+  ════════════════════════════════════════════ -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Perguntas Frequentes — Sítio Recanto dos Ipês",
+    "url": "https://recanto-dos-ipes-production.up.railway.app/faq",
+    "speakable": {
+      "@type": "SpeakableSpecification",
+      "cssSelector": [".speakable-hero", ".speakable-summary"]
+    }
+  }
+  </script>
+</head>
+
+<body class="antialiased">
+
+<!-- ═══════════════════════════════════════════
+     NAVBAR
+════════════════════════════════════════════ -->
+<nav id="navbar" class="fixed top-0 left-0 right-0 z-50 px-6 py-5">
+  <div class="max-w-6xl mx-auto flex items-center justify-between">
+
+    <a href="/" class="flex items-center group">
+      <img src="/images/logo.png"
+           alt="Recanto dos Ipês"
+           class="h-12 w-auto object-contain"
+           style="filter: brightness(0) invert(1);"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+      <div style="display:none" class="items-center gap-2.5">
+        <div>
+          <div class="text-white font-serif text-base font-semibold leading-tight">Recanto dos Ipês</div>
+          <div class="text-gold text-xs font-light tracking-wide">Jaboticatubas · MG</div>
+        </div>
+      </div>
+    </a>
+
+    <div class="hidden md:flex items-center gap-7 text-sm text-white/85 font-medium">
+      <a href="/#sobre" class="hover:text-gold transition-colors">O Sítio</a>
+      <a href="/#diferenciais" class="hover:text-gold transition-colors">Diferenciais</a>
+      <a href="/#espacos" class="hover:text-gold transition-colors">Espaços</a>
+      <a href="/galeria" class="hover:text-gold transition-colors">Galeria</a>
+      <a href="/#avaliacoes" class="hover:text-gold transition-colors">Avaliações</a>
+      <a href="/faq" class="text-gold font-semibold transition-colors" aria-current="page">FAQ</a>
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="hover:text-gold transition-colors" aria-label="Instagram">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+      </a>
+      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+         class="bg-gold hover:bg-gold-dark text-white px-5 py-2 rounded-full transition-colors font-semibold text-sm">
+        Reserve Agora
+      </a>
+    </div>
+
+    <button id="menu-btn" class="md:hidden text-white p-1" aria-label="Menu">
+      <svg id="icon-menu" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+      <svg id="icon-close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+
+  <div id="mobile-menu" class="md:hidden bg-forest-dark/95 backdrop-blur mt-2 rounded-2xl mx-0">
+    <div class="flex flex-col gap-1 p-4 text-white text-sm font-medium">
+      <a href="/#sobre"        class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">O Sítio</a>
+      <a href="/#diferenciais" class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">Diferenciais</a>
+      <a href="/#espacos"      class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">Espaços</a>
+      <a href="/#avaliacoes"   class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">Avaliações</a>
+      <a href="/#localizacao"  class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">Localização</a>
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="flex items-center gap-2 py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">
+        <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+        Instagram
+      </a>
+      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+         class="mt-2 bg-gold text-white text-center py-3 px-3 rounded-xl font-semibold" onclick="closeMobileMenu()">Reserve Agora</a>
+    </div>
+  </div>
+</nav>
+
+
+<!-- ═══════════════════════════════════════════
+     HERO BANNER
+════════════════════════════════════════════ -->
+<section class="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
+  <div class="absolute inset-0 bg-cover bg-center bg-no-repeat"
+       style="background-image: url('/images/rancho.jpg');"></div>
+  <div class="hero-overlay absolute inset-0"></div>
+
+  <div class="relative z-10 text-center px-6 max-w-3xl mx-auto speakable-hero">
+    <div class="inline-flex items-center gap-2 bg-white/15 backdrop-blur border border-white/25 rounded-full px-4 py-1.5 mb-6"
+         data-aos="fade-down" data-aos-duration="600">
+      <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+      </svg>
+      <span class="text-white text-sm font-medium">4,95 · 44 avaliações · Preferido dos Hóspedes</span>
+    </div>
+
+    <h1 class="font-serif text-white text-4xl sm:text-5xl md:text-6xl font-bold leading-tight mb-4"
+        data-aos="fade-up" data-aos-duration="700" data-aos-delay="100">
+      Perguntas Frequentes
+    </h1>
+    <p class="text-white/80 text-lg md:text-xl max-w-xl mx-auto font-light leading-relaxed"
+       data-aos="fade-up" data-aos-duration="700" data-aos-delay="200">
+      Tudo o que você precisa saber antes de reservar o Sítio Recanto dos Ipês
+    </p>
+
+    <!-- Quick stats -->
+    <div class="mt-8 flex flex-wrap justify-center gap-3"
+         data-aos="fade-up" data-aos-duration="700" data-aos-delay="300">
+      <span class="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur border border-white/20 text-white text-xs font-medium px-3.5 py-2 rounded-full">
+        <svg class="w-3.5 h-3.5 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+        Até 20 hóspedes
+      </span>
+      <span class="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur border border-white/20 text-white text-xs font-medium px-3.5 py-2 rounded-full">
+        <svg class="w-3.5 h-3.5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        4 quartos · 3 banheiros
+      </span>
+      <span class="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur border border-white/20 text-white text-xs font-medium px-3.5 py-2 rounded-full">
+        <svg class="w-3.5 h-3.5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        30 min da Serra do Cipó
+      </span>
+      <span class="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur border border-white/20 text-white text-xs font-medium px-3.5 py-2 rounded-full">
+        <svg class="w-3.5 h-3.5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+        Pets bem-vindos
+      </span>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     SPEAKABLE SUMMARY (voice / AI snippets)
+════════════════════════════════════════════ -->
+<div class="speakable-summary sr-only" aria-hidden="false">
+  O Sítio Recanto dos Ipês fica em Jaboticatubas, Minas Gerais, a 30 minutos da Serra do Cipó. Acomoda até 20 hóspedes, tem 4 quartos, 8 camas e 3 banheiros. A piscina é aquecida por energia solar e funciona 24 horas durante todo o ano. O check-in é a partir das 9 horas e o check-out até as 17 horas, com self check-in por cofre de chaves. A nota no Airbnb é 4,95 com 44 avaliações verificadas.
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     FILTER TABS
+════════════════════════════════════════════ -->
+<div class="sticky top-[72px] z-30 bg-beige/95 backdrop-blur border-b border-beige-dark shadow-sm">
+  <div class="max-w-4xl mx-auto px-6 py-3">
+    <div class="flex gap-2 overflow-x-auto pb-0.5" style="-ms-overflow-style:none;scrollbar-width:none;">
+      <button class="filter-tab active" data-filter="all" onclick="filterFAQ('all', this)">Todas</button>
+      <button class="filter-tab" data-filter="geral" onclick="filterFAQ('geral', this)">Sobre o Imóvel</button>
+      <button class="filter-tab" data-filter="reservas" onclick="filterFAQ('reservas', this)">Reservas</button>
+      <button class="filter-tab" data-filter="comodidades" onclick="filterFAQ('comodidades', this)">Comodidades</button>
+      <button class="filter-tab" data-filter="localizacao" onclick="filterFAQ('localizacao', this)">Localização</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     FAQ CONTENT
+════════════════════════════════════════════ -->
+<main class="py-14 md:py-20 px-6">
+  <div class="max-w-4xl mx-auto space-y-16">
+
+    <!-- ── SOBRE O IMÓVEL ─────────────────── -->
+    <section class="faq-section" data-category="geral" data-aos="fade-up">
+      <div class="flex items-center gap-4 mb-8">
+        <div class="w-10 h-10 rounded-xl bg-forest/10 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-forest" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+          </svg>
+        </div>
+        <h2 class="font-serif text-2xl md:text-3xl font-bold text-forest gold-underline">Sobre o Imóvel</h2>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-beige-dark overflow-hidden divide-y divide-beige-dark">
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">O que é o Sítio Recanto dos Ipês?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              O Sítio Recanto dos Ipês é uma propriedade para temporada localizada em Jaboticatubas, Minas Gerais, dentro de um condomínio fechado e seguro, a apenas 30 minutos da Serra do Cipó e 5 minutos do distrito de São José de Almeida. O sítio oferece lazer completo com piscina aquecida solar, sauna a lenha, salão de jogos, campo de futebol e cozinha totalmente equipada, sendo ideal para grupos familiares e de amigos que buscam descanso e natureza em Minas Gerais. Com avaliação de 4,95 estrelas e o selo "Preferido dos Hóspedes" no Airbnb, é referência em hospitalidade na região.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Quantas pessoas cabem no sítio?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              O Sítio Recanto dos Ipês comporta até 20 hóspedes. A propriedade tem capacidade generosa para grupos grandes, com 4 quartos, 8 camas fixas, além de sofá-cama e colchões extras disponíveis na sala de estar, totalizando acomodação confortável para 20 pessoas. O espaço interno e as áreas de lazer são dimensionados para grupos desse tamanho, garantindo conforto para todos.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Quantos quartos e camas tem o sítio?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              O sítio tem <strong class="text-forest">4 quartos</strong> com 8 camas no total, distribuídas em camas de casal (queen) e camas de solteiro em cada quarto. Além dos quartos, a sala de estar conta com sofá-cama e colchões extras para acomodar grupos maiores. A propriedade também dispõe de <strong class="text-forest">3 banheiros completos</strong>. A configuração foi planejada para garantir conforto tanto para famílias quanto para grupos de amigos.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">O sítio é seguro para crianças?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              Sim, o Sítio Recanto dos Ipês é um ambiente seguro para crianças. A propriedade fica dentro de um condomínio fechado com portaria, o terreno é totalmente cercado e conta com câmeras de segurança externas em todos os pontos principais. As áreas de lazer como o campo de futebol gramado, a rede de vôlei e o salão de jogos com sinuca e totó oferecem entretenimento seguro para os pequenos. A piscina, por ser aquecida, também é um atrativo especial para as crianças.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Animais de estimação são permitidos?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              Sim, o Sítio Recanto dos Ipês aceita animais de estimação com prazer. O terreno cercado e o amplo espaço verde oferecem liberdade e segurança para que seus pets se sintam à vontade durante toda a estadia. Não é necessário deixar seu companheiro de quatro patas em casa — ele é bem-vindo aqui. Recomendamos informar sobre seus animais no momento de fazer a reserva.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">O sítio é adequado para eventos e confraternizações?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              Sim, o Sítio Recanto dos Ipês é ideal para confraternizações, aniversários, retiros empresariais e encontros de família. Com capacidade para até 20 pessoas, piscina aquecida disponível 24h, churrasqueira coberta, salão de jogos e campo de futebol, o espaço oferece toda a infraestrutura necessária para um evento memorável. Também é possível contratar cozinheira e churrasqueiro profissionais como serviço adicional para que todos possam curtir sem preocupação.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ── RESERVAS ─────────────────────────── -->
+    <section class="faq-section" data-category="reservas" data-aos="fade-up">
+      <div class="flex items-center gap-4 mb-8">
+        <div class="w-10 h-10 rounded-xl bg-forest/10 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-forest" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <h2 class="font-serif text-2xl md:text-3xl font-bold text-forest gold-underline">Reservas e Check-in</h2>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-beige-dark overflow-hidden divide-y divide-beige-dark">
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Como fazer a reserva do sítio?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              A reserva é feita diretamente pelo Airbnb, através do link <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener" class="text-forest font-semibold underline underline-offset-2 hover:text-gold-dark transition-colors">airbnb.com/h/recantodosipesmg</a>. Basta selecionar as datas desejadas, verificar a disponibilidade em tempo real e concluir o pagamento com segurança pela plataforma. A anfitriã Sthefane, Superhost com 100% de taxa de resposta, confirma as reservas com agilidade e envia todas as informações necessárias antes da chegada.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Qual é o horário de check-in e check-out?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              O check-in pode ser feito a partir das <strong class="text-forest">09h00</strong> e o check-out deve ser realizado até as <strong class="text-forest">17h00</strong>. Esses horários permitem que os hóspedes aproveitem o dia completo no sítio — chegando cedo pela manhã para desfrutar de todas as instalações ao longo do dia. Em caso de necessidade de horários diferentes, consulte a anfitriã Sthefane com antecedência.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Como funciona o check-in? Preciso esperar alguém?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              O check-in é self check-in (entrada autônoma), realizado por meio de um cofre de chaves instalado na propriedade. Após a confirmação da reserva, a anfitriã Sthefane envia com antecedência todas as instruções de acesso ao condomínio e o código do cofre de chaves via Airbnb. Você não precisa aguardar a presença de ninguém para entrar — o processo é simples, prático e funciona a qualquer hora do dia.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">É possível fazer reserva direta, sem o Airbnb?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              Atualmente, as reservas são gerenciadas principalmente pelo Airbnb, que garante segurança e transparência tanto para o hóspede quanto para os anfitriões. Para consultas sobre reservas diretas ou condições especiais para grupos, entre em contato com a anfitriã Sthefane pelo próprio Airbnb ou pelo Instagram <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener" class="text-forest font-semibold underline underline-offset-2 hover:text-gold-dark transition-colors">@recantodoipes</a>.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Com quanto de antecedência devo reservar?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              Recomendamos reservar com pelo menos <strong class="text-forest">2 a 4 semanas de antecedência</strong> para fins de semana regulares. Para feriados prolongados, Carnaval, Semana Santa, verão (dezembro a fevereiro) e férias de julho, o ideal é reservar com 1 a 2 meses de antecedência. O sítio é muito procurado na região e as datas mais disputadas esgotam rapidamente — confirme logo para não perder sua data.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Qual é a política de cancelamento?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              A política de cancelamento é definida e gerenciada pelo Airbnb, e as condições específicas são exibidas antes de você confirmar a reserva na plataforma. Recomendamos verificar a política vigente diretamente no anúncio em <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener" class="text-forest font-semibold underline underline-offset-2 hover:text-gold-dark transition-colors">airbnb.com/h/recantodosipesmg</a> antes de finalizar. Em caso de dúvidas, entre em contato com a anfitriã Sthefane pelo próprio Airbnb.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ── COMODIDADES ───────────────────────── -->
+    <section class="faq-section" data-category="comodidades" data-aos="fade-up">
+      <div class="flex items-center gap-4 mb-8">
+        <div class="w-10 h-10 rounded-xl bg-forest/10 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-forest" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+          </svg>
+        </div>
+        <h2 class="font-serif text-2xl md:text-3xl font-bold text-forest gold-underline">Estrutura e Comodidades</h2>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-beige-dark overflow-hidden divide-y divide-beige-dark">
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">A piscina é aquecida? Como funciona o sistema?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              Sim, a piscina é aquecida por sistema solar, mantendo a temperatura agradável durante todo o ano — inclusive nos meses de inverno, quando a Serra do Cipó registra temperaturas mais frias. O tratamento da água utiliza ozônio da marca <strong class="text-forest">Panozon Blue Star</strong>, tecnologia superior ao cloro convencional: mais eficiente no combate a bactérias, menos agressiva à pele e aos olhos, e sem aquele cheiro forte de cloro. A piscina fica disponível <strong class="text-forest">24 horas por dia</strong> durante toda a estadia.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">A sauna é a lenha ou elétrica?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              A sauna do Sítio Recanto dos Ipês é <strong class="text-forest">a lenha</strong>, da marca Sodramar, proporcionando uma experiência mais autêntica e o calor característico e homogêneo das saunas tradicionais. A sauna a lenha aquece de forma superior à elétrica e é um dos pontos mais elogiados pelos hóspedes nas avaliações do Airbnb. Ela é perfeita para relaxar após um dia de atividades, especialmente nas noites frias da Serra do Cipó.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">O que tem na cozinha do sítio?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              A cozinha do Sítio Recanto dos Ipês é completa e equipada para grandes grupos. Conta com <strong class="text-forest">fogão a gás, fogão a lenha, forno a lenha, airfryer e freezer</strong>, além de churrasqueira coberta integrada à área de lazer. Há utensílios, panelas, louças, copos e talheres em quantidade suficiente para todos os hóspedes. É uma cozinha pensada tanto para o preparo de refeições do dia a dia quanto para churrascos, festas e almoços especiais em família.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">O enxoval (lençóis, toalhas) está incluído?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              Sim, o enxoval completo está incluído na diária, sem custo adicional. A propriedade fornece <strong class="text-forest">lençóis, fronhas, toalhas de banho, cobertores e kit de higiene básica</strong> (sabonete, shampoo e papel higiênico). Você não precisa trazer nada além de suas roupas pessoais. Este cuidado com o enxoval é um dos detalhes que os hóspedes mais elogiam, já que facilita muito a logística para grupos grandes.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Tem área de churrasco no sítio?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              Sim, o sítio possui churrasqueira coberta totalmente equipada, integrada à cozinha e à área de lazer. O espaço é amplo, pensado para grupos grandes, com bancadas, pia e toda a estrutura necessária para um churrasco completo. Além da churrasqueira convencional, a cozinha conta com forno a lenha para preparo de pães e assados. É possível também contratar um churrasqueiro profissional para cuidar de tudo durante a sua estadia.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Quais opções de lazer e esporte tem no sítio?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              O Sítio Recanto dos Ipês oferece um leque completo de atividades: <strong class="text-forest">piscina aquecida solar</strong> com sistema Panozon disponível 24h, <strong class="text-forest">sauna Sodramar a lenha</strong>, <strong class="text-forest">salão de jogos</strong> com mesa de sinuca e totó (pebolim), <strong class="text-forest">campo de futebol</strong> gramado e <strong class="text-forest">rede de vôlei</strong>. Para quem prefere descanso, há amplos espaços verdes, varanda relaxante e o entorno natural da Serra do Cipó para caminhadas e contato com a natureza.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Tem Wi-Fi no sítio?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              Sim, o Sítio Recanto dos Ipês conta com Wi-Fi disponível para os hóspedes nas áreas internas da propriedade. A conexão permite que você fique conectado quando necessário, sem abrir mão do contato com a natureza e do descanso merecido. O acesso é compartilhado com todos os hóspedes do grupo.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">É possível contratar cozinheira ou churrasqueiro?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              Sim! O Sítio Recanto dos Ipês oferece a possibilidade de contratar <strong class="text-forest">cozinheira e churrasqueiro profissionais</strong> como serviço adicional. Esse diferencial é muito apreciado por grupos que desejam aproveitar ao máximo o lazer sem se preocupar com o preparo das refeições — imagine um churrasco perfeito sem precisar se afastar da piscina. O serviço deve ser solicitado e combinado com antecedência diretamente com a anfitriã Sthefane.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">O sítio tem estacionamento?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              Sim, o Sítio Recanto dos Ipês dispõe de área de estacionamento privativa dentro do condomínio fechado, com segurança garantida pelas câmeras de monitoramento externo. Há espaço suficiente para acomodar os veículos de todos os hóspedes do grupo confortavelmente.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ── LOCALIZAÇÃO ───────────────────────── -->
+    <section class="faq-section" data-category="localizacao" data-aos="fade-up">
+      <div class="flex items-center gap-4 mb-8">
+        <div class="w-10 h-10 rounded-xl bg-forest/10 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-forest" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+        </div>
+        <h2 class="font-serif text-2xl md:text-3xl font-bold text-forest gold-underline">Localização</h2>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-beige-dark overflow-hidden divide-y divide-beige-dark">
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Onde fica o Sítio Recanto dos Ipês exatamente?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              O Sítio Recanto dos Ipês está localizado em <strong class="text-forest">Jaboticatubas, Minas Gerais</strong>, dentro de um condomínio fechado. As coordenadas geográficas são aproximadamente -19.515 (latitude) e -43.74 (longitude). A propriedade fica a apenas 5 minutos do distrito de São José de Almeida e a aproximadamente 30 minutos do centro de Jaboticatubas e da entrada do Parque Nacional da Serra do Cipó. Após a confirmação da reserva, a anfitriã Sthefane envia o endereço exato e o link do Google Maps.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Qual a distância para a Serra do Cipó?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              O sítio fica a aproximadamente <strong class="text-forest">30 minutos de carro</strong> da Serra do Cipó — mais precisamente do Parque Nacional da Serra do Cipó, uma das principais atrações naturais de Minas Gerais, famosa pelas cachoeiras (como a Cachoeira da Farofa e a Cachoeira do Tabuleiro), piscinas naturais do Rio Cipó e trilhas ecológicas. A proximidade permite combinar o conforto e lazer completo do sítio com passeios ecológicos inesquecíveis na região.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Tem mercado ou comércio perto do sítio?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              O distrito de São José de Almeida, a apenas <strong class="text-forest">5 minutos do sítio</strong>, conta com mercadinhos, padaria e pequeno comércio local para compras básicas. Para um abastecimento mais completo, o município de Jaboticatubas fica a cerca de 30 minutos e possui supermercados, farmácias e demais serviços. <strong class="text-forest">Recomendamos fazer as compras principais antes de chegar ao sítio</strong> para maior comodidade e para não interromper o descanso.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Como chegar de carro ao sítio?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              O acesso ao sítio é feito de carro pela <strong class="text-forest">MG-010 (Rodovia dos Inconfidentes)</strong>, que liga Belo Horizonte a Jaboticatubas e à Serra do Cipó. A partir de Belo Horizonte, o trajeto leva aproximadamente <strong class="text-forest">1 hora e 15 minutos</strong>. Após a confirmação da reserva, a anfitriã Sthefane envia o endereço exato do condomínio, o link do Google Maps e as instruções detalhadas de acesso pela portaria.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Quais atrações turísticas ficam perto do sítio?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              A principal atração da região é o <strong class="text-forest">Parque Nacional da Serra do Cipó</strong>, a 30 minutos, com cachoeiras como a Cachoeira da Farofa e as famosas piscinas naturais do Rio Cipó. A região também é destaque para ecoturismo, trilhas e mountain bike. A cidade histórica de <strong class="text-forest">Conceição do Mato Dentro</strong> fica a cerca de 1 hora, e a capital Belo Horizonte a 1h15 — permitindo passeios à cidade quando desejado.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ── AVALIAÇÕES ─────────────────────────── -->
+    <section class="faq-section" data-category="geral" data-aos="fade-up">
+      <div class="flex items-center gap-4 mb-8">
+        <div class="w-10 h-10 rounded-xl bg-forest/10 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-forest" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+          </svg>
+        </div>
+        <h2 class="font-serif text-2xl md:text-3xl font-bold text-forest gold-underline">Avaliações e Qualidade</h2>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-beige-dark overflow-hidden divide-y divide-beige-dark">
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">Qual a nota do Sítio Recanto dos Ipês no Airbnb?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              O Sítio Recanto dos Ipês possui avaliação de <strong class="text-forest">4,95 em 5 estrelas</strong> no Airbnb, com 44 avaliações verificadas de hóspedes reais. A propriedade ostenta o selo <strong class="text-forest">"Preferido dos Hóspedes" (Guest Favorite)</strong>, concedido pelo Airbnb apenas aos imóveis com altíssima consistência nas avaliações. A anfitriã Sthefane é Superhost com 100% de taxa de resposta, garantindo comunicação ágil e atendimento de excelência.
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-beige/50 transition-colors"
+                  onclick="toggleFAQ(this)" aria-expanded="false">
+            <span class="font-semibold text-forest text-base leading-snug">O que os hóspedes mais elogiam no sítio?</span>
+            <svg class="faq-icon w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          <div class="faq-answer">
+            <div class="px-6 pb-5 text-stone leading-relaxed">
+              Nas avaliações verificadas do Airbnb, os hóspedes destacam principalmente: a <strong class="text-forest">piscina aquecida solar</strong> disponível mesmo no inverno, a <strong class="text-forest">sauna a lenha Sodramar</strong> de qualidade excepcional, a <strong class="text-forest">atenção e prestatividade da anfitriã Sthefane</strong>, a limpeza impecável do imóvel, a estrutura completa para grupos grandes e o excelente custo-benefício. A localização privilegiada dentro do condomínio fechado, com fácil acesso à Serra do Cipó, também é muito valorizada.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </div>
+</main>
+
+
+<!-- ═══════════════════════════════════════════
+     CTA SECTION
+════════════════════════════════════════════ -->
+<section class="py-20 md:py-24 px-6 bg-forest relative overflow-hidden">
+  <div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none"></div>
+  <div class="absolute bottom-0 left-0 w-48 h-48 bg-gold/10 rounded-full -translate-x-1/3 translate-y-1/3 pointer-events-none"></div>
+
+  <div class="max-w-3xl mx-auto text-center relative z-10" data-aos="fade-up">
+    <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 mb-6">
+      <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+      </svg>
+      <span class="text-white/90 text-sm font-medium">Ainda tem dúvidas?</span>
+    </div>
+
+    <h2 class="font-serif text-white text-3xl md:text-4xl font-bold leading-tight mb-4">
+      Reserve direto pelo Airbnb<br>e fale com a Sthefane
+    </h2>
+    <p class="text-white/75 text-base md:text-lg mb-8 max-w-xl mx-auto leading-relaxed">
+      A Sthefane é Superhost com 100% de taxa de resposta — ela responde rapidamente a qualquer pergunta sobre o sítio e garante que sua estadia seja perfeita.
+    </p>
+
+    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+         class="inline-flex items-center justify-center gap-3 bg-gold hover:bg-gold-dark text-white font-bold px-8 py-4 rounded-full transition-all text-base shadow-2xl hover:shadow-gold/30 hover:-translate-y-0.5">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C8.676 2 6 4.676 6 8c0 5.25 6 14 6 14s6-8.75 6-14c0-3.324-2.676-6-6-6zm0 8c-1.105 0-2-.895-2-2s.895-2 2-2 2 .895 2 2-.895 2-2 2z"/>
+        </svg>
+        Ver Disponibilidade no Airbnb
+      </a>
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white font-medium px-8 py-4 rounded-full transition-all text-base">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+        Seguir no Instagram
+      </a>
+    </div>
+
+    <div class="mt-6 flex items-center justify-center gap-4 text-white/55 text-sm">
+      <span class="flex items-center gap-1.5">
+        <svg class="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        4,95 · 44 avaliações
+      </span>
+      <span>·</span>
+      <span>Superhost verificado</span>
+      <span>·</span>
+      <span>Responde em até 1 hora</span>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     FOOTER
+════════════════════════════════════════════ -->
+<footer class="bg-forest-dark py-10 px-6">
+  <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+
+    <div class="flex items-center gap-3">
+      <img src="/images/logo.png"
+           alt="Recanto dos Ipês"
+           class="h-10 w-auto object-contain"
+           style="filter: brightness(0) invert(0.6);"
+           onerror="this.style.display:'none'; this.nextElementSibling.style.display='block';">
+      <div style="display:none">
+        <div class="text-white font-serif font-semibold">Recanto dos Ipês</div>
+        <div class="text-white/50 text-xs">Jaboticatubas · Minas Gerais</div>
+      </div>
+    </div>
+
+    <nav class="flex items-center gap-5 text-white/60 text-xs">
+      <a href="/" class="hover:text-gold transition-colors">Início</a>
+      <a href="/#sobre" class="hover:text-gold transition-colors">O Sítio</a>
+      <a href="/#reservas" class="hover:text-gold transition-colors">Reservas</a>
+      <a href="/faq" class="text-gold font-medium">FAQ</a>
+    </nav>
+
+    <p class="text-white/40 text-xs text-center">
+      &copy; 2025 Sítio Recanto dos Ipês — Todos os direitos reservados
+    </p>
+
+    <div class="flex items-center gap-4">
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="text-white/60 hover:text-gold transition-colors" aria-label="Instagram @recantodoipes">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+      </a>
+      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+         class="text-white/60 hover:text-gold text-xs transition-colors underline underline-offset-2">
+        Ver no Airbnb
+      </a>
+    </div>
+  </div>
+</footer>
+
+
+<!-- ═══════════════════════════════════════════
+     FLOATING RESERVE BUTTON
+════════════════════════════════════════════ -->
+<a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+   class="float-btn" aria-label="Reserve o sítio no Airbnb">
+  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+  </svg>
+  Reserve
+</a>
+
+
+<!-- ═══════════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════════════ -->
+<script>
+  // Init AOS
+  AOS.init({ once: true, offset: 60, easing: 'ease-out-cubic' });
+
+  // Navbar scroll effect
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    navbar.classList.toggle('scrolled', window.scrollY > 60);
+  });
+
+  // Mobile menu
+  const menuBtn = document.getElementById('menu-btn');
+  const mobileMenu = document.getElementById('mobile-menu');
+  const iconMenu = document.getElementById('icon-menu');
+  const iconClose = document.getElementById('icon-close');
+
+  menuBtn.addEventListener('click', () => {
+    const isOpen = mobileMenu.classList.toggle('open');
+    iconMenu.classList.toggle('hidden', isOpen);
+    iconClose.classList.toggle('hidden', !isOpen);
+  });
+
+  function closeMobileMenu() {
+    mobileMenu.classList.remove('open');
+    iconMenu.classList.remove('hidden');
+    iconClose.classList.add('hidden');
+  }
+
+  // Accordion toggle
+  function toggleFAQ(btn) {
+    const item = btn.closest('.faq-item');
+    const answer = item.querySelector('.faq-answer');
+    const isOpen = item.classList.contains('open');
+
+    // Close all items in the same card group
+    const group = item.closest('.bg-white');
+    group.querySelectorAll('.faq-item.open').forEach(openItem => {
+      if (openItem !== item) {
+        openItem.classList.remove('open');
+        openItem.querySelector('.faq-answer').classList.remove('open');
+        openItem.querySelector('button').setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    // Toggle current item
+    item.classList.toggle('open', !isOpen);
+    answer.classList.toggle('open', !isOpen);
+    btn.setAttribute('aria-expanded', String(!isOpen));
+  }
+
+  // Category filter
+  function filterFAQ(category, clickedBtn) {
+    // Update tab styles
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+      tab.classList.remove('active');
+    });
+    clickedBtn.classList.add('active');
+
+    // Show/hide sections
+    document.querySelectorAll('.faq-section').forEach(section => {
+      if (category === 'all') {
+        section.classList.remove('hidden-section');
+      } else {
+        const sectionCategory = section.getAttribute('data-category');
+        if (sectionCategory === category) {
+          section.classList.remove('hidden-section');
+        } else {
+          section.classList.add('hidden-section');
+        }
+      }
+    });
+  }
+
+  // Hide float button near footer to avoid overlap
+  const floatBtn = document.querySelector('.float-btn');
+  const footer = document.querySelector('footer');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      floatBtn.style.opacity = entry.isIntersecting ? '0' : '1';
+      floatBtn.style.pointerEvents = entry.isIntersecting ? 'none' : 'auto';
+    });
+  }, { threshold: 0.1 });
+  observer.observe(footer);
+</script>
+
+</body>
+</html>

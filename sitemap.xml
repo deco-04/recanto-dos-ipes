@@ -11,37 +11,41 @@
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="pt-BR" href="https://recanto-dos-ipes-production.up.railway.app/"/>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/hero.jpg</image:loc>
-      <image:title>Sítio Recanto dos Ipês — Vista principal da propriedade em Jaboticatubas, MG</image:title>
-      <image:caption>Sítio com piscina aquecida, sauna e lazer completo em Jaboticatubas, Minas Gerais — a 30 minutos da Serra do Cipó</image:caption>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/rancho.jpg</image:loc>
+      <image:title>Rancho coberto do Sítio Recanto dos Ipês — área de convivência e churrasqueira</image:title>
+      <image:caption>Rancho coberto com mesas de madeira rústica e churrasqueira — Sítio Recanto dos Ipês, Jaboticatubas, MG</image:caption>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/pool.jpg</image:loc>
-      <image:title>Piscina aquecida solar do Sítio Recanto dos Ipês com sistema Panozon Blue Star</image:title>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/quarto-suite.jpg</image:loc>
+      <image:title>Quarto suíte do Sítio Recanto dos Ipês — cama queen com enxoval completo</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/sauna.jpg</image:loc>
-      <image:title>Sauna Sodramar do Sítio Recanto dos Ipês</image:title>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/quarto-casal.jpg</image:loc>
+      <image:title>Quarto casal do Sítio Recanto dos Ipês — cama queen, guarda-roupa e penteadeira</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/kitchen.jpg</image:loc>
-      <image:title>Cozinha completa com fogão a lenha do Sítio Recanto dos Ipês</image:title>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/quarto-solteiro.jpg</image:loc>
+      <image:title>Quarto solteiro do Sítio Recanto dos Ipês — 2 camas de solteiro com enxoval</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/games.jpg</image:loc>
-      <image:title>Salão de jogos com sinuca e totó do Sítio Recanto dos Ipês</image:title>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/cozinha-1.jpg</image:loc>
+      <image:title>Cozinha completa do Sítio Recanto dos Ipês — fogão a gás, coifa e bancadas</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/sports.jpg</image:loc>
-      <image:title>Campo de futebol e vôlei do Sítio Recanto dos Ipês</image:title>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/cozinha-2.jpg</image:loc>
+      <image:title>Cozinha do Sítio Recanto dos Ipês — geladeira e fogão completo</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/room-1.jpg</image:loc>
-      <image:title>Quarto 1 do Sítio Recanto dos Ipês — cama queen com enxoval completo</image:title>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/jogos.jpg</image:loc>
+      <image:title>Salão de jogos do Sítio Recanto dos Ipês — mesa de sinuca e área de convivência</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/room-2.jpg</image:loc>
-      <image:title>Quarto 2 do Sítio Recanto dos Ipês — cama queen e solteiro</image:title>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/jogos-sinuca.jpg</image:loc>
+      <image:title>Mesa de sinuca do Sítio Recanto dos Ipês</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/banheiro.jpg</image:loc>
+      <image:title>Banheiro completo do Sítio Recanto dos Ipês</image:title>
     </image:image>
   </url>
 
@@ -52,16 +56,36 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/hero.jpg</image:loc>
-      <image:title>Galeria de fotos — Sítio Recanto dos Ipês</image:title>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/rancho.jpg</image:loc>
+      <image:title>Rancho coberto — Galeria do Sítio Recanto dos Ipês</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/pool.jpg</image:loc>
-      <image:title>Piscina aquecida solar — Sítio Recanto dos Ipês</image:title>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/quarto-suite.jpg</image:loc>
+      <image:title>Quarto suíte — Galeria do Sítio Recanto dos Ipês</image:title>
     </image:image>
     <image:image>
-      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/sauna.jpg</image:loc>
-      <image:title>Sauna Sodramar — Sítio Recanto dos Ipês</image:title>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/quarto-casal.jpg</image:loc>
+      <image:title>Quarto casal — Galeria do Sítio Recanto dos Ipês</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/quarto-solteiro.jpg</image:loc>
+      <image:title>Quarto solteiro — Galeria do Sítio Recanto dos Ipês</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/banheiro.jpg</image:loc>
+      <image:title>Banheiro completo — Galeria do Sítio Recanto dos Ipês</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/cozinha-1.jpg</image:loc>
+      <image:title>Cozinha completa — Galeria do Sítio Recanto dos Ipês</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/jogos.jpg</image:loc>
+      <image:title>Salão de jogos — Galeria do Sítio Recanto dos Ipês</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://recanto-dos-ipes-production.up.railway.app/images/jogos-sinuca.jpg</image:loc>
+      <image:title>Sinuca de taco — Galeria do Sítio Recanto dos Ipês</image:title>
     </image:image>
   </url>
 
