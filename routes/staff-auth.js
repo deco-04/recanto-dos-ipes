@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { z } = require('zod');
-const { prisma } = require('../lib/db');
+const prisma = require('../lib/db');
 
 const router = express.Router();
 

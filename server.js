@@ -170,7 +170,8 @@ app.use('/api/auth',        require('./routes/auth'));
 app.use('/api/bookings',   require('./routes/bookings'));
 app.use('/api/pricing',    require('./routes/pricing'));
 app.use('/api/dashboard',  require('./routes/dashboard'));
-app.use('/api/staff/auth', require('./routes/staff-auth'));
+app.use('/api/staff/auth',  require('./routes/staff-auth'));
+app.use('/api/staff',      require('./routes/staff-portal'));
 
 // Admin — manual iCal sync trigger
 app.post('/api/admin/sync-ical', async (req, res) => {
