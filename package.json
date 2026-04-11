@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
+    "bcryptjs": "^3.0.3",
     "compression": "^1.7.4",
     "connect-pg-simple": "^9.0.1",
     "express": "^4.18.2",
@@ -27,6 +28,7 @@
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "stripe": "^15.7.0",
+    "twilio": "^5.13.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {

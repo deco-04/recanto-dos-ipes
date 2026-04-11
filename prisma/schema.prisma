@@ -19,8 +19,9 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  codes    VerificationCode[]
-  bookings Booking[]
+  codes      VerificationCode[]
+  bookings   Booking[]
+  reputation GuestReputation?
 }
 
 // Sessions are managed by connect-pg-simple (its own "session" table, auto-created)
@@ -70,10 +71,17 @@ model Booking {
   invoiceNumber         String        @unique @default(cuid())
   notes                 String?
   source                BookingSource @default(DIRECT)
+  propertyId            String?
+  cabinId               String?
+  surveyStatus          SurveyStatus  @default(NAO_ENVIADO)
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
-  user User? @relation(fields: [userId], references: [id])
+  user        User?            @relation(fields: [userId], references: [id])
+  property    Property?        @relation("PropertyBookings", fields: [propertyId], references: [id])
+  cabin       Cabin?           @relation("CabinBookings", fields: [cabinId], references: [id])
+  survey      Survey?
+  inspections InspectionReport[]
 
   @@index([checkIn, checkOut])
   @@index([guestEmail])
@@ -91,6 +99,12 @@ enum BookingSource {
   DIRECT
   AIRBNB
   BOOKING_COM
+}
+
+enum SurveyStatus {
+  NAO_ENVIADO
+  ENVIADO
+  RESPONDIDO
 }
 
 // ── Blocked Dates (from iCal sync) ────────────────────────────────────────────
@@ -121,7 +135,10 @@ model SeasonalPricing {
   endDate       DateTime    @db.Date
   pricePerNight Decimal     @db.Decimal(10, 2)
   minNights     Int         @default(2)
+  propertyId    String?
   createdAt     DateTime    @default(now())
+
+  property Property? @relation("PropertyPricing", fields: [propertyId], references: [id])
 
   @@index([startDate, endDate])
 }
@@ -131,4 +148,325 @@ enum PricingTier {
   MID
   HIGH_MID
   PEAK
+}
+
+// ── Multi-Property ────────────────────────────────────────────────────────────
+model Property {
+  id             String       @id @default(cuid())
+  name           String
+  slug           String       @unique
+  type           PropertyType @default(SITIO)
+  address        String?
+  city           String?
+  state          String?
+  hasPool        Boolean      @default(false)
+  icalAirbnb     String?
+  icalBookingCom String?
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+
+  cabins      Cabin[]
+  bookings    Booking[]                 @relation("PropertyBookings")
+  staff       StaffPropertyAssignment[]
+  inspections InspectionReport[]
+  maintenance MaintenanceLog[]
+  tickets     ServiceTicket[]
+  schedules   MaintenanceSchedule[]
+  pricing     SeasonalPricing[]         @relation("PropertyPricing")
+  suggestions PricingSuggestion[]
+}
+
+enum PropertyType {
+  SITIO
+  CABANA_COMPLEX
+  CABANA
+}
+
+model Cabin {
+  id          String   @id @default(cuid())
+  propertyId  String
+  name        String
+  slug        String
+  capacity    Int      @default(2)
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  property Property  @relation(fields: [propertyId], references: [id])
+  bookings Booking[] @relation("CabinBookings")
+}
+
+// ── Staff ─────────────────────────────────────────────────────────────────────
+model StaffMember {
+  id                 String    @id @default(cuid())
+  name               String
+  email              String?   @unique
+  phone              String?   @unique
+  passwordHash       String?
+  googleId           String?   @unique
+  role               StaffRole
+  fontSizePreference FontSize  @default(MD)
+  firstLoginDone     Boolean   @default(false)
+  pushSubscription   Json?
+  active             Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  properties       StaffPropertyAssignment[]
+  inspections      InspectionReport[]
+  maintenanceLogs  MaintenanceLog[]
+  tickets          ServiceTicket[]
+  tasksAssigned    StaffTask[]         @relation("TaskAssignee")
+  tasksCreated     StaffTask[]         @relation("TaskCreator")
+  notifications    PushNotification[]
+  pricingApprovals PricingSuggestion[]
+}
+
+enum StaffRole {
+  ADMIN
+  GUARDIA
+  PISCINEIRO
+}
+
+enum FontSize {
+  SM
+  MD
+  LG
+  XL
+}
+
+model StaffPropertyAssignment {
+  id         String      @id @default(cuid())
+  staffId    String
+  propertyId String
+  createdAt  DateTime    @default(now())
+
+  staff    StaffMember @relation(fields: [staffId], references: [id])
+  property Property    @relation(fields: [propertyId], references: [id])
+
+  @@unique([staffId, propertyId])
+}
+
+// ── Inspection Reports ────────────────────────────────────────────────────────
+model InspectionReport {
+  id               String           @id @default(cuid())
+  bookingId        String
+  propertyId       String
+  staffId          String
+  type             InspectionType
+  status           InspectionStatus @default(DRAFT)
+  signatureDataUrl String?          @db.Text
+  submittedAt      DateTime?
+  notes            String?          @db.Text
+  createdAt        DateTime         @default(now())
+
+  booking  Booking     @relation(fields: [bookingId], references: [id])
+  property Property    @relation(fields: [propertyId], references: [id])
+  staff    StaffMember @relation(fields: [staffId], references: [id])
+  items    InspectionItem[]
+  photos   InspectionPhoto[]
+}
+
+enum InspectionType {
+  PRE_CHECKIN
+  CHECKOUT
+}
+
+enum InspectionStatus {
+  DRAFT
+  SUBMITTED
+}
+
+model InspectionItem {
+  id                 String     @id @default(cuid())
+  reportId           String
+  category           String
+  description        String
+  status             ItemStatus @default(NAO_VERIFICADO)
+  problemDescription String?
+  createdAt          DateTime   @default(now())
+
+  report InspectionReport @relation(fields: [reportId], references: [id])
+  photos InspectionPhoto[]
+}
+
+enum ItemStatus {
+  OK
+  PROBLEMA
+  NAO_VERIFICADO
+}
+
+model InspectionPhoto {
+  id                 String   @id @default(cuid())
+  reportId           String
+  itemId             String?
+  cloudinaryPublicId String
+  cloudinaryUrl      String
+  caption            String?
+  takenAt            DateTime @default(now())
+
+  report InspectionReport  @relation(fields: [reportId], references: [id])
+  item   InspectionItem?   @relation(fields: [itemId], references: [id])
+}
+
+// ── Maintenance ───────────────────────────────────────────────────────────────
+model MaintenanceLog {
+  id            String      @id @default(cuid())
+  propertyId    String
+  staffId       String
+  visitDate     DateTime
+  borderCleaned Boolean     @default(false)
+  coverCleaned  Boolean     @default(false)
+  vacuumed      Boolean     @default(false)
+  waterTreated  Boolean     @default(false)
+  filterCleaned Boolean     @default(false)
+  notes         String?
+  photoUrls     Json        @default("[]")
+  createdAt     DateTime    @default(now())
+
+  property Property    @relation(fields: [propertyId], references: [id])
+  staff    StaffMember @relation(fields: [staffId], references: [id])
+}
+
+model ServiceTicket {
+  id          String         @id @default(cuid())
+  propertyId  String
+  openedById  String
+  title       String
+  description String         @db.Text
+  photoUrls   Json           @default("[]")
+  priority    TicketPriority @default(NORMAL)
+  status      TicketStatus   @default(ABERTO)
+  adminNotes  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  property Property    @relation(fields: [propertyId], references: [id])
+  openedBy StaffMember @relation(fields: [openedById], references: [id])
+}
+
+enum TicketPriority {
+  NORMAL
+  URGENTE
+}
+
+enum TicketStatus {
+  ABERTO
+  EM_ANDAMENTO
+  RESOLVIDO
+}
+
+model MaintenanceSchedule {
+  id              String   @id @default(cuid())
+  propertyId      String
+  item            String
+  frequencyDays   Int
+  lastDoneAt      DateTime?
+  nextDueAt       DateTime
+  alertDaysBefore Int      @default(7)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id])
+}
+
+// ── Tasks ─────────────────────────────────────────────────────────────────────
+model StaffTask {
+  id           String     @id @default(cuid())
+  assignedToId String
+  assignedById String
+  bookingId    String?
+  title        String
+  description  String?
+  dueDate      DateTime?
+  status       TaskStatus @default(PENDENTE)
+  completedAt  DateTime?
+  createdAt    DateTime   @default(now())
+
+  assignedTo StaffMember @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  assignedBy StaffMember @relation("TaskCreator", fields: [assignedById], references: [id])
+}
+
+enum TaskStatus {
+  PENDENTE
+  FEITO
+}
+
+// ── Survey ────────────────────────────────────────────────────────────────────
+model Survey {
+  id                   String   @id @default(cuid())
+  bookingId            String   @unique
+  guestEmail           String
+  sentAt               DateTime?
+  respondedAt          DateTime?
+  score                Int?
+  comment              String?  @db.Text
+  googleReviewLinkSent Boolean  @default(false)
+  adminAlerted         Boolean  @default(false)
+  createdAt            DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+}
+
+// ── Guest Reputation ──────────────────────────────────────────────────────────
+model GuestReputation {
+  id            String         @id @default(cuid())
+  userId        String         @unique
+  totalStays    Int            @default(0)
+  averageScore  Decimal        @default(0) @db.Decimal(3, 2)
+  totalSpent    Decimal        @default(0) @db.Decimal(10, 2)
+  reviewsGiven  Int            @default(0)
+  incidentCount Int            @default(0)
+  score         Int            @default(0)
+  tier          ReputationTier @default(VISITANTE)
+  lastUpdatedAt DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+enum ReputationTier {
+  VISITANTE
+  AMIGO
+  AMIGO_DA_CASA
+  VIP
+  FAMILIA
+}
+
+// ── Pricing Suggestions (IA) ──────────────────────────────────────────────────
+model PricingSuggestion {
+  id             String           @id @default(cuid())
+  propertyId     String
+  periodStart    DateTime
+  periodEnd      DateTime
+  currentPrice   Decimal          @db.Decimal(10, 2)
+  suggestedPrice Decimal          @db.Decimal(10, 2)
+  reason         String           @db.Text
+  status         SuggestionStatus @default(PENDENTE)
+  acceptedById   String?
+  acceptedAt     DateTime?
+  createdAt      DateTime         @default(now())
+
+  property   Property     @relation(fields: [propertyId], references: [id])
+  acceptedBy StaffMember? @relation(fields: [acceptedById], references: [id])
+}
+
+enum SuggestionStatus {
+  PENDENTE
+  ACEITA
+  REJEITADA
+}
+
+// ── Push Notifications ────────────────────────────────────────────────────────
+model PushNotification {
+  id      String      @id @default(cuid())
+  staffId String
+  title   String
+  body    String
+  type    String
+  data    Json?
+  read    Boolean     @default(false)
+  sentAt  DateTime    @default(now())
+
+  staff StaffMember @relation(fields: [staffId], references: [id])
 }
