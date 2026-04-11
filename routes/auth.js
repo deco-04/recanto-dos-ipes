@@ -7,6 +7,7 @@ const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const { z }    = require('zod');
 const prisma   = require('../lib/db');
 const { sendOtpEmail } = require('../lib/mailer');
+const { CookieStateStore } = require('../lib/oauth-state-store');
 
 const router = express.Router();
 
@@ -59,6 +60,7 @@ passport.use(new GoogleStrategy({
   clientID:     process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL:  process.env.GOOGLE_CALLBACK_URL,
+  store:        new CookieStateStore(),
 }, async (_accessToken, _refreshToken, profile, done) => {
   try {
     const email    = profile.emails?.[0]?.value;
