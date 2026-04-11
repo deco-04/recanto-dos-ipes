@@ -115,11 +115,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
+// connect-pg-simple auto-creates a "session" table (sid/sess/expire columns).
+// We do NOT use a Prisma Session model — column names are incompatible.
 const sessionStore = process.env.DATABASE_URL
   ? new PgSession({
-      conString: process.env.DATABASE_URL,
-      tableName: 'Session',
-      createTableIfMissing: false, // table managed by Prisma
+      conString:            process.env.DATABASE_URL,
+      createTableIfMissing: true,   // auto-creates "session" table on first boot
     })
   : new session.MemoryStore();
 

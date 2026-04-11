@@ -28,16 +28,8 @@ CREATE TABLE "User" (
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "Session" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT,
-    "data" JSONB NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Session_pkey" PRIMARY KEY ("id")
-);
+-- Note: "session" table is created by connect-pg-simple automatically (createTableIfMissing: true)
+-- We do not manage it in Prisma migrations.
 
 -- CreateTable
 CREATE TABLE "VerificationCode" (
@@ -113,9 +105,6 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE UNIQUE INDEX "User_cpf_key" ON "User"("cpf");
 CREATE UNIQUE INDEX "User_googleId_key" ON "User"("googleId");
 
-CREATE INDEX "Session_userId_idx" ON "Session"("userId");
-CREATE INDEX "Session_expiresAt_idx" ON "Session"("expiresAt");
-
 CREATE INDEX "VerificationCode_email_idx" ON "VerificationCode"("email");
 
 CREATE INDEX "Booking_checkIn_checkOut_idx" ON "Booking"("checkIn", "checkOut");
@@ -128,9 +117,6 @@ CREATE UNIQUE INDEX "BlockedDate_date_source_key" ON "BlockedDate"("date", "sour
 CREATE INDEX "BlockedDate_date_idx" ON "BlockedDate"("date");
 
 CREATE INDEX "SeasonalPricing_startDate_endDate_idx" ON "SeasonalPricing"("startDate", "endDate");
-
--- AddForeignKey
-ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "VerificationCode" ADD CONSTRAINT "VerificationCode_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;

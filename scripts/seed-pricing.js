@@ -55,7 +55,7 @@ const entries = [
   { name: 'N.Sra. Aparecida 2025',       tier: 'MID', start: '2025-10-10', end: '2025-10-12', minNights: 2 },
   { name: 'Finados 2025',                tier: 'MID', start: '2025-10-31', end: '2025-11-02', minNights: 2 },
   { name: 'Proclamação da República 2025',tier:'MID', start: '2025-11-14', end: '2025-11-16', minNights: 2 },
-  { name: 'Natal 2025',                  tier: 'MID', start: '2025-12-24', end: '2025-12-19', minNights: 2 },
+  { name: 'Natal 2025',                  tier: 'MID', start: '2025-12-24', end: '2025-12-26', minNights: 2 },
 
   // 2026
   { name: 'Tiradentes 2026',             tier: 'MID', start: '2026-04-17', end: '2026-04-21', minNights: 2 },
