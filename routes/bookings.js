@@ -45,10 +45,10 @@ router.get('/availability', async (req, res) => {
       select: { date: true, source: true },
     });
 
-    // Dates blocked by confirmed direct bookings
+    // Dates blocked by confirmed direct bookings (PENDING excluded — only show real blocks)
     const bookings = await prisma.booking.findMany({
       where: {
-        status: { in: ['CONFIRMED', 'PENDING'] },
+        status:   'CONFIRMED',
         checkIn:  { lte: end },
         checkOut: { gte: start },
       },
@@ -200,7 +200,8 @@ router.post('/intent', async (req, res) => {
 });
 
 // ── POST /api/bookings/confirm ────────────────────────────────────────────────
-// Called after Stripe.confirmCardPayment succeeds on the client
+// Called after Stripe.confirmCardPayment succeeds on the client.
+// Atomically re-checks availability before confirming — auto-refunds on conflict.
 router.post('/confirm', async (req, res) => {
   try {
     const { paymentIntentId, bookingId } = req.body;
@@ -209,24 +210,68 @@ router.post('/confirm', async (req, res) => {
       return res.status(400).json({ error: 'paymentIntentId e bookingId são obrigatórios' });
     }
 
-    // Verify with Stripe that payment actually succeeded
+    // 1. Verify with Stripe that payment actually succeeded
     const stripe = require('../lib/stripe');
     const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
-
     if (pi.status !== 'succeeded') {
       return res.status(402).json({ error: 'Pagamento não confirmado' });
     }
 
-    const booking = await prisma.booking.update({
-      where: { id: bookingId },
-      data:  { status: 'CONFIRMED' },
+    // 2. Load the pending booking
+    const pending = await prisma.booking.findUnique({ where: { id: bookingId } });
+    if (!pending) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    // Idempotent: already confirmed (e.g. webhook beat the client)
+    if (pending.status === 'CONFIRMED') {
+      return res.json({ success: true, booking: sanitizeBooking(pending) });
+    }
+
+    // 3. Atomic final availability check + status update in one transaction
+    const result = await prisma.$transaction(async tx => {
+      // Check iCal-blocked dates
+      const blockedCount = await tx.blockedDate.count({
+        where: { date: { gte: pending.checkIn, lt: pending.checkOut } },
+      });
+      if (blockedCount > 0) return { conflict: true };
+
+      // Check any OTHER booking that got confirmed for the same window
+      const bookingConflict = await tx.booking.count({
+        where: {
+          id:       { not: bookingId },
+          status:   'CONFIRMED',
+          checkIn:  { lt: pending.checkOut },
+          checkOut: { gt: pending.checkIn },
+        },
+      });
+      if (bookingConflict > 0) return { conflict: true };
+
+      // All clear — confirm atomically
+      const confirmed = await tx.booking.update({
+        where: { id: bookingId },
+        data:  { status: 'CONFIRMED' },
+      });
+      return { confirmed };
     });
 
-    // Fire GHL webhook (non-blocking)
-    const { notifyBookingConfirmed } = require('../lib/ghl-webhook');
-    notifyBookingConfirmed(booking).catch(e => console.error('[ghl] webhook error:', e.message));
+    // 4. Handle conflict: auto-refund + cancel
+    if (result.conflict) {
+      console.warn(`[bookings] confirm conflict on booking ${bookingId} — issuing refund`);
+      await stripe.refunds.create({ payment_intent: paymentIntentId })
+        .catch(e => console.error('[bookings] refund failed:', e.message));
+      await prisma.booking.update({
+        where: { id: bookingId },
+        data:  { status: 'CANCELLED' },
+      }).catch(() => {});
+      return res.status(409).json({
+        error: 'Infelizmente as datas foram reservadas por outra pessoa durante o seu checkout. Seu pagamento será estornado em até 5 dias úteis.',
+      });
+    }
 
-    res.json({ success: true, booking: sanitizeBooking(booking) });
+    // 5. Fire GHL webhook (non-blocking)
+    const { notifyBookingConfirmed } = require('../lib/ghl-webhook');
+    notifyBookingConfirmed(result.confirmed).catch(e => console.error('[ghl] webhook error:', e.message));
+
+    res.json({ success: true, booking: sanitizeBooking(result.confirmed) });
   } catch (err) {
     console.error('[bookings] confirm error:', err);
     res.status(500).json({ error: 'Erro ao confirmar reserva' });
