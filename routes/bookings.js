@@ -7,6 +7,28 @@ const prisma  = require('../lib/db');
 const { calculateQuote } = require('../lib/pricing');
 const { requireAuth }    = require('../lib/auth-middleware');
 
+// ── Per-IP rate limit: max 5 booking intents per hour ─────────────────────────
+// Prevents DoS via unlimited PaymentIntent creation and calendar pollution.
+const intentRateLimit = new Map(); // ip → { count, resetAt }
+
+function checkIntentRateLimit(ip) {
+  const now   = Date.now();
+  const entry = intentRateLimit.get(ip);
+  if (!entry || entry.resetAt < now) {
+    intentRateLimit.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
+    return true;
+  }
+  if (entry.count >= 5) return false;
+  entry.count++;
+  return true;
+}
+
+// Best-effort IP: honour X-Forwarded-For set by Railway's proxy
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  return forwarded ? forwarded.split(',')[0].trim() : req.ip;
+}
+
 // ── GET /api/bookings/availability ────────────────────────────────────────────
 // Query: ?start=YYYY-MM-DD&end=YYYY-MM-DD
 // Returns array of blocked date strings
@@ -79,6 +101,11 @@ router.get('/quote', async (req, res) => {
 // ── POST /api/bookings/intent ─────────────────────────────────────────────────
 // Creates a Stripe PaymentIntent. Validates availability first.
 router.post('/intent', async (req, res) => {
+  // Rate-limit before any DB or Stripe work
+  if (!checkIntentRateLimit(getClientIp(req))) {
+    return res.status(429).json({ error: 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.' });
+  }
+
   try {
     const schema = z.object({
       checkIn:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
