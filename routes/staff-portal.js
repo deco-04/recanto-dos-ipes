@@ -455,4 +455,50 @@ router.post('/chamados', async (req, res) => {
   }
 });
 
+// ── GET /api/staff/push/vapid-key ─────────────────────────────────────────────
+// Returns the VAPID public key so the PWA can create a PushSubscription.
+router.get('/push/vapid-key', (_req, res) => {
+  const key = process.env.VAPID_PUBLIC_KEY;
+  if (!key) {
+    return res.status(503).json({ error: 'Push notifications not configured' });
+  }
+  res.json({ publicKey: key });
+});
+
+// ── POST /api/staff/push/subscribe ────────────────────────────────────────────
+// Body: { subscription: { endpoint, keys: { p256dh, auth } } }
+router.post('/push/subscribe', async (req, res) => {
+  try {
+    const { subscription } = req.body;
+
+    if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+      return res.status(400).json({ error: 'Invalid subscription object' });
+    }
+
+    await prisma.staffMember.update({
+      where: { id: req.staff.id },
+      data:  { pushSubscription: subscription },
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[push] subscribe error:', err.message);
+    res.status(500).json({ error: 'Erro ao salvar subscription' });
+  }
+});
+
+// ── DELETE /api/staff/push/subscribe ─────────────────────────────────────────
+router.delete('/push/subscribe', async (req, res) => {
+  try {
+    await prisma.staffMember.update({
+      where: { id: req.staff.id },
+      data:  { pushSubscription: null },
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[push] unsubscribe error:', err.message);
+    res.status(500).json({ error: 'Erro ao remover subscription' });
+  }
+});
+
 module.exports = router;

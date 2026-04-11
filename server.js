@@ -19,6 +19,8 @@ if (process.env.NODE_ENV === 'production') {
     'STRIPE_SECRET_KEY',
     'STRIPE_PUBLISHABLE_KEY',
     'ADMIN_SECRET',
+    'VAPID_PUBLIC_KEY',
+    'VAPID_PRIVATE_KEY',
   ];
   const missing = REQUIRED_ENV.filter(k => !process.env[k]);
   if (missing.length > 0) {
@@ -103,6 +105,15 @@ app.post('/api/webhooks/stripe',
           const { sendBookingConfirmation } = require('./lib/mailer');
           notifyBookingConfirmed(updated).catch(e => console.error('[ghl]', e.message));
           sendBookingConfirmation({ booking: updated }).catch(e => console.error('[mailer]', e.message));
+
+          // Push notification to ADMIN staff (non-blocking)
+          const { sendPushToRole } = require('./lib/push');
+          sendPushToRole('ADMIN', {
+            title: 'Nova Reserva Confirmada 🏡',
+            body:  `${updated.guestName} · ${new Date(updated.checkIn).toLocaleDateString('pt-BR')} → ${new Date(updated.checkOut).toLocaleDateString('pt-BR')}`,
+            type:  'BOOKING_CONFIRMED',
+            data:  { bookingId: updated.id },
+          }).catch(e => console.error('[push] booking confirmed push failed:', e.message));
         }
       } catch (err) {
         console.error('[stripe] webhook DB error:', err);
@@ -152,7 +163,7 @@ app.use(session({
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
     maxAge:   30 * 24 * 60 * 60 * 1000, // 30 days
-    sameSite: 'lax',
+    sameSite: 'strict',
   },
   name: 'rdi.sid',
 }));

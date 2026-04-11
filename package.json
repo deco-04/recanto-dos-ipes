@@ -16,7 +16,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
     "compression": "^1.7.4",
     "connect-pg-simple": "^9.0.1",
@@ -31,9 +31,10 @@
     "sharp": "^0.34.5",
     "stripe": "^15.7.0",
     "twilio": "^5.13.1",
+    "web-push": "^3.6.7",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "prisma": "^5.22.0"
+    "prisma": "^6.19.3"
   }
 }
