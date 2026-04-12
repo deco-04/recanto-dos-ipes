@@ -385,7 +385,7 @@
       bgStyle   = 'background:#261C15;color:#ffffff;border:1px solid #261C15;';
       extraClass = 'ring-2 ring-forest ring-offset-1';
     } else if (isInRange) {
-      bgStyle = `background:#C5D86D22;color:${t.text};border:1px solid #C5D86D55;`;
+      bgStyle = `background:#261C1518;color:${t.text};border:1px solid #261C1530;`;
     }
 
     const todayDot = isToday
