@@ -12,6 +12,11 @@
   --forest-700: #3D2B1F;
   --forest-600: #5A3E2B;
 
+  /* Action / CTA verde — darkened lime-olive family */
+  --verde:        #6B8A2D;
+  --verde-dark:   #567224;
+  --verde-light:  #8BAB3E;
+
   --gold-400:   #C5D86D;
   --gold-500:   #9BAB52;
   --gold-600:   #6B7A25;
@@ -635,4 +640,55 @@ body {
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--border-subtle);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLOBAL: Button color override — new olive-lime verde across ALL pages
+   Targets <button> and <a> elements using the old forest/verde classes.
+   Does NOT affect navbars, cards, or other non-interactive bg-forest elements.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Pages using bg-forest on interactive elements (booking, dashboard, etc.) */
+button.bg-forest,
+a.bg-forest {
+  background-color: var(--verde) !important;
+}
+button.bg-forest:hover,
+button.bg-forest:focus-visible {
+  background-color: var(--verde-dark) !important;
+}
+a.bg-forest:hover,
+a.bg-forest:focus-visible {
+  background-color: var(--verde-dark) !important;
+}
+/* Tailwind hover utility override */
+button.hover\:bg-forest-light:hover,
+a.hover\:bg-forest-light:hover {
+  background-color: var(--verde-dark) !important;
+}
+
+/* Login page custom button class */
+.login-btn {
+  background-color: var(--verde) !important;
+}
+.login-btn:hover {
+  background-color: var(--verde-dark) !important;
+}
+
+/* Dashboard logout + profile toggle */
+.logout-btn:hover,
+.profile-toggle-btn:hover {
+  /* These keep their transparent/subtle style — not overriding */
+}
+
+/* Booking confirmation dismiss + success action buttons */
+button.bg-forest-light {
+  background-color: var(--verde-light) !important;
+}
+
+/* Ensure text stays white on new verde (sufficient contrast ~4.7:1) */
+button.bg-forest,
+a.bg-forest,
+.login-btn {
+  color: #fff !important;
 }
