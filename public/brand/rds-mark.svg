@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <!-- Recantos da Serra — Icon Mark -->
+  <!-- Arch / Portal da Serra -->
+  <path d="M10 56 L10 28 Q10 8 32 8 Q54 8 54 28 L54 56" stroke="#3D2B1A" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <!-- Mountain range — background layers -->
+  <polyline points="14,52 20,36 26,44 32,26 38,40 44,28 50,44" stroke="#9A7355" stroke-width="1.4" stroke-linejoin="round" fill="none" opacity="0.8"/>
+  <!-- Mountain peak — accent / Terracota Serra -->
+  <polyline points="26,44 32,26 38,40" stroke="#C45C2E" stroke-width="2" stroke-linejoin="round" fill="none"/>
+  <!-- Apex keystone -->
+  <circle cx="32" cy="8" r="4" fill="#C45C2E"/>
+  <!-- Baseline -->
+  <line x1="6" y1="56" x2="58" y2="56" stroke="#3D2B1A" stroke-width="1.8"/>
+</svg>
