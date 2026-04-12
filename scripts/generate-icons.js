@@ -1,5 +1,5 @@
 // scripts/generate-icons.js
-// Generates PWA icons from the SRI mark SVG using sharp.
+// Generates PWA icons from the purpose-built app-icon.svg using sharp.
 // Run automatically during Railway build via railway.toml buildCommand.
 // Also runnable manually: node scripts/generate-icons.js
 'use strict';
@@ -9,7 +9,8 @@ const path  = require('path');
 const fs    = require('fs');
 
 const ROOT     = path.join(__dirname, '..');
-const SVG_PATH = path.join(ROOT, 'public', 'brand', 'sri-mark-color.svg');
+// Purpose-built app icon: ipê flower + glass disc (NOT the complex brand landscape mark)
+const SVG_PATH = path.join(ROOT, 'public', 'icons', 'app-icon.svg');
 const ICON_DIR = path.join(ROOT, 'public', 'icons');
 
 // Ensure icons directory exists
@@ -20,80 +21,79 @@ if (!fs.existsSync(ICON_DIR)) {
 
 // Icons to generate
 const ICONS = [
-  // Standard icons (any purpose)
-  { size: 512, name: 'icon-512.png',          padding: 0    },
-  { size: 192, name: 'icon-192.png',          padding: 0    },
-  { size: 180, name: 'apple-touch-icon.png',  padding: 0    },
-  { size: 32,  name: 'favicon-32.png',        padding: 0    },
-  { size: 16,  name: 'favicon-16.png',        padding: 0    },
-  // Badge icon for push notifications (72x72, white mark on forest background)
-  { size: 72,  name: 'badge-72.png',          padding: 0,   badge: true },
-  // Maskable icons (safe zone = 80% of total, 10% padding on each side)
-  { size: 512, name: 'icon-maskable-512.png', padding: 0.15 },
-  { size: 192, name: 'icon-maskable-192.png', padding: 0.15 },
+  // Standard icons (SVG rendered directly at each size)
+  { size: 512, name: 'icon-512.png'         },
+  { size: 192, name: 'icon-192.png'         },
+  { size: 180, name: 'apple-touch-icon.png' },
+  { size: 32,  name: 'favicon-32.png'       },
+  { size: 16,  name: 'favicon-16.png'       },
+  // Maskable variants (same design; OS applies its own shape mask)
+  { size: 512, name: 'icon-maskable-512.png' },
+  { size: 192, name: 'icon-maskable-192.png' },
+  // Badge: small notification icon — white flower silhouette on forest dark
+  { size: 72,  name: 'badge-72.png', badge: true },
 ];
 
-async function generateIcon({ size, name, padding, badge }) {
+async function generateIcon({ size, name, badge }) {
   const outPath = path.join(ICON_DIR, name);
 
-  // Skip regeneration if file already exists (speeds up repeated builds)
-  if (fs.existsSync(outPath)) {
-    // Always regenerate in CI (Railway sets RAILWAY_ENVIRONMENT)
-    if (!process.env.RAILWAY_ENVIRONMENT) {
-      console.log(`[icons] Skipping ${name} (already exists)`);
-      return;
-    }
+  // Skip regeneration if file already exists (speeds up repeated local runs)
+  // Always regenerate in Railway CI environment
+  if (fs.existsSync(outPath) && !process.env.RAILWAY_ENVIRONMENT) {
+    console.log(`[icons] Skipping ${name} (already exists — delete to force regeneration)`);
+    return;
   }
 
-  const innerSize = Math.round(size * (1 - padding * 2));
-  const bgColor   = badge ? '#261C15' : '#F7F7F2';  // forest dark for badge, beige for standard
-  const markSvg   = badge
-    ? path.join(ROOT, 'public', 'brand', 'sri-mark-white.svg')
-    : SVG_PATH;
-
   try {
-    const resizedMark = await sharp(markSvg)
-      .resize(innerSize, innerSize, { fit: 'contain', background: { r:0, g:0, b:0, alpha:0 } })
-      .png()
-      .toBuffer();
+    if (badge) {
+      // Badge icon: render flower SVG at size, then composite on a solid forest background.
+      // The badge is shown in notification bars (monochrome context) so keeping it simple.
+      const flowerBuf = await sharp(SVG_PATH)
+        .resize(size, size, { fit: 'cover' })
+        .png()
+        .toBuffer();
 
-    // Create background canvas and composite the mark centered
-    await sharp({
-      create: {
-        width:      size,
-        height:     size,
-        channels:   4,
-        background: badge ? { r: 38, g: 28, b: 21, alpha: 1 } : { r: 247, g: 247, b: 242, alpha: 1 },
-      },
-    })
-      .composite([{
-        input:   resizedMark,
-        gravity: 'center',
-      }])
-      .png()
-      .toFile(outPath);
+      // Create forest-dark square, composite flower on top
+      await sharp({
+        create: {
+          width:      size,
+          height:     size,
+          channels:   4,
+          background: { r: 26, g: 17, b: 8, alpha: 1 },  // #1A1108 forest
+        },
+      })
+        .composite([{ input: flowerBuf, gravity: 'center' }])
+        .png()
+        .toFile(outPath);
+    } else {
+      // Standard icon: render the full SVG (it already has its own background + design)
+      await sharp(SVG_PATH)
+        .resize(size, size, { fit: 'cover' })
+        .png()
+        .toFile(outPath);
+    }
 
-    console.log(`[icons] Generated ${name} (${size}×${size})`);
+    console.log(`[icons] ✓ ${name} (${size}×${size})`);
   } catch (err) {
-    console.error(`[icons] Failed to generate ${name}:`, err.message);
-    // Non-fatal: app still works without perfect icons
+    console.error(`[icons] ✗ Failed to generate ${name}:`, err.message);
+    // Non-fatal — app still works; browser will fall back to the letter avatar
   }
 }
 
 async function main() {
-  console.log('[icons] Generating PWA icons from sri-mark-color.svg…');
+  console.log('[icons] Generating PWA icons from app-icon.svg…');
 
   if (!fs.existsSync(SVG_PATH)) {
-    console.warn(`[icons] SVG source not found at ${SVG_PATH} — skipping icon generation`);
-    return;
+    console.warn(`[icons] Source SVG not found at ${SVG_PATH} — skipping icon generation`);
+    process.exit(0);
   }
 
-  // Run in sequence to avoid overwhelming sharp on low-memory Railway instances
+  // Sequential to avoid overwhelming sharp on Railway's memory-constrained build instances
   for (const spec of ICONS) {
     await generateIcon(spec);
   }
 
-  console.log('[icons] Done.');
+  console.log('[icons] All done.');
 }
 
 main().catch(err => {
