@@ -34,11 +34,11 @@
   <!-- Preload hero image for LCP -->
   <link rel="preload" as="image" href="/images/rancho.jpg">
 
-  <!-- Schema.org JSON-LD -->
+  <!-- Schema.org JSON-LD — LodgingBusiness + VacationRental -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "LodgingBusiness",
+    "@type": ["LodgingBusiness", "VacationRental"],
     "name": "Sítio Recanto dos Ipês",
     "description": "Sítio com lazer completo em condomínio fechado em Jaboticatubas, MG. Piscina aquecida solar com sistema de ozônio Panozon Blue Star, sauna Sodramar, salão de jogos com sinuca e totó, campo de futebol, quadra de vôlei, cozinha completa com fogão a lenha e churrasqueira. Capacidade para até 20 hóspedes em 4 quartos e sala. A 30 minutos da Serra do Cipó.",
     "url": "https://sitiorecantodosipes.com/",
@@ -77,10 +77,16 @@
     "checkinTime": "09:00",
     "checkoutTime": "17:00",
     "petsAllowed": true,
+    "smokingAllowed": false,
     "numberOfRooms": 4,
+    "numberOfBathroomsTotal": 3,
     "occupancy": {
       "@type": "QuantitativeValue",
       "maxValue": 20
+    },
+    "starRating": {
+      "@type": "Rating",
+      "ratingValue": "5"
     },
     "amenityFeature": [
       { "@type": "LocationFeatureSpecification", "name": "Piscina aquecida solar",   "value": true },
@@ -99,10 +105,23 @@
       { "@type": "LocationFeatureSpecification", "name": "Ar condicionado",          "value": true },
       { "@type": "LocationFeatureSpecification", "name": "Estacionamento gratuito", "value": true }
     ],
+    "offers": {
+      "@type": "Offer",
+      "priceCurrency": "BRL",
+      "priceSpecification": {
+        "@type": "UnitPriceSpecification",
+        "priceCurrency": "BRL",
+        "unitText": "noite",
+        "description": "Consulte disponibilidade e valores atualizados no Airbnb"
+      },
+      "availability": "https://schema.org/InStock",
+      "validFrom": "2025-01-01",
+      "url": "https://www.airbnb.com/h/recantodosipesmg"
+    },
     "aggregateRating": {
       "@type": "AggregateRating",
       "ratingValue": "4.95",
-      "reviewCount": "44",
+      "reviewCount": "67",
       "bestRating": "5",
       "worstRating": "1"
     },
@@ -131,6 +150,26 @@
     ],
     "hasMap": "https://maps.google.com/?cid=14833040244817133976",
     "tourBookingPage": "https://www.airbnb.com/h/recantodosipesmg"
+  }
+  </script>
+
+  <!-- Schema.org JSON-LD — WebSite + SearchAction -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Sítio Recanto dos Ipês",
+    "url": "https://sitiorecantodosipes.com/",
+    "description": "Site oficial do Sítio Recanto dos Ipês — aluguel de temporada em Jaboticatubas, MG.",
+    "inLanguage": "pt-BR",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://sitiorecantodosipes.com/?q={search_term_string}"
+      },
+      "query-input": "required name=search_term_string"
+    }
   }
   </script>
 
