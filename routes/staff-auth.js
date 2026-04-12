@@ -12,6 +12,17 @@ function getTwilioClient() {
   return twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 }
 
+// Normalize phone to E.164 — strips all non-digits, prepends +
+// Works for both US (+1...) and Brazilian (+55...) numbers
+function toE164(raw) {
+  const digits = raw.replace(/\D/g, '');
+  if (raw.trimStart().startsWith('+')) return '+' + digits;
+  // 10 digits = US without country code
+  if (digits.length === 10) return '+1' + digits;
+  // Already has country code (11+ digits)
+  return '+' + digits;
+}
+
 // Helper: serialize staff member for response
 function serializeStaff(staff) {
   return {
@@ -66,24 +77,30 @@ router.post('/send-sms', async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Telefone inválido' });
 
-  const { phone } = parsed.data;
+  const phone = toE164(parsed.data.phone);
+
+  const twilioClient = getTwilioClient();
+  if (!twilioClient || !process.env.TWILIO_VERIFY_SID) {
+    console.error('[staff-auth] Twilio not configured — set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SID');
+    return res.status(503).json({ error: 'SMS não configurado. Use o login por e-mail.' });
+  }
 
   // Verificar se o staff existe (sem revelar ao cliente)
   const staff = await prisma.staffMember.findUnique({ where: { phone } });
-
   if (!staff || !staff.active) {
-    // Responder 200 mesmo se não encontrado — não revelar existência
-    return res.json({ sent: true });
+    console.log(`[staff-auth] send-sms: ${phone} not found in staff DB`);
+    return res.json({ sent: true }); // silent — don't reveal existence
   }
 
-  const twilioClient = getTwilioClient();
-  if (!twilioClient) return res.status(503).json({ error: 'SMS não configurado' });
-
-  await twilioClient.verify.v2
-    .services(process.env.TWILIO_VERIFY_SID)
-    .verifications.create({ to: phone, channel: 'sms' });
-
-  return res.json({ sent: true });
+  try {
+    await twilioClient.verify.v2
+      .services(process.env.TWILIO_VERIFY_SID)
+      .verifications.create({ to: phone, channel: 'sms' });
+    return res.json({ sent: true });
+  } catch (err) {
+    console.error('[staff-auth] Twilio send-sms error:', err.message);
+    return res.status(500).json({ error: 'Erro ao enviar SMS. Tente novamente.' });
+  }
 });
 
 // POST /api/staff/auth/verify-sms — valida código e autentica
@@ -95,17 +112,25 @@ router.post('/verify-sms', async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
 
-  const { phone, code } = parsed.data;
+  const phone = toE164(parsed.data.phone);
+  const { code } = parsed.data;
 
   const twilioClient = getTwilioClient();
-  if (!twilioClient) return res.status(503).json({ error: 'SMS não configurado' });
+  if (!twilioClient || !process.env.TWILIO_VERIFY_SID) {
+    return res.status(503).json({ error: 'SMS não configurado' });
+  }
 
-  const check = await twilioClient.verify.v2
-    .services(process.env.TWILIO_VERIFY_SID)
-    .verificationChecks.create({ to: phone, code });
+  try {
+    const check = await twilioClient.verify.v2
+      .services(process.env.TWILIO_VERIFY_SID)
+      .verificationChecks.create({ to: phone, code });
 
-  if (check.status !== 'approved') {
-    return res.status(401).json({ error: 'Código inválido ou expirado' });
+    if (check.status !== 'approved') {
+      return res.status(401).json({ error: 'Código inválido ou expirado' });
+    }
+  } catch (err) {
+    console.error('[staff-auth] Twilio verify-sms error:', err.message);
+    return res.status(500).json({ error: 'Erro ao verificar código. Tente novamente.' });
   }
 
   const staff = await findStaffWithProperties({ phone });
