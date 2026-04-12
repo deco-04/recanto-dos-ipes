@@ -14,7 +14,12 @@ router.use(requireAuth);
 router.get('/bookings', async (req, res) => {
   try {
     const bookings = await prisma.booking.findMany({
-      where:   { userId: req.session.userId },
+      where: {
+        OR: [
+          { userId: req.session.userId },
+          { guestEmail: req.session.userEmail, userId: null },
+        ],
+      },
       orderBy: { checkIn: 'desc' },
     });
     res.json({ bookings: bookings.map(sanitizeBooking) });
@@ -32,7 +37,10 @@ router.get('/upcoming', async (req, res) => {
     // Own bookings
     const own = await prisma.booking.findMany({
       where: {
-        userId:  req.session.userId,
+        OR: [
+          { userId: req.session.userId },
+          { guestEmail: req.session.userEmail, userId: null },
+        ],
         status:  'CONFIRMED',
         checkIn: { gt: today },
       },
@@ -41,16 +49,12 @@ router.get('/upcoming', async (req, res) => {
 
     // Bookings where this user is a confirmed co-guest
     const coGuestEntries = await prisma.bookingGuest.findMany({
-      where: { userId: req.session.userId, status: 'CONFIRMADO' },
-      include: {
-        booking: {
-          where: { status: 'CONFIRMED', checkIn: { gt: today } },
-        },
-      },
+      where:   { userId: req.session.userId, status: 'CONFIRMADO' },
+      include: { booking: true },
     });
 
     const coGuest = coGuestEntries
-      .filter(g => g.booking)
+      .filter(g => g.booking && g.booking.status === 'CONFIRMED' && new Date(g.booking.checkIn) > today)
       .map(g => ({ ...sanitizeBooking(g.booking), role: 'CO_GUEST' }));
 
     const bookings = [
@@ -73,7 +77,10 @@ router.get('/current', async (req, res) => {
     // Own booking
     const own = await prisma.booking.findFirst({
       where: {
-        userId:   req.session.userId,
+        OR: [
+          { userId: req.session.userId },
+          { guestEmail: req.session.userEmail, userId: null },
+        ],
         status:   'CONFIRMED',
         checkIn:  { lte: today },
         checkOut: { gte: today },
@@ -82,20 +89,15 @@ router.get('/current', async (req, res) => {
     if (own) return res.json({ booking: { ...sanitizeBooking(own), role: 'GUEST' } });
 
     // Co-guest: check if there's an active booking they're confirmed on
-    const coGuestEntry = await prisma.bookingGuest.findFirst({
-      where: { userId: req.session.userId, status: 'CONFIRMADO' },
-      include: {
-        booking: {
-          where: {
-            status:   'CONFIRMED',
-            checkIn:  { lte: today },
-            checkOut: { gte: today },
-          },
-        },
-      },
+    const coGuestEntries = await prisma.bookingGuest.findMany({
+      where:   { userId: req.session.userId, status: 'CONFIRMADO' },
+      include: { booking: true },
     });
 
-    const coBooking = coGuestEntry?.booking;
+    const coBooking = coGuestEntries
+      .map(g => g.booking)
+      .find(b => b && b.status === 'CONFIRMED' && new Date(b.checkIn) <= today && new Date(b.checkOut) >= today)
+      ?? null;
     res.json({ booking: coBooking ? { ...sanitizeBooking(coBooking), role: 'CO_GUEST' } : null });
   } catch (err) {
     console.error('[dashboard] current error:', err);
@@ -110,7 +112,10 @@ router.get('/past', async (req, res) => {
 
     const own = await prisma.booking.findMany({
       where: {
-        userId:   req.session.userId,
+        OR: [
+          { userId: req.session.userId },
+          { guestEmail: req.session.userEmail, userId: null },
+        ],
         status:   'CONFIRMED',
         checkOut: { lt: today },
       },
@@ -118,16 +123,12 @@ router.get('/past', async (req, res) => {
     });
 
     const coGuestEntries = await prisma.bookingGuest.findMany({
-      where: { userId: req.session.userId, status: 'CONFIRMADO' },
-      include: {
-        booking: {
-          where: { status: 'CONFIRMED', checkOut: { lt: today } },
-        },
-      },
+      where:   { userId: req.session.userId, status: 'CONFIRMADO' },
+      include: { booking: true },
     });
 
     const coGuest = coGuestEntries
-      .filter(g => g.booking)
+      .filter(g => g.booking && g.booking.status === 'CONFIRMED' && new Date(g.booking.checkOut) < today)
       .map(g => ({ ...sanitizeBooking(g.booking), role: 'CO_GUEST' }));
 
     const bookings = [
@@ -181,7 +182,10 @@ router.get('/pending', async (req, res) => {
 
     const bookings = await prisma.booking.findMany({
       where: {
-        userId:    req.session.userId,
+        OR: [
+          { userId: req.session.userId },
+          { guestEmail: req.session.userEmail, userId: null },
+        ],
         status:    'PENDING',
         createdAt: { gt: cutoff },
       },
