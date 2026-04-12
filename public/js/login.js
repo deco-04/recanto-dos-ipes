@@ -118,13 +118,14 @@ function setLoading(on, msg) {
   if (on) {
     document.getElementById('loading-msg').textContent = msg || 'Aguarde…';
     loadEl.classList.remove('hidden');
+    loadEl.classList.add('flex');
     stepEl.classList.add('hidden');
     codeEl.classList.add('hidden');
   } else {
     loadEl.classList.add('hidden');
+    loadEl.classList.remove('flex');
     // Restore correct step
-    const inCodeStep = currentEmail && document.getElementById('step-code').dataset.active !== 'false';
-    if (currentEmail && document.getElementById('step-code').classList.contains('hidden') === false) {
+    if (currentEmail && !codeEl.classList.contains('hidden')) {
       codeEl.classList.remove('hidden');
     } else {
       stepEl.classList.remove('hidden');
