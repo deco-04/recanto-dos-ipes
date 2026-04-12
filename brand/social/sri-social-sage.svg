@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400" fill="none">
   <rect width="400" height="400" fill="#E4E6C3"/>
-  <!-- Leaf icon: 32×32 geometry scaled 5× and centred (translate 120,110 so 16*5=80 centre offset → 120+80=200) -->
-  <g transform="translate(120, 110) scale(5)">
+  <!-- Leaf icon: 32×32 geometry scaled 5× and centred (translate 120,120 so 16*5=80 centre offset → 120+80=200) -->
+  <g transform="translate(120, 120) scale(5)">
     <line x1="16" y1="26" x2="16" y2="14" stroke="#261C15" stroke-width="0.32" stroke-linecap="round"/>
     <path d="M16 20 Q8 16 10 8 Q16 10 16 16" stroke="#261C15" stroke-width="0.28" fill="none"/>
     <path d="M16 17 Q24 14 22 6 Q16 8 16 14" stroke="#261C15" stroke-width="0.28" fill="none"/>

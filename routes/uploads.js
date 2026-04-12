@@ -1,11 +1,14 @@
 'use strict';
 
 /**
- * Upload service — replaces Cloudinary for the Central da Equipe PWA.
+ * Upload service — Central da Equipe PWA photo storage.
  *
  * POST /api/uploads
- *   multipart/form-data: file (image), folder (optional string)
- *   Returns: { id: "folder/uuid.jpg", url: "https://host/uploads/folder/uuid.jpg" }
+ *   multipart/form-data: file (image), bookingId (string), tipo ('PRE_CHECKIN' | 'CHECKOUT')
+ *   Returns: { id: "recanto-dos-ipes/2026/04/joao-silva/checkin/uuid.jpg", url: "https://..." }
+ *
+ * Storage structure (matches business requirement):
+ *   {property-slug}/{YYYY}/{MM}/{guest-name-slug}/{tipo}/
  *
  * Files are stored in UPLOAD_DIR (Railway Volume at /data/uploads in prod,
  * or ./uploads in local dev). Served as static files at /uploads.
@@ -63,16 +66,60 @@ async function requireStaff(req, res, next) {
   next();
 }
 
+// ── Build organized folder path from booking data ────────────────────────────
+async function buildFolderPath(bookingId, tipo) {
+  if (!bookingId) {
+    // Fallback for photos without a booking
+    const now = new Date();
+    return `geral/${now.getFullYear()}/${pad(now.getMonth() + 1)}`;
+  }
+
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        guestName: true,
+        checkIn: true,
+        property: { select: { slug: true } },
+        user: { select: { name: true } },
+      },
+    });
+
+    if (!booking) {
+      // Booking not found — use bookingId as fallback
+      const now = new Date();
+      return `reservas/${now.getFullYear()}/${pad(now.getMonth() + 1)}/${bookingId}`;
+    }
+
+    const propertySlug = booking.property?.slug || 'recanto-dos-ipes';
+    const guestName    = booking.user?.name || booking.guestName || 'hospede';
+    const date         = booking.checkIn ? new Date(booking.checkIn) : new Date();
+    const year         = date.getFullYear();
+    const month        = pad(date.getMonth() + 1);
+    const guestSlug    = slugify(guestName);
+    const tipoDir      = tipo === 'CHECKOUT' ? 'checkout' : 'checkin';
+
+    // Structure: recanto-dos-ipes/2026/04/joao-silva/checkin
+    return `${propertySlug}/${year}/${month}/${guestSlug}/${tipoDir}`;
+  } catch {
+    const now = new Date();
+    return `reservas/${now.getFullYear()}/${pad(now.getMonth() + 1)}/${bookingId || 'avulso'}`;
+  }
+}
+
 // ── POST /api/uploads ────────────────────────────────────────────────────────
 router.post('/', requireStaff, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
 
   try {
-    const folder = sanitizeFolder(req.body.folder || 'geral');
-    const id     = uuidv4();
-    const filename = `${id}.jpg`;
-    const relPath  = `${folder}/${filename}`;
-    const fullDir  = path.join(UPLOAD_DIR, folder);
+    const bookingId = sanitizeId(req.body.bookingId || '');
+    const tipo      = ['PRE_CHECKIN', 'CHECKOUT'].includes(req.body.tipo) ? req.body.tipo : 'PRE_CHECKIN';
+
+    const folder    = await buildFolderPath(bookingId, tipo);
+    const id        = uuidv4();
+    const filename  = `${id}.jpg`;
+    const relPath   = `${folder}/${filename}`;
+    const fullDir   = path.join(UPLOAD_DIR, folder);
 
     fs.mkdirSync(fullDir, { recursive: true });
 
@@ -91,23 +138,22 @@ router.post('/', requireStaff, upload.single('file'), async (req, res) => {
   }
 });
 
-// ── DELETE /api/uploads/:folder/:filename ────────────────────────────────────
-// Soft cleanup — only admins can delete
-router.delete('/:folder/:filename', requireStaff, async (req, res) => {
+// ── DELETE /api/uploads — soft cleanup, admins only ─────────────────────────
+// Accepts path encoded as base64 or slash-separated segments
+router.delete('/*', requireStaff, async (req, res) => {
   const staff = await prisma.staffMember.findUnique({
     where: { id: req.staff.id },
     select: { role: true },
   });
   if (staff?.role !== 'ADMIN') return res.status(403).json({ error: 'Apenas admins podem deletar imagens' });
 
-  const { folder, filename } = req.params;
-  const safe = sanitizeFolder(folder);
-  if (!filename.match(/^[a-f0-9-]+\.jpg$/)) {
-    return res.status(400).json({ error: 'Nome de arquivo inválido' });
-  }
+  // req.params[0] is everything after /api/uploads/
+  const rawPath = req.params[0] || '';
+  const safePath = sanitizePath(rawPath);
+  if (!safePath) return res.status(400).json({ error: 'Caminho inválido' });
 
-  const filePath = path.join(UPLOAD_DIR, safe, filename);
-  if (!filePath.startsWith(UPLOAD_DIR)) {
+  const filePath = path.join(UPLOAD_DIR, safePath);
+  if (!filePath.startsWith(path.resolve(UPLOAD_DIR))) {
     return res.status(400).json({ error: 'Caminho inválido' });
   }
 
@@ -121,9 +167,30 @@ router.delete('/:folder/:filename', requireStaff, async (req, res) => {
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function sanitizeFolder(folder) {
-  // Allow only alphanumeric, hyphens, underscores, single forward slashes
-  return folder.replace(/[^a-zA-Z0-9/_-]/g, '').replace(/\/+/g, '/').slice(0, 80);
+
+function pad(n) {
+  return String(n).padStart(2, '0');
+}
+
+/** Convert guest name to a safe folder slug */
+function slugify(str) {
+  return str
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'hospede';
+}
+
+/** Allow only cuid/uuid-style booking IDs */
+function sanitizeId(id) {
+  return /^[a-zA-Z0-9_-]{1,40}$/.test(id) ? id : '';
+}
+
+/** Allow path segments: letters, numbers, hyphens, underscores, slashes, dots */
+function sanitizePath(p) {
+  const clean = p.replace(/[^a-zA-Z0-9/_.-]/g, '').replace(/\.\.+/g, '').replace(/\/+/g, '/');
+  return clean.startsWith('/') ? clean.slice(1) : clean;
 }
 
 module.exports = { router, UPLOAD_DIR };
