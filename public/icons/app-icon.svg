@@ -1,220 +1,69 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Sítio Recanto dos Ipês — App Icon
-  Design: Ipê amarelo flower (5 petals) on deep forest background with glass morphism disc.
-  The ipê tree is the property's namesake; the gold flower on dark forest is instantly
-  recognizable and distinctive on any phone wallpaper.
-
-  Dimensions: 512×512 (generates all PWA icon sizes via scripts/generate-icons.js)
-  Brand colors: Forest #261C15 · Green #2B7929 · Gold #C5D86D
+  Design: Official SRI brand mark (sri-mark-gold.svg) on deep forest background
+  with subtle glass disc glow. Mark is landscape (3779×2645) — detail compresses
+  at small sizes by design decision; silhouette shape reinforces brand identity.
+  Brand colors: Forest #1C1208 · Gold #C5D86D · Green #2B7929
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     viewBox="0 0 512 512" width="512" height="512">
 
   <defs>
 
-    <!-- ── Background gradients ──────────────────────────────────────── -->
-
-    <!-- Main background: deep forest, richer in the upper-left -->
+    <!-- Forest dark background -->
     <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#1C1208"/>
-      <stop offset="50%"  stop-color="#201610"/>
-      <stop offset="100%" stop-color="#130C04"/>
+      <stop offset="0%"   stop-color="#1F1409"/>
+      <stop offset="55%"  stop-color="#1C1208"/>
+      <stop offset="100%" stop-color="#110B03"/>
     </linearGradient>
 
-    <!-- Nature green ambient — top-left corner -->
-    <radialGradient id="gg" cx="80" cy="72" r="280" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#2B7929" stop-opacity="0.32"/>
+    <!-- Nature green ambient — top-left -->
+    <radialGradient id="gg" cx="70" cy="65" r="280" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#2B7929" stop-opacity="0.30"/>
       <stop offset="100%" stop-color="#2B7929" stop-opacity="0"/>
     </radialGradient>
 
-    <!-- Gold warmth ambient — bottom-center (warmth of sunset / torches) -->
-    <radialGradient id="ga" cx="256" cy="470" r="240" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#C5D86D" stop-opacity="0.22"/>
+    <!-- Gold warmth ambient — bottom-center -->
+    <radialGradient id="ga" cx="256" cy="480" r="250" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#C5D86D" stop-opacity="0.18"/>
       <stop offset="100%" stop-color="#C5D86D" stop-opacity="0"/>
     </radialGradient>
 
-    <!-- ── Glass disc gradients ───────────────────────────────────────── -->
-
-    <!-- Frosted glass surface: bright upper-left, fades to near-transparent -->
-    <radialGradient id="gf" cx="192" cy="180" r="210" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.23"/>
-      <stop offset="42%"  stop-color="#ffffff" stop-opacity="0.09"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.02"/>
+    <!-- Subtle centre glow behind the mark (glass disc, dimmed — acts as a light source) -->
+    <radialGradient id="glow" cx="256" cy="256" r="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#C5D86D" stop-opacity="0.07"/>
+      <stop offset="60%"  stop-color="#C5D86D" stop-opacity="0.03"/>
+      <stop offset="100%" stop-color="#C5D86D" stop-opacity="0"/>
     </radialGradient>
 
-    <!-- Glass inner edge darkening (depth illusion) -->
-    <radialGradient id="ge" cx="256" cy="256" r="160" gradientUnits="userSpaceOnUse">
-      <stop offset="85%"  stop-color="rgba(0,0,0,0)"/>
-      <stop offset="100%" stop-color="rgba(0,0,0,0.22)"/>
+    <!-- Edge vignette — darkens corners to focus eye on the mark -->
+    <radialGradient id="vg" cx="256" cy="256" r="280" gradientUnits="userSpaceOnUse">
+      <stop offset="60%"  stop-color="rgba(0,0,0,0)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.55)"/>
     </radialGradient>
-
-    <!-- ── Petal fill ─────────────────────────────────────────────────── -->
-    <!--
-      Radial from icon center → petal tips are bright, bases are darker.
-      Result: flower "glows" from within, tips catch the light.
-    -->
-    <radialGradient id="pf" cx="256" cy="256" r="150" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#5C7A25"/>   <!-- deep olive at petal bases -->
-      <stop offset="38%"  stop-color="#A8C050"/>   <!-- rich gold-green mid-petal -->
-      <stop offset="68%"  stop-color="#C5D86D"/>   <!-- brand gold -->
-      <stop offset="88%"  stop-color="#D9ED80"/>   <!-- lighter near tip -->
-      <stop offset="100%" stop-color="#EAFA99"/>   <!-- bright gold tip highlight -->
-    </radialGradient>
-
-    <!-- Petal specular: a second lighter layer for the glass-like sheen on petals -->
-    <radialGradient id="ps" cx="256" cy="256" r="150" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0"/>
-      <stop offset="55%"  stop-color="#ffffff" stop-opacity="0"/>
-      <stop offset="80%"  stop-color="#ffffff" stop-opacity="0.18"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.32"/>
-    </radialGradient>
-
-    <!-- ── Filters ────────────────────────────────────────────────────── -->
-
-    <!-- Simulate backdrop blur: blurs whatever is behind the glass -->
-    <filter id="fb" x="-10%" y="-10%" width="120%" height="120%">
-      <feGaussianBlur stdDeviation="18"/>
-    </filter>
-
-    <!-- Soft glow around the whole flower cluster -->
-    <filter id="fg" x="-35%" y="-35%" width="170%" height="170%">
-      <feGaussianBlur stdDeviation="9" result="b"/>
-      <feMerge>
-        <feMergeNode in="b"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-
-    <!-- Petal inner glow (warm gold bloom at center) -->
-    <filter id="fc" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="14"/>
-    </filter>
 
   </defs>
 
-  <!-- ═══════════════════════════════════════════════════════════════════
-       LAYER 1 — BACKGROUND
-  ═══════════════════════════════════════════════════════════════════ -->
-
-  <!-- Base forest -->
+  <!-- ── Background ── -->
   <rect width="512" height="512" fill="url(#bg)"/>
-
-  <!-- Nature green glow -->
   <rect width="512" height="512" fill="url(#gg)"/>
-
-  <!-- Gold warmth from below -->
   <rect width="512" height="512" fill="url(#ga)"/>
 
-  <!-- Faint diagonal light shafts (forest canopy suggestion) -->
-  <g opacity="0.045" fill="#C5D86D">
-    <rect x="140" y="-80" width="70"  height="700" transform="rotate(12 256 256)"/>
-    <rect x="300" y="-80" width="45"  height="700" transform="rotate(12 256 256)"/>
-    <rect x="380" y="-80" width="28"  height="700" transform="rotate(12 256 256)"/>
-  </g>
+  <!-- ── Subtle gold glow zone behind the mark ── -->
+  <rect width="512" height="512" fill="url(#glow)"/>
 
-  <!-- ═══════════════════════════════════════════════════════════════════
-       LAYER 2 — GLASS DISC
-  ═══════════════════════════════════════════════════════════════════ -->
+  <!-- ── Brand mark — SRI gold variant, centered, fills 88% of icon width ──
+       Mark ratio: 3779 ÷ 2645 = 1.4286 (landscape)
+       Width = 450px → Height = 315px → centered at (31, 98.5)
+       At small sizes the silhouette remains recognisable as the brand shape.
+  ── -->
+  <image href="/brand/sri-mark-gold.svg"
+         x="31" y="98"
+         width="450" height="315"
+         preserveAspectRatio="xMidYMid meet"/>
 
-  <!--
-    Frosted glass effect:
-    1. Blurred "frosted" substrate (simulates backdrop-filter: blur)
-    2. Semi-transparent surface fill
-    3. Edge depth darkening
-    4. Outer border ring
-    5. Top-left specular highlight (primary glass reflection)
-    6. Bottom specular (secondary / rim light)
-  -->
-
-  <!-- 1. Blurred substrate (backdrop blur simulation) -->
-  <circle cx="256" cy="256" r="160" fill="#1A1008" filter="url(#fb)" opacity="0.55"/>
-
-  <!-- 2. Frosted glass surface -->
-  <circle cx="256" cy="256" r="160" fill="url(#gf)"/>
-
-  <!-- 3. Edge depth -->
-  <circle cx="256" cy="256" r="160" fill="url(#ge)"/>
-
-  <!-- 4. Outer border ring — two strokes for a crisp + soft edge -->
-  <circle cx="256" cy="256" r="160" fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="3.5"/>
-  <circle cx="256" cy="256" r="160" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-
-  <!-- 5. Top-left specular highlight (primary reflection — the bright arc that reads as "glass") -->
-  <ellipse cx="196" cy="182" rx="66" ry="34" fill="rgba(255,255,255,0.46)"
-    transform="rotate(-42 196 182)"/>
-  <!-- Soft halo behind specular -->
-  <ellipse cx="196" cy="182" rx="80" ry="48" fill="rgba(255,255,255,0.09)"
-    transform="rotate(-42 196 182)"/>
-
-  <!-- 6. Bottom-right rim light (secondary, subtle) -->
-  <ellipse cx="308" cy="404" rx="42" ry="10" fill="rgba(255,255,255,0.07)"
-    transform="rotate(8 308 404)"/>
-
-  <!-- ═══════════════════════════════════════════════════════════════════
-       LAYER 3 — IPÊ FLOWER
-
-       Geometry:
-       • Icon center: (256, 256)
-       • Each petal: ellipse cx=256 cy=185, rx=27, ry=62
-         → petal center is 71px above icon center
-         → tip reaches 133px from icon center (inside glass at r=160) ✓
-         → base is 9px from icon center (covered by center disc) ✓
-       • 5 petals at 72° intervals via transform="rotate(N 256 256)"
-  ═══════════════════════════════════════════════════════════════════ -->
-
-  <g filter="url(#fg)">
-
-    <!-- Warm center bloom (gold glow under the petals) -->
-    <circle cx="256" cy="256" r="75" fill="#C5D86D" filter="url(#fc)" opacity="0.30"/>
-
-    <!-- ── 5 petals ── -->
-    <!--
-      Each petal is a teardrop ellipse:
-        • Narrows to a point at tip (top, y=123) and base (bottom, y=247)
-        • Widest at petal center (y=185, width=54px)
-        • Gradient lights each petal from olive at base to bright gold at tip
-    -->
-    <ellipse cx="256" cy="185" rx="27" ry="62" fill="url(#pf)"/>
-    <ellipse cx="256" cy="185" rx="27" ry="62" fill="url(#pf)" transform="rotate(72  256 256)"/>
-    <ellipse cx="256" cy="185" rx="27" ry="62" fill="url(#pf)" transform="rotate(144 256 256)"/>
-    <ellipse cx="256" cy="185" rx="27" ry="62" fill="url(#pf)" transform="rotate(216 256 256)"/>
-    <ellipse cx="256" cy="185" rx="27" ry="62" fill="url(#pf)" transform="rotate(288 256 256)"/>
-
-    <!-- Petal glass sheen (second layer — makes petals look lacquered/dewy) -->
-    <ellipse cx="256" cy="185" rx="27" ry="62" fill="url(#ps)"/>
-    <ellipse cx="256" cy="185" rx="27" ry="62" fill="url(#ps)" transform="rotate(72  256 256)"/>
-    <ellipse cx="256" cy="185" rx="27" ry="62" fill="url(#ps)" transform="rotate(144 256 256)"/>
-    <ellipse cx="256" cy="185" rx="27" ry="62" fill="url(#ps)" transform="rotate(216 256 256)"/>
-    <ellipse cx="256" cy="185" rx="27" ry="62" fill="url(#ps)" transform="rotate(288 256 256)"/>
-
-    <!-- Petal centre veins (delicate mid-rib line on each petal) -->
-    <g stroke="rgba(236,250,148,0.28)" stroke-width="1.6" stroke-linecap="round">
-      <line x1="256" y1="247" x2="256" y2="130"/>
-      <line x1="256" y1="247" x2="256" y2="130" transform="rotate(72  256 256)"/>
-      <line x1="256" y1="247" x2="256" y2="130" transform="rotate(144 256 256)"/>
-      <line x1="256" y1="247" x2="256" y2="130" transform="rotate(216 256 256)"/>
-      <line x1="256" y1="247" x2="256" y2="130" transform="rotate(288 256 256)"/>
-    </g>
-
-    <!-- ── Flower centre ── -->
-    <!-- Outer ring: gold -->
-    <circle cx="256" cy="256" r="29" fill="#C5D86D"/>
-    <!-- Inner disc: forest dark (the tubular calyx) -->
-    <circle cx="256" cy="256" r="20" fill="#1C1208"/>
-    <!-- Highlight on dark disc (glass-like) -->
-    <circle cx="250" cy="250" r="6" fill="rgba(255,255,255,0.12)"/>
-    <!-- Stamen dot: bright gold -->
-    <circle cx="256" cy="256" r="8"  fill="#DFF080"/>
-    <!-- Tiny specular on stamen -->
-    <circle cx="253" cy="253" r="2.5" fill="rgba(255,255,255,0.55)"/>
-
-  </g>
-
-  <!-- ═══════════════════════════════════════════════════════════════════
-       LAYER 4 — GLASS OVERLAY (top of stack — keeps the glass "in front")
-  ═══════════════════════════════════════════════════════════════════ -->
-
-  <!-- Very faint cool tint on glass surface above the flower (light bending through glass) -->
-  <circle cx="256" cy="256" r="160" fill="rgba(200,220,255,0.03)"/>
+  <!-- ── Edge vignette (keeps attention on the mark) ── -->
+  <rect width="512" height="512" fill="url(#vg)"/>
 
 </svg>
