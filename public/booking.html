@@ -99,12 +99,22 @@
                 <script>for(let i=1;i<=20;i++) document.write(`<option value="${i}">${i} hóspede${i>1?'s':''}</option>`)</script>
               </select>
             </div>
-            <div>
-              <p class="text-xs font-semibold text-stone uppercase tracking-wider mb-1">Pet</p>
-              <select id="f-pet" class="w-full border-2 border-beige-dark rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gold">
-                <option value="false">Sem pet</option>
-                <option value="true">Com pet (+R$50)</option>
-              </select>
+            <div id="pet-section">
+              <p class="text-xs font-semibold text-stone uppercase tracking-wider mb-2">Pets</p>
+              <div class="flex items-center gap-3">
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="f-pet-toggle" class="sr-only peer">
+                  <div class="w-10 h-5 bg-beige-dark peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 peer-checked:bg-gold after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                </label>
+                <span class="text-sm text-stone" id="pet-label">Sem pets</span>
+              </div>
+              <div id="pet-count-row" class="hidden mt-3 flex items-center gap-3">
+                <button type="button" id="pet-minus" class="w-8 h-8 rounded-full border border-beige-dark flex items-center justify-center text-forest font-bold hover:bg-beige-dark transition-colors">−</button>
+                <span id="pet-count-display" class="text-sm font-semibold text-forest w-4 text-center">1</span>
+                <button type="button" id="pet-plus" class="w-8 h-8 rounded-full border border-beige-dark flex items-center justify-center text-forest font-bold hover:bg-beige-dark transition-colors">+</button>
+                <span class="text-xs text-stone/70">máx. 4 pets</span>
+              </div>
+              <p id="pet-notice" class="hidden text-xs text-stone/60 mt-2">🐾 Pets devem ser supervisionados e dejetos recolhidos.</p>
             </div>
           </div>
         </div>

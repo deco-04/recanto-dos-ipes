@@ -12,12 +12,18 @@ let quoteTimer = null;
   const checkIn  = params.get('checkIn');
   const checkOut = params.get('checkOut');
   const guests   = params.get('guests');
-  const pet      = params.get('pet');
+  const petCount = parseInt(params.get('petCount')) || 0;
 
   if (checkIn)  document.getElementById('f-checkin').value  = checkIn;
   if (checkOut) document.getElementById('f-checkout').value = checkOut;
   if (guests)   document.getElementById('f-guests').value   = guests;
-  if (pet)      document.getElementById('f-pet').value      = pet;
+
+  // Initialise pet toggle/stepper from URL param
+  if (petCount > 0) {
+    document.getElementById('f-pet-toggle').checked = true;
+    document.getElementById('pet-count-display').textContent = String(Math.min(petCount, 4));
+    updatePetUI();
+  }
 
   // Fetch Stripe publishable key from server
   let pk = '';
@@ -52,28 +58,73 @@ let quoteTimer = null;
   // Load initial quote
   if (checkIn && checkOut) fetchQuote();
 
-  // Re-quote when dates/guests/pet change
-  ['f-checkin','f-checkout','f-guests','f-pet'].forEach(id => {
+  // Re-quote when dates/guests change
+  ['f-checkin','f-checkout','f-guests'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', () => {
       clearTimeout(quoteTimer);
       quoteTimer = setTimeout(fetchQuote, 500);
     });
   });
+
+  // Pet toggle/stepper events
+  document.getElementById('f-pet-toggle')?.addEventListener('change', () => {
+    updatePetUI();
+    clearTimeout(quoteTimer);
+    quoteTimer = setTimeout(fetchQuote, 500);
+  });
+  document.getElementById('pet-minus')?.addEventListener('click', () => {
+    const disp = document.getElementById('pet-count-display');
+    const cur  = parseInt(disp.textContent) || 1;
+    if (cur > 1) { disp.textContent = String(cur - 1); updatePetLabel(); scheduleQuoteFromPet(); }
+  });
+  document.getElementById('pet-plus')?.addEventListener('click', () => {
+    const disp = document.getElementById('pet-count-display');
+    const cur  = parseInt(disp.textContent) || 1;
+    if (cur < 4) { disp.textContent = String(cur + 1); updatePetLabel(); scheduleQuoteFromPet(); }
+  });
+
+  function scheduleQuoteFromPet() {
+    clearTimeout(quoteTimer);
+    quoteTimer = setTimeout(fetchQuote, 500);
+  }
 })();
+
+// ── Pet helpers ───────────────────────────────────────────────────────────────
+function updatePetLabel() {
+  const count = parseInt(document.getElementById('pet-count-display').textContent) || 1;
+  document.getElementById('pet-label').textContent = count === 1 ? '1 pet' : `${count} pets`;
+}
+
+function updatePetUI() {
+  const on       = document.getElementById('f-pet-toggle').checked;
+  const countRow = document.getElementById('pet-count-row');
+  const notice   = document.getElementById('pet-notice');
+  countRow.classList.toggle('hidden', !on);
+  notice.classList.toggle('hidden', !on);
+  document.getElementById('pet-label').textContent = on
+    ? (parseInt(document.getElementById('pet-count-display').textContent) === 1 ? '1 pet' : `${document.getElementById('pet-count-display').textContent} pets`)
+    : 'Sem pets';
+}
+
+function getPetCount() {
+  const on = document.getElementById('f-pet-toggle').checked;
+  if (!on) return 0;
+  return parseInt(document.getElementById('pet-count-display').textContent) || 1;
+}
 
 // ── Quote ─────────────────────────────────────────────────────────────────────
 async function fetchQuote() {
   const checkIn  = document.getElementById('f-checkin').value;
   const checkOut = document.getElementById('f-checkout').value;
   const guests   = document.getElementById('f-guests').value;
-  const pet      = document.getElementById('f-pet').value;
+  const petCount = getPetCount();
 
   if (!checkIn || !checkOut) return;
 
   showSummary('loading');
 
   try {
-    const res  = await fetch(`/api/bookings/quote?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}&pet=${pet}`);
+    const res  = await fetch(`/api/bookings/quote?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}&petCount=${petCount}`);
     const data = await res.json();
 
     if (!res.ok) { showSummary('error', data.error); return; }
@@ -90,8 +141,8 @@ function renderSummary(q) {
   if (q.extraGuests > 0) {
     rows.push(`<div class="flex justify-between"><span class="text-white/75">${q.extraGuests} extra${q.extraGuests > 1 ? 's' : ''} × R$50 × ${q.nights}n</span><span class="font-semibold">${q.formatted.extraGuestFee}</span></div>`);
   }
-  if (q.hasPet) {
-    rows.push(`<div class="flex justify-between"><span class="text-white/75">Pet (taxa única)</span><span class="font-semibold">${q.formatted.petFee}</span></div>`);
+  if (q.petCount > 2) {
+    rows.push(`<div class="flex justify-between"><span class="text-white/75">${q.petCount} pets (taxa)</span><span class="font-semibold">${q.formatted.petFee}</span></div>`);
   }
   document.getElementById('summary-rows').innerHTML = rows.join('');
   document.getElementById('summary-total').textContent   = q.formatted.totalAmount;
@@ -116,7 +167,7 @@ async function submitBooking() {
   const checkIn  = document.getElementById('f-checkin').value;
   const checkOut = document.getElementById('f-checkout').value;
   const guests   = parseInt(document.getElementById('f-guests').value);
-  const pet      = document.getElementById('f-pet').value === 'true';
+  const petCount = getPetCount();
   const name     = document.getElementById('f-name').value.trim();
   const email    = document.getElementById('f-email').value.trim();
   const phone    = document.getElementById('f-phone').value.trim();
@@ -135,7 +186,7 @@ async function submitBooking() {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        checkIn, checkOut, guestCount: guests, hasPet: pet,
+        checkIn, checkOut, guestCount: guests, petCount,
         guestName: name, guestEmail: email, guestPhone: phone,
         guestCpf: cpf || undefined, notes: notes || undefined,
       }),
