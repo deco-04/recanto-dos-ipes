@@ -269,6 +269,7 @@ async function downloadInvoice(bookingId) {
 
 // ── Current stay ──────────────────────────────────────────────────────────────
 function renderCurrentStay(b) {
+  const isCoGuest = b.role === 'CO_GUEST';
   document.getElementById('current-section').classList.remove('hidden');
   document.getElementById('current-card').innerHTML = `
     <div class="flex items-start justify-between mb-4 flex-wrap gap-2">
@@ -277,19 +278,22 @@ function renderCurrentStay(b) {
         <p class="font-serif text-xl font-bold">Sítio Recanto dos Ipês</p>
         <p class="text-white/70 text-sm mt-1">Jaboticatubas, MG</p>
       </div>
-      <span class="bg-gold text-forest text-xs font-bold px-3 py-1 rounded-full">Hospedado agora</span>
+      <div class="flex flex-col items-end gap-1.5">
+        <span class="bg-gold text-forest text-xs font-bold px-3 py-1 rounded-full">Hospedado agora</span>
+        ${isCoGuest ? '<span class="bg-white/15 text-white text-xs px-2.5 py-1 rounded-full">Acompanhante</span>' : ''}
+      </div>
     </div>
     <div class="grid grid-cols-2 gap-4 text-sm">
       <div><p class="text-white/60 text-xs">Check-in</p><p class="font-semibold">${fmtDate(b.checkIn)}</p></div>
       <div><p class="text-white/60 text-xs">Check-out</p><p class="font-semibold">${fmtDate(b.checkOut)}</p></div>
       <div><p class="text-white/60 text-xs">Hóspedes</p><p class="font-semibold">${b.guestCount}</p></div>
-      <div><p class="text-white/60 text-xs">Total pago</p><p class="font-semibold">${fmtBRL(b.totalAmount)}</p></div>
+      ${!isCoGuest ? `<div><p class="text-white/60 text-xs">Total pago</p><p class="font-semibold">${fmtBRL(b.totalAmount)}</p></div>` : ''}
     </div>
     <div class="flex items-center justify-between mt-4">
       <p class="text-white/40 text-xs font-mono">Reserva nº ${b.invoiceNumber}</p>
-      <button onclick="downloadInvoice('${b.id}')" class="text-xs text-white/60 hover:text-white transition-colors">⬇ Recibo</button>
+      ${!isCoGuest ? `<button onclick="downloadInvoice('${b.id}')" class="text-xs text-white/60 hover:text-white transition-colors">⬇ Recibo</button>` : ''}
     </div>
-    ${renderGuestSection(b.id, [], true)}
+    ${renderGuestSection(b.id, [], true, !isCoGuest)}
   `;
   loadGuests(b.id);
 }
@@ -297,14 +301,20 @@ function renderCurrentStay(b) {
 // ── Upcoming stays ────────────────────────────────────────────────────────────
 function renderUpcoming(bookings) {
   document.getElementById('upcoming-section').classList.remove('hidden');
-  document.getElementById('upcoming-card').innerHTML = bookings.map((b, i) => `
+  document.getElementById('upcoming-card').innerHTML = bookings.map((b, i) => {
+    const isCoGuest = b.role === 'CO_GUEST';
+    const canCancel = !isCoGuest && b.source === 'DIRECT';
+    return `
     <div class="${i > 0 ? 'mt-4 pt-4 border-t border-beige-dark' : ''}">
       <div class="flex items-start justify-between mb-4 flex-wrap gap-2">
         <div>
           <p class="font-serif text-lg font-bold text-forest">Sítio Recanto dos Ipês</p>
           <p class="text-stone text-sm">Jaboticatubas, MG</p>
         </div>
-        <span class="bg-gold/20 text-gold-dark text-sm font-bold px-3 py-1 rounded-full">${countdown(b.checkIn)}</span>
+        <div class="flex items-center gap-2 flex-wrap justify-end">
+          ${isCoGuest ? '<span class="bg-beige border border-beige-dark text-stone text-xs px-2.5 py-1 rounded-full">Acompanhante</span>' : ''}
+          <span class="bg-gold/20 text-gold-dark text-sm font-bold px-3 py-1 rounded-full">${countdown(b.checkIn)}</span>
+        </div>
       </div>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
         <div class="bg-beige rounded-xl p-3"><p class="text-xs text-stone mb-1">Check-in</p><p class="font-semibold text-forest">${fmtDate(b.checkIn)}</p></div>
@@ -314,40 +324,47 @@ function renderUpcoming(bookings) {
       </div>
       <div class="flex items-center justify-between mt-4 pt-4 border-t border-beige-dark flex-wrap gap-2">
         <div>
-          <p class="text-xs text-stone font-mono">Reserva nº ${b.invoiceNumber}</p>
-          <button onclick="downloadInvoice('${b.id}')" class="text-xs text-stone hover:text-forest transition-colors mt-0.5">⬇ Baixar recibo</button>
+          ${!isCoGuest ? `<p class="text-xs text-stone font-mono">Reserva nº ${b.invoiceNumber}</p>
+          <button onclick="downloadInvoice('${b.id}')" class="text-xs text-stone hover:text-forest transition-colors mt-0.5">⬇ Baixar recibo</button>` : `<p class="text-xs text-stone font-mono">Reserva nº ${b.invoiceNumber}</p>`}
         </div>
-        <p class="font-bold text-forest text-lg">${fmtBRL(b.totalAmount)}</p>
+        <div class="flex items-center gap-3">
+          ${canCancel ? `<button onclick="openCancelModal('${b.id}')" class="text-xs text-red-500 hover:text-red-700 transition-colors border border-red-200 hover:border-red-400 px-3 py-1.5 rounded-lg">Cancelar</button>` : ''}
+          ${!isCoGuest ? `<p class="font-bold text-forest text-lg">${fmtBRL(b.totalAmount)}</p>` : ''}
+        </div>
       </div>
-      ${renderGuestSection(b.id, [], false)}
-    </div>
-  `).join('');
+      ${renderGuestSection(b.id, [], false, !isCoGuest)}
+    </div>`;
+  }).join('');
   bookings.forEach(b => loadGuests(b.id));
 }
 
 // ── Past stays ────────────────────────────────────────────────────────────────
 function renderPast(bookings) {
   document.getElementById('past-section').classList.remove('hidden');
-  document.getElementById('past-list').innerHTML = bookings.map(b => `
+  document.getElementById('past-list').innerHTML = bookings.map(b => {
+    const isCoGuest = b.role === 'CO_GUEST';
+    return `
     <div class="bg-white rounded-2xl p-5 border border-beige-dark flex items-center justify-between gap-4 flex-wrap">
       <div>
         <p class="font-semibold text-forest text-sm">${fmtDate(b.checkIn)} → ${fmtDate(b.checkOut)}</p>
         <p class="text-stone text-xs mt-0.5">${b.nights} noite${b.nights > 1 ? 's' : ''} · ${b.guestCount} hóspede${b.guestCount > 1 ? 's' : ''}</p>
         <p class="text-xs text-stone/60 font-mono mt-0.5">${b.invoiceNumber}</p>
+        ${isCoGuest ? '<span class="inline-block mt-1 text-xs bg-beige border border-beige-dark text-stone px-2 py-0.5 rounded-full">Acompanhante</span>' : ''}
       </div>
       <div class="text-right">
-        <p class="font-bold text-forest">${fmtBRL(b.totalAmount)}</p>
+        ${!isCoGuest ? `<p class="font-bold text-forest">${fmtBRL(b.totalAmount)}</p>` : ''}
         <span class="text-xs px-2 py-0.5 rounded-full ${b.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' : 'bg-stone/10 text-stone'}">
           ${b.status === 'CONFIRMED' ? 'Concluída' : b.status}
         </span>
-        <button onclick="downloadInvoice('${b.id}')" class="block text-xs text-stone hover:text-forest transition-colors mt-1 ml-auto">⬇ Recibo</button>
+        ${!isCoGuest ? `<button onclick="downloadInvoice('${b.id}')" class="block text-xs text-stone hover:text-forest transition-colors mt-1 ml-auto">⬇ Recibo</button>` : ''}
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 // ── Co-guest section (rendered inside booking cards) ──────────────────────────
-function renderGuestSection(bookingId, guests, dark) {
+// isOwner: true = full controls (invite/remove/resend), false = read-only list
+function renderGuestSection(bookingId, guests, dark, isOwner = true) {
   const textMuted = dark ? 'text-white/60' : 'text-stone';
   const textMain  = dark ? 'text-white'    : 'text-forest';
   const borderCol = dark ? 'border-white/20' : 'border-beige-dark';
@@ -366,7 +383,7 @@ function renderGuestSection(bookingId, guests, dark) {
         <span class="text-xs px-2 py-0.5 rounded-full ${g.status === 'CONFIRMADO' ? badgeConfirmed : badgePending}">
           ${g.status === 'CONFIRMADO' ? 'Confirmado' : 'Aguardando'}
         </span>
-        ${g.status === 'PENDENTE' ? `
+        ${isOwner && g.status === 'PENDENTE' ? `
           <button onclick="removeGuest('${bookingId}','${g.id}')" class="text-xs ${textMuted} hover:opacity-100 opacity-60">✕</button>
         ` : ''}
       </div>
@@ -377,13 +394,13 @@ function renderGuestSection(bookingId, guests, dark) {
     <div class="mt-4 pt-4 border-t ${borderCol}">
       <div class="flex items-center justify-between mb-2">
         <p class="text-xs font-semibold uppercase tracking-wider ${textMuted}">Acompanhantes</p>
-        <button onclick="openInviteModal('${bookingId}')"
+        ${isOwner ? `<button onclick="openInviteModal('${bookingId}')"
           class="text-xs font-medium ${textMain} border ${borderCol} px-2.5 py-1 rounded-lg hover:opacity-80 transition-opacity">
           + Convidar
-        </button>
+        </button>` : ''}
       </div>
       <div id="guests-${bookingId}">
-        ${guests.length === 0 ? `<p class="text-xs ${textMuted} italic">Nenhum acompanhante adicionado.</p>` : guestItems}
+        ${guests.length === 0 ? `<p class="text-xs ${textMuted} italic">${isOwner ? 'Nenhum acompanhante adicionado.' : 'Nenhum acompanhante confirmado ainda.'}</p>` : guestItems}
       </div>
     </div>
   `;
@@ -405,10 +422,10 @@ async function loadGuests(bookingId) {
       container.innerHTML = `<p class="text-xs text-red-500">Erro ao carregar acompanhantes. <button onclick="loadGuests('${bookingId}')" class="underline">Tentar novamente</button></p>`;
       return;
     }
-    const { guests } = await res.json();
+    const { guests, isOwner } = await res.json();
 
     if (guests.length === 0) {
-      container.innerHTML = `<p class="text-xs ${textMuted} italic">Nenhum acompanhante adicionado.</p>`;
+      container.innerHTML = `<p class="text-xs ${textMuted} italic">${isOwner ? 'Nenhum acompanhante adicionado.' : 'Nenhum acompanhante confirmado ainda.'}</p>`;
       return;
     }
     container.innerHTML = guests.map(g => `
@@ -423,7 +440,7 @@ async function loadGuests(bookingId) {
           <span class="text-xs px-2 py-0.5 rounded-full ${g.status === 'CONFIRMADO' ? badgeConfirmed : badgePending}">
             ${g.status === 'CONFIRMADO' ? 'Confirmado' : 'Aguardando'}
           </span>
-          ${g.status === 'PENDENTE' ? `
+          ${isOwner && g.status === 'PENDENTE' ? `
             <button onclick="resendInvite('${bookingId}','${g.id}', this)"
               class="text-xs ${textMuted} hover:opacity-100 opacity-60" title="Reenviar convite">↺</button>
             <button onclick="removeGuest('${bookingId}','${g.id}')"
@@ -434,6 +451,90 @@ async function loadGuests(bookingId) {
     `).join('');
   } catch {
     container.innerHTML = `<p class="text-xs text-red-500">Erro ao carregar acompanhantes.</p>`;
+  }
+}
+
+// ── Cancel booking modal ───────────────────────────────────────────────────────
+let _cancelBookingId = null;
+
+async function openCancelModal(bookingId) {
+  _cancelBookingId = bookingId;
+  const modal = document.getElementById('cancel-modal');
+  const body  = document.getElementById('cancel-modal-body');
+  body.innerHTML = `<div class="flex items-center justify-center py-6">
+    <svg class="spin w-7 h-7 text-gold" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+    </svg></div>`;
+  modal.classList.remove('hidden');
+
+  try {
+    const res = await fetch(`/api/bookings/${bookingId}/cancel-preview`);
+    const data = await res.json();
+
+    if (!res.ok) {
+      body.innerHTML = `<p class="text-sm text-red-600 py-2">${data.error || 'Erro ao calcular reembolso.'}</p>
+        <button onclick="closeCancelModal()" class="mt-3 w-full border border-beige-dark rounded-xl py-2.5 text-sm text-stone hover:text-forest">Fechar</button>`;
+      return;
+    }
+
+    const { daysUntil, refundPercent, refundAmount, totalAmount } = data;
+    const refundMsg = refundPercent === 100
+      ? `Você receberá um reembolso integral de <strong>${fmtBRL(refundAmount)}</strong>.`
+      : refundPercent === 50
+        ? `Você receberá reembolso de 50% — <strong>${fmtBRL(refundAmount)}</strong> de ${fmtBRL(totalAmount)} pagos.`
+        : `Esta reserva <strong>não tem direito a reembolso</strong> (cancelamento com menos de 48h de antecedência).`;
+
+    body.innerHTML = `
+      <div class="bg-beige rounded-xl p-4 mb-4">
+        <p class="text-xs text-stone mb-1">Antecedência</p>
+        <p class="font-semibold text-forest">${daysUntil >= 0 ? daysUntil + ' dias antes do check-in' : 'Check-in já passou'}</p>
+      </div>
+      <p class="text-sm text-stone leading-relaxed mb-4">${refundMsg}</p>
+      <p class="text-xs text-stone/70 mb-5">O reembolso será processado na forma de pagamento original em até 5–10 dias úteis.</p>
+      <p class="text-xs font-semibold text-red-600 mb-3">Esta ação não pode ser desfeita.</p>
+      <div class="flex gap-3">
+        <button onclick="confirmCancel()" id="cancel-confirm-btn"
+          class="flex-1 bg-red-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors">
+          Confirmar cancelamento
+        </button>
+        <button onclick="closeCancelModal()"
+          class="flex-1 border border-beige-dark text-stone py-3 rounded-xl text-sm hover:text-forest transition-colors">
+          Voltar
+        </button>
+      </div>`;
+  } catch {
+    body.innerHTML = `<p class="text-sm text-red-600 py-2">Erro de conexão. Tente novamente.</p>
+      <button onclick="closeCancelModal()" class="mt-3 w-full border border-beige-dark rounded-xl py-2.5 text-sm text-stone">Fechar</button>`;
+  }
+}
+
+function closeCancelModal() {
+  document.getElementById('cancel-modal').classList.add('hidden');
+  _cancelBookingId = null;
+}
+
+async function confirmCancel() {
+  if (!_cancelBookingId) return;
+  const btn = document.getElementById('cancel-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Cancelando…'; }
+
+  try {
+    const res  = await fetch(`/api/bookings/${_cancelBookingId}/cancel`, { method: 'POST' });
+    const data = await res.json();
+
+    if (!res.ok) {
+      const body = document.getElementById('cancel-modal-body');
+      body.innerHTML = `<p class="text-sm text-red-600 py-2">${data.error || 'Erro ao cancelar.'}</p>
+        <button onclick="closeCancelModal()" class="mt-3 w-full border border-beige-dark rounded-xl py-2.5 text-sm text-stone">Fechar</button>`;
+      return;
+    }
+
+    closeCancelModal();
+    window.location.reload(); // Refresh to reflect new status
+  } catch {
+    if (btn) { btn.disabled = false; btn.textContent = 'Confirmar cancelamento'; }
+    alert('Erro de conexão. Tente novamente.');
   }
 }
 

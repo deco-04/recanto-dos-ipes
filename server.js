@@ -276,6 +276,9 @@ app.use(express.static(ROOT, {
 // ── Named page routes (clean URLs without .html) ─────────────────────────────
 app.get('/galeria',   (_req, res) => res.sendFile(path.join(ROOT, 'galeria.html')));
 app.get('/faq',       (_req, res) => res.sendFile(path.join(ROOT, 'faq.html')));
+app.get('/politica-cancelamento', (_req, res) => res.sendFile(path.join(ROOT, 'politica-cancelamento.html')));
+app.get('/politica-privacidade',  (_req, res) => res.sendFile(path.join(ROOT, 'politica-privacidade.html')));
+app.get('/termos-de-servico',     (_req, res) => res.sendFile(path.join(ROOT, 'termos-de-servico.html')));
 // Public app pages (in /public/ — not at ROOT, so need explicit routes)
 app.get('/booking',   (_req, res) => res.sendFile(path.join(ROOT, 'public', 'booking.html')));
 app.get('/login',     (_req, res) => res.sendFile(path.join(ROOT, 'public', 'login.html')));

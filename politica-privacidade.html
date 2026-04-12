@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Política de Privacidade — Sítio Recanto dos Ipês</title>
+  <meta name="description" content="Saiba como o Sítio Recanto dos Ipês coleta, usa e protege seus dados pessoais. Política alinhada à LGPD e ao uso do Google OAuth.">
+  <meta name="robots" content="noindex">
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="shortcut icon" href="/favicon.svg">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            forest:    { DEFAULT: '#261C15', light: '#3D2B1F', dark: '#150F0A' },
+            gold:      { DEFAULT: '#C5D86D', light: '#D4E48A', dark: '#9BAB52' },
+            beige:     { DEFAULT: '#F7F7F2', dark: '#E4E6C3' },
+            stone:     { DEFAULT: '#6B6B6B', light: '#9A9A9A' },
+          },
+          fontFamily: {
+            serif: ['Merriweather', 'Georgia', 'serif'],
+            sans:  ['Lato', 'system-ui', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Lato', sans-serif; color: #1A1A1A; background: #F7F7F2; }
+    .font-serif { font-family: 'Merriweather', serif; }
+
+    #navbar { transition: background 0.3s, box-shadow 0.3s, padding 0.3s; }
+    #navbar.scrolled { background: rgba(38,28,21,0.97); box-shadow: 0 2px 24px rgba(0,0,0,0.22); padding-top: 0.6rem; padding-bottom: 0.6rem; }
+
+    #mobile-menu { transition: max-height 0.35s ease, opacity 0.3s; max-height: 0; opacity: 0; overflow: hidden; }
+    #mobile-menu.open { max-height: 400px; opacity: 1; }
+
+    .policy-section {
+      border-left: 3px solid #C5D86D;
+      padding-left: 1.25rem;
+      margin-bottom: 2.5rem;
+    }
+    .policy-section h2 {
+      font-family: 'Merriweather', serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #261C15;
+      margin-bottom: 0.75rem;
+    }
+    .policy-section p {
+      color: #3a3a3a;
+      line-height: 1.8;
+      font-size: 0.97rem;
+      margin-bottom: 0.5rem;
+    }
+    .policy-section ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .policy-section ul li {
+      color: #3a3a3a;
+      line-height: 1.8;
+      font-size: 0.97rem;
+      padding: 0.35rem 0;
+      padding-left: 1.1rem;
+      position: relative;
+    }
+    .policy-section ul li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: #9BAB52;
+      font-weight: 700;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+    }
+    .data-table th {
+      background: #261C15;
+      color: #C5D86D;
+      font-weight: 600;
+      text-align: left;
+      padding: 0.6rem 0.9rem;
+      font-size: 0.82rem;
+      letter-spacing: 0.03em;
+    }
+    .data-table td {
+      padding: 0.55rem 0.9rem;
+      border-bottom: 1px solid #E4E6C3;
+      color: #3a3a3a;
+      vertical-align: top;
+      line-height: 1.6;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:nth-child(even) td { background: #fff; }
+    .rights-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+    .right-item {
+      background: #fff;
+      border: 1px solid #E4E6C3;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+    }
+    .right-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #C5D86D;
+      flex-shrink: 0;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+
+<body class="antialiased">
+
+<!-- ═══════════════════════════════════════════
+     NAVBAR
+════════════════════════════════════════════ -->
+<nav id="navbar" class="fixed top-0 left-0 right-0 z-50 px-6 py-5" style="background: rgba(38,28,21,0.97);">
+  <div class="max-w-6xl mx-auto flex items-center justify-between">
+
+    <a href="/" class="flex items-center group">
+      <img src="/brand/sri-mark-white.svg"
+           alt="Recanto dos Ipês"
+           class="h-10 w-auto object-contain"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+      <div style="display:none" class="items-center gap-2.5">
+        <div>
+          <div class="text-white font-serif text-base font-semibold leading-tight">Recanto dos Ipês</div>
+          <div class="text-gold text-xs font-light tracking-wide">Jaboticatubas · MG</div>
+        </div>
+      </div>
+    </a>
+
+    <div class="hidden md:flex items-center gap-7 text-sm text-white/85 font-medium">
+      <a href="/#sobre" class="hover:text-gold transition-colors">O Sítio</a>
+      <a href="/#diferenciais" class="hover:text-gold transition-colors">Diferenciais</a>
+      <a href="/#espacos" class="hover:text-gold transition-colors">Espaços</a>
+      <a href="/galeria" class="hover:text-gold transition-colors">Galeria</a>
+      <a href="/#avaliacoes" class="hover:text-gold transition-colors">Avaliações</a>
+      <a href="/faq" class="hover:text-gold transition-colors">FAQ</a>
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="hover:text-gold transition-colors" aria-label="Instagram">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+      </a>
+      <a href="/booking"
+         class="bg-gold hover:bg-gold-dark text-forest px-5 py-2 rounded-full transition-colors font-semibold text-sm">
+        Reservar
+      </a>
+    </div>
+
+    <button id="menu-btn" class="md:hidden text-white p-1" aria-label="Menu">
+      <svg id="icon-menu" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+      <svg id="icon-close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+
+  <div id="mobile-menu" class="md:hidden bg-forest-dark/95 backdrop-blur mt-2 rounded-2xl mx-0">
+    <div class="flex flex-col gap-1 p-4 text-white text-sm font-medium">
+      <a href="/#sobre"        class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">O Sítio</a>
+      <a href="/#diferenciais" class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">Diferenciais</a>
+      <a href="/#espacos"      class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">Espaços</a>
+      <a href="/#avaliacoes"   class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">Avaliações</a>
+      <a href="/faq"           class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">FAQ</a>
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="flex items-center gap-2 py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">
+        <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+        Instagram
+      </a>
+      <a href="/booking"
+         class="mt-2 bg-gold text-forest text-center py-3 px-3 rounded-xl font-semibold">Reservar</a>
+    </div>
+  </div>
+</nav>
+
+
+<!-- ═══════════════════════════════════════════
+     PAGE HEADER
+════════════════════════════════════════════ -->
+<section class="bg-forest pt-28 pb-12 px-6">
+  <div class="max-w-3xl mx-auto">
+    <a href="/"
+       class="inline-flex items-center gap-2 text-white/60 hover:text-gold text-sm transition-colors mb-6">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Voltar ao site
+    </a>
+    <h1 class="font-serif text-white text-3xl md:text-4xl font-bold leading-snug mb-3">
+      Política de Privacidade
+    </h1>
+    <p class="text-white/60 text-sm">
+      Última atualização: 12 de abril de 2026 &nbsp;·&nbsp; sitiorecantodosipes.com
+    </p>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     CONTENT
+════════════════════════════════════════════ -->
+<main class="py-14 px-6">
+  <div class="max-w-3xl mx-auto">
+
+    <!-- Intro -->
+    <p class="text-stone text-base leading-relaxed mb-10 border-l-4 border-beige-dark pl-4 italic">
+      A sua privacidade é importante para nós. Esta política explica de forma clara quais dados coletamos, como os utilizamos e como os protegemos — em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).
+    </p>
+
+    <!-- Responsável pelo Tratamento -->
+    <div class="policy-section">
+      <h2>Responsável pelo Tratamento dos Dados</h2>
+      <p><strong>Sítio Recanto dos Ipês</strong><br>
+      Jaboticatubas, MG — Brasil<br>
+      E-mail de contato para assuntos de privacidade: <a href="mailto:recantodoipes@gmail.com" class="text-gold-dark underline underline-offset-2 hover:text-forest transition-colors">recantodoipes@gmail.com</a></p>
+    </div>
+
+    <!-- Dados que Coletamos -->
+    <div class="policy-section">
+      <h2>Dados que Coletamos</h2>
+      <div class="overflow-x-auto">
+        <table class="data-table rounded-lg overflow-hidden">
+          <thead>
+            <tr>
+              <th>Fonte</th>
+              <th>Dados coletados</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Formulário de reserva</strong></td>
+              <td>Nome, e-mail, telefone, CPF (opcional). Dados de cartão são processados diretamente pelo Stripe — não armazenamos números de cartão.</td>
+            </tr>
+            <tr>
+              <td><strong>Login Google OAuth</strong></td>
+              <td>Nome, endereço de e-mail e foto de perfil fornecidos pelo Google.</td>
+            </tr>
+            <tr>
+              <td><strong>Login por código</strong></td>
+              <td>Apenas o endereço de e-mail informado.</td>
+            </tr>
+            <tr>
+              <td><strong>Dados da reserva</strong></td>
+              <td>Datas de check-in e check-out, número de hóspedes, informações sobre pets.</td>
+            </tr>
+            <tr>
+              <td><strong>Dados técnicos</strong></td>
+              <td>Cookies de sessão (necessários para autenticação) e logs básicos de servidor para fins de segurança e diagnóstico.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Como Usamos Seus Dados -->
+    <div class="policy-section">
+      <h2>Como Usamos Seus Dados</h2>
+      <ul>
+        <li>Gerenciar sua reserva e enviar confirmações, lembretes e informações sobre a sua estadia por e-mail.</li>
+        <li>Processar pagamentos com segurança via Stripe.</li>
+        <li>Enviar comunicações relacionadas à estadia: instruções de check-in, orientações sobre a propriedade e informações de check-out.</li>
+        <li>Cumprir obrigações legais e fiscais aplicáveis à atividade de aluguel temporário.</li>
+        <li><strong>Não vendemos, alugamos nem compartilhamos seus dados com terceiros para fins de marketing ou publicidade.</strong></li>
+      </ul>
+    </div>
+
+    <!-- Compartilhamento com Terceiros -->
+    <div class="policy-section">
+      <h2>Compartilhamento com Terceiros</h2>
+      <p>Seus dados são compartilhados apenas com os parceiros estritamente necessários para a prestação do serviço:</p>
+      <ul>
+        <li><strong>Stripe</strong> — processamento de pagamentos. Política de privacidade disponível em <a href="https://stripe.com/br/privacy" target="_blank" rel="noopener" class="text-gold-dark underline underline-offset-2 hover:text-forest transition-colors">stripe.com/br/privacy</a>.</li>
+        <li><strong>Google</strong> — autenticação OAuth e envio de e-mails transacionais. Política em <a href="https://policies.google.com/privacy" target="_blank" rel="noopener" class="text-gold-dark underline underline-offset-2 hover:text-forest transition-colors">policies.google.com/privacy</a>.</li>
+        <li><strong>GoHighLevel (GHL)</strong> — CRM interno utilizado para comunicação com hóspedes. Apenas os dados mínimos necessários são transferidos.</li>
+      </ul>
+    </div>
+
+    <!-- Armazenamento e Segurança -->
+    <div class="policy-section">
+      <h2>Armazenamento e Segurança</h2>
+      <ul>
+        <li>Dados armazenados em servidores seguros hospedados na plataforma <strong>Railway</strong> (EUA), com padrões rigorosos de segurança física e lógica.</li>
+        <li>Senhas de conta armazenadas com <strong>hash bcrypt</strong> — nunca em texto puro.</li>
+        <li>Toda comunicação entre seu navegador e nossos servidores é protegida por <strong>HTTPS/TLS</strong>.</li>
+        <li>Sessões de autenticação possuem expiração automática após <strong>30 dias</strong> de inatividade.</li>
+      </ul>
+    </div>
+
+    <!-- Seus Direitos (LGPD) -->
+    <div class="policy-section">
+      <h2>Seus Direitos (LGPD)</h2>
+      <p>Nos termos da LGPD, você tem os seguintes direitos em relação aos seus dados pessoais:</p>
+      <div class="rights-grid">
+        <div class="right-item">
+          <span class="right-dot"></span>
+          <span class="text-sm text-stone leading-relaxed"><strong>Acesso</strong> — saber quais dados temos sobre você</span>
+        </div>
+        <div class="right-item">
+          <span class="right-dot"></span>
+          <span class="text-sm text-stone leading-relaxed"><strong>Correção</strong> — retificar dados incorretos ou desatualizados</span>
+        </div>
+        <div class="right-item">
+          <span class="right-dot"></span>
+          <span class="text-sm text-stone leading-relaxed"><strong>Exclusão</strong> — solicitar a remoção dos seus dados</span>
+        </div>
+        <div class="right-item">
+          <span class="right-dot"></span>
+          <span class="text-sm text-stone leading-relaxed"><strong>Portabilidade</strong> — receber seus dados em formato estruturado</span>
+        </div>
+        <div class="right-item">
+          <span class="right-dot"></span>
+          <span class="text-sm text-stone leading-relaxed"><strong>Revogação</strong> — retirar o consentimento a qualquer momento</span>
+        </div>
+        <div class="right-item">
+          <span class="right-dot"></span>
+          <span class="text-sm text-stone leading-relaxed"><strong>Oposição</strong> — opor-se ao tratamento em determinadas situações</span>
+        </div>
+      </div>
+      <p class="mt-4">Para exercer qualquer um desses direitos, envie um e-mail para <a href="mailto:recantodoipes@gmail.com" class="text-gold-dark underline underline-offset-2 hover:text-forest transition-colors">recantodoipes@gmail.com</a> identificando-se e descrevendo sua solicitação. Responderemos em até 15 dias úteis.</p>
+    </div>
+
+    <!-- Cookies -->
+    <div class="policy-section">
+      <h2>Cookies</h2>
+      <ul>
+        <li>Utilizamos <strong>cookies de sessão</strong> — de natureza técnica e estritamente necessários — apenas para manter você autenticado durante o uso da plataforma.</li>
+        <li><strong>Não utilizamos cookies de rastreamento, publicidade ou analytics de terceiros.</strong></li>
+        <li>Você pode desativar cookies no seu navegador, mas isso impedirá o funcionamento correto do login e da área de reservas.</li>
+      </ul>
+    </div>
+
+    <!-- Crianças -->
+    <div class="policy-section">
+      <h2>Crianças e Adolescentes</h2>
+      <p>Nossa plataforma de reservas não se destina a menores de 18 anos. Não coletamos intencionalmente dados pessoais de crianças ou adolescentes. Se você identificar que um menor forneceu dados sem o consentimento dos responsáveis, entre em contato para que possamos removê-los.</p>
+    </div>
+
+    <!-- Alterações -->
+    <div class="policy-section">
+      <h2>Alterações nesta Política</h2>
+      <p>Podemos atualizar esta política periodicamente. Em caso de mudanças significativas, notificaremos os hóspedes com reservas ativas por e-mail com antecedência razoável. A data de atualização no topo desta página será sempre revisada.</p>
+    </div>
+
+    <!-- Links para outras políticas -->
+    <div class="border-t border-beige-dark pt-8 mt-4">
+      <p class="text-stone text-sm mb-4 font-medium">Documentos relacionados:</p>
+      <div class="flex flex-wrap gap-3">
+        <a href="/politica-cancelamento"
+           class="inline-flex items-center gap-2 text-sm text-forest border border-forest/20 hover:border-gold hover:text-gold-dark px-4 py-2 rounded-full transition-colors">
+          Política de Cancelamento
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+        <a href="/termos-de-servico"
+           class="inline-flex items-center gap-2 text-sm text-forest border border-forest/20 hover:border-gold hover:text-gold-dark px-4 py-2 rounded-full transition-colors">
+          Termos de Serviço
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+        <a href="/"
+           class="inline-flex items-center gap-2 text-sm text-forest border border-forest/20 hover:border-gold hover:text-gold-dark px-4 py-2 rounded-full transition-colors">
+          Página Inicial
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+
+<!-- ═══════════════════════════════════════════
+     FOOTER
+════════════════════════════════════════════ -->
+<footer class="bg-forest-dark py-10 px-6">
+  <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+
+    <div class="flex flex-col gap-1">
+      <div class="flex items-center gap-3">
+        <img src="/brand/sri-mark-white.svg"
+             alt="Recanto dos Ipês"
+             class="h-10 w-auto object-contain opacity-60"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <div style="display:none">
+          <div class="text-white font-serif font-semibold">Recanto dos Ipês</div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="flex items-center gap-5 text-white/60 text-xs">
+      <a href="/" class="hover:text-gold transition-colors">Início</a>
+      <a href="/#sobre" class="hover:text-gold transition-colors">O Sítio</a>
+      <a href="/#reservas" class="hover:text-gold transition-colors">Reservas</a>
+      <a href="/faq" class="hover:text-gold transition-colors">FAQ</a>
+    </nav>
+
+    <div class="text-center">
+      <p class="text-white/40 text-xs">&copy; 2026 Sítio Recanto dos Ipês — Todos os direitos reservados</p>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="text-white/60 hover:text-gold transition-colors" aria-label="Instagram @recantodoipes">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+      </a>
+      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+         class="text-white/60 hover:text-gold text-xs transition-colors underline underline-offset-2">
+        Ver no Airbnb
+      </a>
+      <a href="https://www.booking.com/hotel/br/sitio-recanto-dos-ipes-com-area-de-lazer-completa-e-piscina-aquecida" target="_blank" rel="noopener"
+         class="text-white/60 hover:text-gold text-xs transition-colors underline underline-offset-2">
+        Ver no Booking.com
+      </a>
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 20) {
+      navbar.classList.add('scrolled');
+    } else {
+      navbar.classList.remove('scrolled');
+    }
+  });
+
+  const menuBtn = document.getElementById('menu-btn');
+  const mobileMenu = document.getElementById('mobile-menu');
+  const iconMenu = document.getElementById('icon-menu');
+  const iconClose = document.getElementById('icon-close');
+
+  menuBtn.addEventListener('click', () => {
+    const isOpen = mobileMenu.classList.toggle('open');
+    iconMenu.classList.toggle('hidden', isOpen);
+    iconClose.classList.toggle('hidden', !isOpen);
+  });
+</script>
+</body>
+</html>

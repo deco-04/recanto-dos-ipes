@@ -75,11 +75,31 @@ passport.use(new GoogleStrategy({
 
     if (!email) return done(new Error('Google account has no email'));
 
-    const user = await prisma.user.upsert({
-      where:  { googleId },
-      update: { name, avatarUrl: avatar, email },
-      create: { email, googleId, name, avatarUrl: avatar },
-    });
+    // 1. Try to find by googleId (returning Google user)
+    let user = await prisma.user.findUnique({ where: { googleId } });
+
+    if (!user) {
+      // 2. Try to find by email (existing OTP account — link Google to it)
+      const byEmail = await prisma.user.findUnique({ where: { email } });
+      if (byEmail) {
+        // Link Google identity to the existing account
+        user = await prisma.user.update({
+          where: { id: byEmail.id },
+          data:  { googleId, avatarUrl: avatar || byEmail.avatarUrl, name: name || byEmail.name },
+        });
+      } else {
+        // 3. Brand new user — create a fresh account
+        user = await prisma.user.create({
+          data: { email, googleId, name, avatarUrl: avatar },
+        });
+      }
+    } else {
+      // Returning Google user — refresh display name and avatar
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data:  { name, avatarUrl: avatar, email },
+      });
+    }
 
     return done(null, user);
   } catch (err) {

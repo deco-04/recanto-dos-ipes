@@ -384,6 +384,94 @@ router.get('/receipt/:bookingId', async (req, res) => {
   }
 });
 
+// ── GET /api/bookings/:id/cancel-preview ─────────────────────────────────────
+// Returns refund estimate without actually cancelling (shown in dashboard modal)
+router.get('/:id/cancel-preview', requireAuth, async (req, res) => {
+  try {
+    const booking = await prisma.booking.findFirst({
+      where: { id: req.params.id, userId: req.session.userId },
+    });
+    if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
+    if (booking.status !== 'CONFIRMED') {
+      return res.status(400).json({ error: 'Apenas reservas confirmadas podem ser canceladas' });
+    }
+    if (booking.source !== 'DIRECT') {
+      return res.status(400).json({
+        error: 'Reservas via Airbnb ou Booking.com devem ser canceladas diretamente na plataforma de origem.',
+      });
+    }
+
+    const refundInfo = calcRefund(booking);
+    res.json(refundInfo);
+  } catch (err) {
+    console.error('[bookings] cancel-preview error:', err);
+    res.status(500).json({ error: 'Erro ao calcular reembolso' });
+  }
+});
+
+// ── POST /api/bookings/:id/cancel ────────────────────────────────────────────
+// Self-cancellation by the booking owner. Calculates and processes Stripe refund.
+router.post('/:id/cancel', requireAuth, async (req, res) => {
+  try {
+    const booking = await prisma.booking.findFirst({
+      where: { id: req.params.id, userId: req.session.userId },
+    });
+    if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
+    if (booking.status !== 'CONFIRMED') {
+      return res.status(400).json({ error: 'Apenas reservas confirmadas podem ser canceladas' });
+    }
+    if (booking.source !== 'DIRECT') {
+      return res.status(400).json({
+        error: 'Reservas via Airbnb ou Booking.com devem ser canceladas diretamente na plataforma de origem.',
+      });
+    }
+
+    const { refundAmount, refundPercent } = calcRefund(booking);
+
+    // Process Stripe refund if applicable
+    if (refundAmount > 0 && booking.stripePaymentIntentId) {
+      const stripe = require('../lib/stripe');
+      await stripe.refunds.create({
+        payment_intent: booking.stripePaymentIntentId,
+        amount: Math.round(refundAmount * 100), // cents
+      });
+    }
+
+    // Mark as CANCELLED (REFUNDED status reserved for full refunds via admin)
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data:  { status: 'CANCELLED', notes: `Cancelado pelo hóspede em ${new Date().toLocaleDateString('pt-BR')}. Reembolso: ${refundPercent}% (R$${refundAmount.toFixed(2)}).` },
+    });
+
+    console.log(`[bookings] Booking ${booking.id} self-cancelled. Refund: ${refundPercent}% = R$${refundAmount.toFixed(2)}`);
+    res.json({ success: true, refundAmount, refundPercent });
+  } catch (err) {
+    console.error('[bookings] cancel error:', err);
+    res.status(500).json({ error: 'Erro ao cancelar reserva' });
+  }
+});
+
+/**
+ * Calculates the refund amount and percentage based on cancellation policy:
+ *   ≥ 7 days before check-in  → 100% refund
+ *   2–6 days before check-in  → 50% refund
+ *   < 2 days before check-in  → 0% refund
+ */
+function calcRefund(booking) {
+  const now      = new Date();
+  const checkIn  = new Date(booking.checkIn);
+  const daysUntil = Math.floor((checkIn - now) / (1000 * 60 * 60 * 24));
+  const total    = Number(booking.totalAmount);
+
+  let refundPercent;
+  if (daysUntil >= 7)      refundPercent = 100;
+  else if (daysUntil >= 2) refundPercent = 50;
+  else                     refundPercent = 0;
+
+  const refundAmount = Math.round(total * refundPercent) / 100;
+  return { daysUntil, refundPercent, refundAmount, totalAmount: total };
+}
+
 function sanitizeBooking(b) {
   return {
     id:            b.id,

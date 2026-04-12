@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Política de Cancelamento e Mudanças — Sítio Recanto dos Ipês</title>
+  <meta name="description" content="Conheça nossa política de cancelamento e alteração de reservas no Sítio Recanto dos Ipês. Reembolsos e prazos explicados com clareza.">
+  <meta name="robots" content="noindex">
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="shortcut icon" href="/favicon.svg">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            forest:    { DEFAULT: '#261C15', light: '#3D2B1F', dark: '#150F0A' },
+            gold:      { DEFAULT: '#C5D86D', light: '#D4E48A', dark: '#9BAB52' },
+            beige:     { DEFAULT: '#F7F7F2', dark: '#E4E6C3' },
+            stone:     { DEFAULT: '#6B6B6B', light: '#9A9A9A' },
+          },
+          fontFamily: {
+            serif: ['Merriweather', 'Georgia', 'serif'],
+            sans:  ['Lato', 'system-ui', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Lato', sans-serif; color: #1A1A1A; background: #F7F7F2; }
+    .font-serif { font-family: 'Merriweather', serif; }
+
+    #navbar { transition: background 0.3s, box-shadow 0.3s, padding 0.3s; }
+    #navbar.scrolled { background: rgba(38,28,21,0.97); box-shadow: 0 2px 24px rgba(0,0,0,0.22); padding-top: 0.6rem; padding-bottom: 0.6rem; }
+
+    #mobile-menu { transition: max-height 0.35s ease, opacity 0.3s; max-height: 0; opacity: 0; overflow: hidden; }
+    #mobile-menu.open { max-height: 400px; opacity: 1; }
+
+    .policy-section {
+      border-left: 3px solid #C5D86D;
+      padding-left: 1.25rem;
+      margin-bottom: 2.5rem;
+    }
+    .policy-section h2 {
+      font-family: 'Merriweather', serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #261C15;
+      margin-bottom: 0.75rem;
+    }
+    .policy-section p,
+    .policy-section li {
+      color: #3a3a3a;
+      line-height: 1.8;
+      font-size: 0.97rem;
+    }
+    .policy-section ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .policy-section ul li {
+      padding: 0.35rem 0;
+      padding-left: 1.1rem;
+      position: relative;
+    }
+    .policy-section ul li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: #9BAB52;
+      font-weight: 700;
+    }
+    .highlight-box {
+      background: #fff;
+      border: 1px solid #E4E6C3;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-top: 1rem;
+    }
+    .refund-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid #E4E6C3;
+    }
+    .refund-row:last-child { border-bottom: none; }
+    .refund-badge {
+      flex-shrink: 0;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 0.2rem 0.65rem;
+      border-radius: 999px;
+      letter-spacing: 0.02em;
+    }
+    .badge-green  { background: rgba(46,139,87,0.12); color: #1B6B41; }
+    .badge-yellow { background: rgba(197,216,109,0.25); color: #6B7A25; }
+    .badge-red    { background: rgba(220,50,50,0.1);   color: #b22222; }
+  </style>
+</head>
+
+<body class="antialiased">
+
+<!-- ═══════════════════════════════════════════
+     NAVBAR
+════════════════════════════════════════════ -->
+<nav id="navbar" class="fixed top-0 left-0 right-0 z-50 px-6 py-5" style="background: rgba(38,28,21,0.97);">
+  <div class="max-w-6xl mx-auto flex items-center justify-between">
+
+    <a href="/" class="flex items-center group">
+      <img src="/brand/sri-mark-white.svg"
+           alt="Recanto dos Ipês"
+           class="h-10 w-auto object-contain"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+      <div style="display:none" class="items-center gap-2.5">
+        <div>
+          <div class="text-white font-serif text-base font-semibold leading-tight">Recanto dos Ipês</div>
+          <div class="text-gold text-xs font-light tracking-wide">Jaboticatubas · MG</div>
+        </div>
+      </div>
+    </a>
+
+    <div class="hidden md:flex items-center gap-7 text-sm text-white/85 font-medium">
+      <a href="/#sobre" class="hover:text-gold transition-colors">O Sítio</a>
+      <a href="/#diferenciais" class="hover:text-gold transition-colors">Diferenciais</a>
+      <a href="/#espacos" class="hover:text-gold transition-colors">Espaços</a>
+      <a href="/galeria" class="hover:text-gold transition-colors">Galeria</a>
+      <a href="/#avaliacoes" class="hover:text-gold transition-colors">Avaliações</a>
+      <a href="/faq" class="hover:text-gold transition-colors">FAQ</a>
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="hover:text-gold transition-colors" aria-label="Instagram">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+      </a>
+      <a href="/booking"
+         class="bg-gold hover:bg-gold-dark text-forest px-5 py-2 rounded-full transition-colors font-semibold text-sm">
+        Reservar
+      </a>
+    </div>
+
+    <button id="menu-btn" class="md:hidden text-white p-1" aria-label="Menu">
+      <svg id="icon-menu" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+      <svg id="icon-close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+
+  <div id="mobile-menu" class="md:hidden bg-forest-dark/95 backdrop-blur mt-2 rounded-2xl mx-0">
+    <div class="flex flex-col gap-1 p-4 text-white text-sm font-medium">
+      <a href="/#sobre"        class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">O Sítio</a>
+      <a href="/#diferenciais" class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">Diferenciais</a>
+      <a href="/#espacos"      class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">Espaços</a>
+      <a href="/#avaliacoes"   class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">Avaliações</a>
+      <a href="/faq"           class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">FAQ</a>
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="flex items-center gap-2 py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">
+        <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+        Instagram
+      </a>
+      <a href="/booking"
+         class="mt-2 bg-gold text-forest text-center py-3 px-3 rounded-xl font-semibold">Reservar</a>
+    </div>
+  </div>
+</nav>
+
+
+<!-- ═══════════════════════════════════════════
+     PAGE HEADER
+════════════════════════════════════════════ -->
+<section class="bg-forest pt-28 pb-12 px-6">
+  <div class="max-w-3xl mx-auto">
+    <a href="/"
+       class="inline-flex items-center gap-2 text-white/60 hover:text-gold text-sm transition-colors mb-6">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Voltar ao site
+    </a>
+    <h1 class="font-serif text-white text-3xl md:text-4xl font-bold leading-snug mb-3">
+      Política de Cancelamento e Mudanças
+    </h1>
+    <p class="text-white/60 text-sm">
+      Última atualização: 12 de abril de 2026 &nbsp;·&nbsp; sitiorecantodosipes.com
+    </p>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     CONTENT
+════════════════════════════════════════════ -->
+<main class="py-14 px-6">
+  <div class="max-w-3xl mx-auto">
+
+    <!-- Intro -->
+    <p class="text-stone text-base leading-relaxed mb-10 border-l-4 border-beige-dark pl-4 italic">
+      Nosso objetivo é ser transparente e justo. As condições abaixo se aplicam a reservas feitas diretamente pelo nosso site. Para reservas via Airbnb ou Booking.com, consulte a seção específica mais abaixo.
+    </p>
+
+    <!-- Política de Reembolso -->
+    <div class="policy-section">
+      <h2>Política de Reembolso</h2>
+      <div class="highlight-box">
+        <div class="refund-row">
+          <span class="refund-badge badge-green">100% reembolso</span>
+          <span class="text-sm text-stone leading-relaxed">Cancelamento realizado com <strong>7 dias ou mais</strong> de antecedência ao check-in — reembolso integral do valor pago.</span>
+        </div>
+        <div class="refund-row">
+          <span class="refund-badge badge-yellow">50% reembolso</span>
+          <span class="text-sm text-stone leading-relaxed">Cancelamento realizado <strong>entre 2 e 6 dias</strong> antes do check-in — reembolso de 50% do valor pago.</span>
+        </div>
+        <div class="refund-row">
+          <span class="refund-badge badge-red">Sem reembolso</span>
+          <span class="text-sm text-stone leading-relaxed">Cancelamento com <strong>menos de 48 horas</strong> do check-in — nenhum valor será reembolsado.</span>
+        </div>
+        <div class="refund-row">
+          <span class="refund-badge badge-red">Sem reembolso</span>
+          <span class="text-sm text-stone leading-relaxed"><strong>Não comparecimento (no-show)</strong> — reservas não canceladas e não utilizadas não geram reembolso.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Como Cancelar -->
+    <div class="policy-section">
+      <h2>Como Cancelar</h2>
+      <ul>
+        <li>Acesse sua conta no site, vá em <strong>"Minhas Reservas"</strong>, selecione a reserva desejada e clique em <strong>"Cancelar reserva"</strong>.</li>
+        <li>O sistema processará a solicitação automaticamente e confirmará por e-mail.</li>
+        <li>O reembolso (quando aplicável) é creditado na <strong>forma original de pagamento</strong> em até <strong>5 a 10 dias úteis</strong>, conforme o prazo do banco ou operadora do cartão.</li>
+        <li>Em caso de dificuldade no processo, entre em contato pelo e-mail <a href="mailto:recantodoipes@gmail.com" class="text-gold-dark underline underline-offset-2 hover:text-forest transition-colors">recantodoipes@gmail.com</a>.</li>
+      </ul>
+    </div>
+
+    <!-- Alteração de Datas -->
+    <div class="policy-section">
+      <h2>Alteração de Datas</h2>
+      <ul>
+        <li>Alterações estão sujeitas à <strong>disponibilidade do calendário</strong> na nova data desejada.</li>
+        <li>Solicite a alteração com no mínimo <strong>7 dias de antecedência</strong> ao check-in original via WhatsApp (link disponível no rodapé do site).</li>
+        <li>Se a nova data tiver valor diferente, a diferença será <strong>cobrada ou reembolsada</strong> conforme o caso, antes da confirmação da alteração.</li>
+        <li>Alterações não garantidas não anulam os prazos de cancelamento acima.</li>
+      </ul>
+    </div>
+
+    <!-- Reservas via Airbnb ou Booking.com -->
+    <div class="policy-section">
+      <h2>Reservas via Airbnb ou Booking.com</h2>
+      <ul>
+        <li>Reservas originadas no Airbnb ou no Booking.com seguem <strong>exclusivamente as políticas da plataforma de origem</strong>, que podem diferir das condições descritas aqui.</li>
+        <li>Cancelamentos devem ser realizados <strong>diretamente na plataforma</strong> onde a reserva foi feita — o sítio não pode processar cancelamentos de reservas externas.</li>
+        <li>Para dúvidas sobre sua reserva no Airbnb, acesse: <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener" class="text-gold-dark underline underline-offset-2 hover:text-forest transition-colors">airbnb.com/h/recantodosipesmg</a>.</li>
+      </ul>
+    </div>
+
+    <!-- Casos Excepcionais -->
+    <div class="policy-section">
+      <h2>Casos Excepcionais</h2>
+      <ul>
+        <li><strong>Emergências médicas documentadas:</strong> analisadas individualmente mediante apresentação de documentação (atestado ou laudo médico). Entre em contato o quanto antes.</li>
+        <li><strong>Eventos de força maior:</strong> situações previstas na legislação brasileira — como desastres naturais ou atos governamentais que impeçam a viagem — serão tratadas conforme o Código de Defesa do Consumidor (CDC).</li>
+        <li>Para solicitar análise de casos excepcionais, envie um e-mail para <a href="mailto:recantodoipes@gmail.com" class="text-gold-dark underline underline-offset-2 hover:text-forest transition-colors">recantodoipes@gmail.com</a> ou entre em contato via WhatsApp disponível no site, descrevendo a situação com o máximo de detalhes.</li>
+      </ul>
+    </div>
+
+    <!-- Nota de rodapé -->
+    <div class="bg-forest/5 border border-forest/10 rounded-xl p-5 mb-12 flex gap-3 items-start">
+      <svg class="w-5 h-5 text-gold-dark flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-4 4z"/>
+      </svg>
+      <p class="text-stone text-sm leading-relaxed">
+        <strong class="text-forest">Em caso de dúvida, entre em contato antes de cancelar</strong> — estamos aqui para ajudar e buscar a melhor solução para você.
+      </p>
+    </div>
+
+    <!-- Links para outras políticas -->
+    <div class="border-t border-beige-dark pt-8">
+      <p class="text-stone text-sm mb-4 font-medium">Documentos relacionados:</p>
+      <div class="flex flex-wrap gap-3">
+        <a href="/termos-de-servico"
+           class="inline-flex items-center gap-2 text-sm text-forest border border-forest/20 hover:border-gold hover:text-gold-dark px-4 py-2 rounded-full transition-colors">
+          Termos de Serviço
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+        <a href="/politica-privacidade"
+           class="inline-flex items-center gap-2 text-sm text-forest border border-forest/20 hover:border-gold hover:text-gold-dark px-4 py-2 rounded-full transition-colors">
+          Política de Privacidade
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+        <a href="/"
+           class="inline-flex items-center gap-2 text-sm text-forest border border-forest/20 hover:border-gold hover:text-gold-dark px-4 py-2 rounded-full transition-colors">
+          Página Inicial
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+
+<!-- ═══════════════════════════════════════════
+     FOOTER
+════════════════════════════════════════════ -->
+<footer class="bg-forest-dark py-10 px-6">
+  <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+
+    <div class="flex flex-col gap-1">
+      <div class="flex items-center gap-3">
+        <img src="/brand/sri-mark-white.svg"
+             alt="Recanto dos Ipês"
+             class="h-10 w-auto object-contain opacity-60"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <div style="display:none">
+          <div class="text-white font-serif font-semibold">Recanto dos Ipês</div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="flex items-center gap-5 text-white/60 text-xs">
+      <a href="/" class="hover:text-gold transition-colors">Início</a>
+      <a href="/#sobre" class="hover:text-gold transition-colors">O Sítio</a>
+      <a href="/#reservas" class="hover:text-gold transition-colors">Reservas</a>
+      <a href="/faq" class="hover:text-gold transition-colors">FAQ</a>
+    </nav>
+
+    <div class="text-center">
+      <p class="text-white/40 text-xs">&copy; 2026 Sítio Recanto dos Ipês — Todos os direitos reservados</p>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="text-white/60 hover:text-gold transition-colors" aria-label="Instagram @recantodoipes">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+      </a>
+      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+         class="text-white/60 hover:text-gold text-xs transition-colors underline underline-offset-2">
+        Ver no Airbnb
+      </a>
+      <a href="https://www.booking.com/hotel/br/sitio-recanto-dos-ipes-com-area-de-lazer-completa-e-piscina-aquecida" target="_blank" rel="noopener"
+         class="text-white/60 hover:text-gold text-xs transition-colors underline underline-offset-2">
+        Ver no Booking.com
+      </a>
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  // Navbar scroll effect
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 20) {
+      navbar.classList.add('scrolled');
+    } else {
+      navbar.classList.remove('scrolled');
+    }
+  });
+
+  // Mobile menu toggle
+  const menuBtn = document.getElementById('menu-btn');
+  const mobileMenu = document.getElementById('mobile-menu');
+  const iconMenu = document.getElementById('icon-menu');
+  const iconClose = document.getElementById('icon-close');
+
+  menuBtn.addEventListener('click', () => {
+    const isOpen = mobileMenu.classList.toggle('open');
+    iconMenu.classList.toggle('hidden', isOpen);
+    iconClose.classList.toggle('hidden', !isOpen);
+  });
+</script>
+</body>
+</html>

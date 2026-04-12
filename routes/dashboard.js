@@ -29,7 +29,8 @@ router.get('/upcoming', async (req, res) => {
   try {
     const today = new Date(); today.setHours(0, 0, 0, 0);
 
-    const bookings = await prisma.booking.findMany({
+    // Own bookings
+    const own = await prisma.booking.findMany({
       where: {
         userId:  req.session.userId,
         status:  'CONFIRMED',
@@ -38,7 +39,26 @@ router.get('/upcoming', async (req, res) => {
       orderBy: { checkIn: 'asc' },
     });
 
-    res.json({ bookings: bookings.map(sanitizeBooking) });
+    // Bookings where this user is a confirmed co-guest
+    const coGuestEntries = await prisma.bookingGuest.findMany({
+      where: { userId: req.session.userId, status: 'CONFIRMADO' },
+      include: {
+        booking: {
+          where: { status: 'CONFIRMED', checkIn: { gt: today } },
+        },
+      },
+    });
+
+    const coGuest = coGuestEntries
+      .filter(g => g.booking)
+      .map(g => ({ ...sanitizeBooking(g.booking), role: 'CO_GUEST' }));
+
+    const bookings = [
+      ...own.map(b => ({ ...sanitizeBooking(b), role: 'GUEST' })),
+      ...coGuest,
+    ].sort((a, b) => new Date(a.checkIn) - new Date(b.checkIn));
+
+    res.json({ bookings });
   } catch (err) {
     console.error('[dashboard] upcoming error:', err);
     res.status(500).json({ error: 'Erro ao buscar próximas reservas' });
@@ -50,7 +70,8 @@ router.get('/current', async (req, res) => {
   try {
     const today = new Date(); today.setHours(12, 0, 0, 0);
 
-    const booking = await prisma.booking.findFirst({
+    // Own booking
+    const own = await prisma.booking.findFirst({
       where: {
         userId:   req.session.userId,
         status:   'CONFIRMED',
@@ -58,8 +79,24 @@ router.get('/current', async (req, res) => {
         checkOut: { gte: today },
       },
     });
+    if (own) return res.json({ booking: { ...sanitizeBooking(own), role: 'GUEST' } });
 
-    res.json({ booking: booking ? sanitizeBooking(booking) : null });
+    // Co-guest: check if there's an active booking they're confirmed on
+    const coGuestEntry = await prisma.bookingGuest.findFirst({
+      where: { userId: req.session.userId, status: 'CONFIRMADO' },
+      include: {
+        booking: {
+          where: {
+            status:   'CONFIRMED',
+            checkIn:  { lte: today },
+            checkOut: { gte: today },
+          },
+        },
+      },
+    });
+
+    const coBooking = coGuestEntry?.booking;
+    res.json({ booking: coBooking ? { ...sanitizeBooking(coBooking), role: 'CO_GUEST' } : null });
   } catch (err) {
     console.error('[dashboard] current error:', err);
     res.status(500).json({ error: 'Erro ao buscar estadia atual' });
@@ -71,7 +108,7 @@ router.get('/past', async (req, res) => {
   try {
     const today = new Date(); today.setHours(0, 0, 0, 0);
 
-    const bookings = await prisma.booking.findMany({
+    const own = await prisma.booking.findMany({
       where: {
         userId:   req.session.userId,
         status:   'CONFIRMED',
@@ -80,7 +117,25 @@ router.get('/past', async (req, res) => {
       orderBy: { checkOut: 'desc' },
     });
 
-    res.json({ bookings: bookings.map(sanitizeBooking) });
+    const coGuestEntries = await prisma.bookingGuest.findMany({
+      where: { userId: req.session.userId, status: 'CONFIRMADO' },
+      include: {
+        booking: {
+          where: { status: 'CONFIRMED', checkOut: { lt: today } },
+        },
+      },
+    });
+
+    const coGuest = coGuestEntries
+      .filter(g => g.booking)
+      .map(g => ({ ...sanitizeBooking(g.booking), role: 'CO_GUEST' }));
+
+    const bookings = [
+      ...own.map(b => ({ ...sanitizeBooking(b), role: 'GUEST' })),
+      ...coGuest,
+    ].sort((a, b) => new Date(b.checkOut) - new Date(a.checkOut));
+
+    res.json({ bookings });
   } catch (err) {
     console.error('[dashboard] past error:', err);
     res.status(500).json({ error: 'Erro ao buscar histórico' });
@@ -141,21 +196,39 @@ router.get('/pending', async (req, res) => {
 });
 
 // ── GET /api/dashboard/bookings/:id/guests ────────────────────────────────────
+// Owner sees all guests (pending + confirmed). Co-guests see only confirmed ones.
 router.get('/bookings/:id/guests', async (req, res) => {
   try {
-    // Verify booking belongs to this user
+    const userId = req.session.userId;
+
+    // Check if requester is the booking owner
     const booking = await prisma.booking.findFirst({
-      where: { id: req.params.id, userId: req.session.userId },
+      where: { id: req.params.id, userId },
     });
-    if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
 
+    if (booking) {
+      // Owner: full list with all statuses
+      const guests = await prisma.bookingGuest.findMany({
+        where:   { bookingId: req.params.id },
+        orderBy: { createdAt: 'asc' },
+        select:  { id: true, name: true, email: true, phone: true, status: true },
+      });
+      return res.json({ guests, isOwner: true });
+    }
+
+    // Not owner — check if they are a confirmed co-guest on this booking
+    const coGuestEntry = await prisma.bookingGuest.findFirst({
+      where: { bookingId: req.params.id, userId, status: 'CONFIRMADO' },
+    });
+    if (!coGuestEntry) return res.status(403).json({ error: 'Acesso negado' });
+
+    // Co-guest: only see confirmed guests (hide pending invites)
     const guests = await prisma.bookingGuest.findMany({
-      where:   { bookingId: req.params.id },
+      where:   { bookingId: req.params.id, status: 'CONFIRMADO' },
       orderBy: { createdAt: 'asc' },
-      select:  { id: true, name: true, email: true, phone: true, status: true },
+      select:  { id: true, name: true, email: true, status: true },
     });
-
-    res.json({ guests });
+    return res.json({ guests, isOwner: false });
   } catch (err) {
     console.error('[dashboard] guests list error:', err);
     res.status(500).json({ error: 'Erro ao buscar acompanhantes' });

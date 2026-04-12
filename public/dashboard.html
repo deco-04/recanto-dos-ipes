@@ -186,6 +186,31 @@
     </div>
   </div>
 
+  <!-- Cancel booking modal -->
+  <div id="cancel-modal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center hidden">
+    <div class="absolute inset-0 bg-black/40" onclick="closeCancelModal()"></div>
+    <div class="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-xl">
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold text-forest">Cancelar reserva</h3>
+          <button onclick="closeCancelModal()" class="text-stone hover:text-forest">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <div id="cancel-modal-body">
+          <div class="flex items-center justify-center py-6">
+            <svg class="spin w-7 h-7 text-gold" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Co-guest invite modal -->
   <div id="invite-modal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center hidden">
     <div class="absolute inset-0 bg-black/40" onclick="closeInviteModal()"></div>
