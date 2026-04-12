@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <!-- Recantos da Serra — Icon Mark — white -->
+  <path d="M11,56 L11,28 Q11,7 32,7 Q53,7 53,28 L53,56" fill="none" stroke="#F5EFE6" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="32" cy="16" r="7" fill="#F5EFE6"/>
+  <polygon points="11,56 15,46 21,50 28,42 34,46 40,42 47,47 53,56" fill="#F5EFE6" opacity="0.25"/>
+  <polygon points="11,56 18,48 24,52 29,44 32,36 35,44 40,50 45,44 53,56" fill="#F5EFE6" opacity="0.50"/>
+  <polygon points="27,52 32,36 37,52" fill="#F5EFE6" opacity="1.0"/>
+  <line x1="6" y1="56" x2="58" y2="56" stroke="#F5EFE6" stroke-width="1.8" opacity="0.50"/>
+</svg>
