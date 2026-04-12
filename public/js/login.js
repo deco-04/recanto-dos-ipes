@@ -144,6 +144,10 @@ function hideError(id) {
   if (el) el.classList.add('hidden');
 }
 
+function toggleFirstAccess() {
+  document.getElementById('first-access-panel').classList.toggle('hidden');
+}
+
 // Show error from URL param (e.g. Google OAuth failure)
 (function checkUrlError() {
   const params = new URLSearchParams(window.location.search);

@@ -191,16 +191,22 @@ router.post('/verify-code', async (req, res) => {
       );
     }
 
-    // Set session — explicit save required with resave:false + saveUninitialized:false
-    req.session.userId    = user.id;
-    req.session.userEmail = user.email;
-
-    req.session.save((err) => {
+    // Regenerate session ID before writing (prevents session fixation;
+    // also guarantees Set-Cookie is emitted even if client had a stale cookie)
+    req.session.regenerate((err) => {
       if (err) {
-        console.error('[auth] session save error:', err);
-        return res.status(500).json({ error: 'Erro interno ao salvar sessão' });
+        console.error('[auth] session regenerate error:', err);
+        return res.status(500).json({ error: 'Erro interno ao criar sessão' });
       }
-      res.json({ success: true, user: sanitizeUser(user) });
+      req.session.userId    = user.id;
+      req.session.userEmail = user.email;
+      req.session.save((err) => {
+        if (err) {
+          console.error('[auth] session save error:', err);
+          return res.status(500).json({ error: 'Erro interno ao salvar sessão' });
+        }
+        res.json({ success: true, user: sanitizeUser(user) });
+      });
     });
   } catch (err) {
     if (err?.name === 'ZodError') {
@@ -228,25 +234,30 @@ router.get('/google/callback',
   passport.authenticate('google', { failureRedirect: '/login?error=google', session: false }),
   async (req, res) => {
     try {
-      req.session.userId    = req.user.id;
-      req.session.userEmail = req.user.email;
-
-      // Auto-link any anonymous bookings made with this Google account's email
+      // Auto-link any anonymous bookings
       await prisma.booking.updateMany({
         where: { guestEmail: req.user.email, userId: null },
         data:  { userId: req.user.id },
       }).catch(e => console.error('[auth] auto-link bookings (google) error:', e.message));
 
+      // Capture returnTo before regenerating (regenerate destroys old session)
       const next = req.session.returnTo || '/dashboard';
-      delete req.session.returnTo;
 
-      // Explicit save required with resave:false + saveUninitialized:false
-      req.session.save((err) => {
+      // Regenerate session ID before writing
+      req.session.regenerate((err) => {
         if (err) {
-          console.error('[auth] session save error (google):', err);
+          console.error('[auth] session regenerate error (google):', err);
           return res.redirect('/login?error=google');
         }
-        res.redirect(next);
+        req.session.userId    = req.user.id;
+        req.session.userEmail = req.user.email;
+        req.session.save((err) => {
+          if (err) {
+            console.error('[auth] session save error (google):', err);
+            return res.redirect('/login?error=google');
+          }
+          res.redirect(next);
+        });
       });
     } catch (err) {
       console.error('[auth] google callback error:', err);
@@ -322,16 +333,21 @@ router.post('/confirm-guest-invite', async (req, res) => {
       data:  { userId: user.id },
     }).catch(e => console.error('[auth] confirm-guest auto-link error:', e.message));
 
-    // Log in
-    req.session.userId    = user.id;
-    req.session.userEmail = user.email;
-
-    req.session.save((err) => {
+    // Log in — regenerate session ID first
+    req.session.regenerate((err) => {
       if (err) {
-        console.error('[auth] confirm-guest session save error:', err);
+        console.error('[auth] confirm-guest session regenerate error:', err);
         return res.status(500).json({ error: 'Erro interno' });
       }
-      res.json({ success: true, user: sanitizeUser(user) });
+      req.session.userId    = user.id;
+      req.session.userEmail = user.email;
+      req.session.save((err) => {
+        if (err) {
+          console.error('[auth] confirm-guest session save error:', err);
+          return res.status(500).json({ error: 'Erro interno' });
+        }
+        res.json({ success: true, user: sanitizeUser(user) });
+      });
     });
   } catch (err) {
     if (err?.name === 'ZodError') return res.status(400).json({ error: 'Dados inválidos' });

@@ -139,8 +139,34 @@
 
     </div>
 
+    <!-- Primeiro acesso -->
+    <div class="mt-5 text-center">
+      <button onclick="toggleFirstAccess()"
+        class="text-xs text-stone hover:text-forest transition-colors underline underline-offset-2">
+        Primeiro acesso? Veja como funciona
+      </button>
+    </div>
+
+    <div id="first-access-panel" class="hidden mt-3 bg-white rounded-2xl shadow-sm border border-beige-dark p-5">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-sm font-bold text-forest">Bem-vindo(a)!</p>
+        <button onclick="toggleFirstAccess()" class="text-stone hover:text-forest text-xs">✕ Fechar</button>
+      </div>
+      <p class="text-xs text-stone mb-3">
+        Nossa plataforma é <strong class="text-forest">100% sem senha</strong>. Basta usar seu e-mail para entrar ou criar sua conta.
+      </p>
+      <ol class="list-decimal ml-4 space-y-1 text-xs text-stone">
+        <li>Digite seu e-mail e clique em <em>Receber código</em></li>
+        <li>Verifique sua caixa de entrada (pode cair no spam)</li>
+        <li>Insira o código de 6 dígitos — conta criada automaticamente!</li>
+      </ol>
+      <p class="text-xs text-stone mt-3 pt-3 border-t border-beige-dark">
+        Se você já tem uma reserva, ela será vinculada ao seu e-mail automaticamente.
+      </p>
+    </div>
+
     <!-- Back link -->
-    <p class="text-center mt-6 text-sm text-stone">
+    <p class="text-center mt-5 text-sm text-stone">
       <a href="/" class="hover:text-forest transition-colors">← Voltar ao site</a>
     </p>
 
