@@ -243,7 +243,7 @@
 
           <!-- CTA -->
           <button id="cal-cta" disabled
-            class="w-full bg-gold hover:bg-gold-dark text-white font-bold py-4 rounded-2xl transition-all text-base shadow-lg hover:shadow-xl disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gold">
+            class="w-full bg-verde hover:bg-verde-dark text-white font-bold py-4 rounded-2xl transition-all text-base shadow-lg hover:shadow-xl disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-verde">
             Verificar disponibilidade
           </button>
 
