@@ -15,7 +15,7 @@
     tailwind.config = {
       theme: { extend: {
         colors: {
-          forest: { DEFAULT:'#261C15', light:'#3D2B1F' },
+          forest: { DEFAULT:'#261C15', light:'#3D2B1F', dark:'#1A1108' },
           gold:   { DEFAULT:'#C5D86D', dark:'#9BAB52' },
           beige:  { DEFAULT:'#F7F7F2', dark:'#E4E6C3' },
           stone:  { DEFAULT:'#6B6B6B', light:'#9A9A9A' },
@@ -24,62 +24,265 @@
       }}
     }
   </script>
+  <link rel="stylesheet" href="/css/sri-design.css">
   <style>
-    body { font-family:'Lato',sans-serif; }
-    .spin { animation: spin 1s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    body { font-family:'Lato',sans-serif; background:#FBF9F4; }
+
+    /* Loading spinner */
+    .spin { animation: spin-anim 0.9s linear infinite; }
+    @keyframes spin-anim { to { transform: rotate(360deg); } }
+
+    /* ── Navbar ── */
+    .dash-nav {
+      background: #1A1108;
+      padding: 0 1.5rem;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      box-shadow: 0 1px 0 rgba(197,216,109,0.1), 0 4px 20px rgba(0,0,0,0.25);
+    }
+    .dash-nav-inner {
+      max-width: 72rem;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* ── Hero ── */
+    .dash-hero {
+      background: linear-gradient(155deg, #261C15 0%, #3D2B1F 60%, #4A3020 100%);
+      padding: 2.5rem 1.5rem 4rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .dash-hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 80% at 90% 60%, rgba(197,216,109,0.09), transparent),
+        radial-gradient(ellipse 40% 60% at 5% 10%, rgba(74,103,65,0.22), transparent);
+      pointer-events: none;
+    }
+    .dash-hero::after {
+      content: '';
+      position: absolute;
+      bottom: -1px; left: 0; right: 0;
+      height: 56px;
+      background: #FBF9F4;
+      clip-path: ellipse(55% 100% at 50% 100%);
+    }
+    .dash-hero-inner {
+      max-width: 72rem;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Content ── */
+    .dash-content {
+      max-width: 72rem;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    /* ── Section labels ── */
+    .section-lbl {
+      font-size: 0.6875rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .section-lbl::before {
+      content: '';
+      display: inline-block;
+      width: 14px;
+      height: 2px;
+      background: currentColor;
+      border-radius: 1px;
+      opacity: 0.5;
+      flex-shrink: 0;
+    }
+
+    /* Profile toggle button */
+    .profile-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      font-size: 0.8125rem;
+      color: rgba(255,255,255,0.7);
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.18);
+      padding: 0.5rem 0.875rem;
+      border-radius: 0.75rem;
+      cursor: pointer;
+      transition: all 200ms;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .profile-toggle-btn:hover {
+      background: rgba(255,255,255,0.18);
+      color: #fff;
+    }
+
+    /* Logout button */
+    .logout-btn {
+      color: rgba(255,255,255,0.55);
+      font-size: 0.8125rem;
+      background: none;
+      border: 1px solid rgba(255,255,255,0.16);
+      padding: 0.375rem 0.875rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: all 200ms;
+    }
+    .logout-btn:hover { color: #fff; border-color: rgba(255,255,255,0.45); }
+
+    /* Card wrappers */
+    .card-upcoming-wrap {
+      background: #fff;
+      border-radius: 1.25rem;
+      border: 1px solid rgba(38,28,21,0.07);
+      box-shadow: 0 2px 12px rgba(38,28,21,0.07);
+      overflow: hidden;
+    }
+    .card-upcoming-accent {
+      height: 3px;
+      background: linear-gradient(90deg, #C5D86D, #9BAB52);
+    }
+
+    /* Enhanced form inputs */
+    .dash-input {
+      width: 100%;
+      border: 1.5px solid #E4E6C3;
+      border-radius: 0.75rem;
+      padding: 0.75rem 0.875rem;
+      font-size: 0.875rem;
+      font-family: 'Lato', sans-serif;
+      color: #261C15;
+      background: #fff;
+      transition: border-color 200ms, box-shadow 200ms;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .dash-input:focus {
+      border-color: #C5D86D;
+      box-shadow: 0 0 0 3px rgba(197,216,109,0.2);
+    }
+    .dash-input::placeholder { color: #B0B0B0; }
+
+    /* Backdrop blur on modals */
+    .modal-backdrop {
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+
+    /* Smooth card reveal */
+    #main-content.space-y-10 > * {
+      animation: fadeUpIn 0.5s ease both;
+    }
+    #main-content.space-y-10 > *:nth-child(2) { animation-delay: 0.06s; }
+    #main-content.space-y-10 > *:nth-child(3) { animation-delay: 0.12s; }
+    #main-content.space-y-10 > *:nth-child(4) { animation-delay: 0.18s; }
+    #main-content.space-y-10 > *:nth-child(5) { animation-delay: 0.24s; }
+    @keyframes fadeUpIn {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Profile card */
+    #profile-section {
+      border-radius: 1.25rem !important;
+      border: 1px solid rgba(38,28,21,0.07) !important;
+      box-shadow: 0 2px 12px rgba(38,28,21,0.06) !important;
+      overflow: hidden !important;
+    }
+    #profile-section > div {
+      border-bottom: 1px solid rgba(38,28,21,0.06);
+    }
+
+    /* Password banner */
+    #set-password-banner {
+      border-color: rgba(197,216,109,0.3) !important;
+      box-shadow: 0 2px 12px rgba(38,28,21,0.06) !important;
+    }
+
+    /* Review card hover (also applies to booking cards) */
+    .review-card:hover { transform: translateY(-3px); }
+
+    /* Tag button nav-user */
+    #nav-user { color: rgba(255,255,255,0.45); font-size: 0.8125rem; }
+
+    /* Empty state centering */
+    #empty-state {
+      box-shadow: 0 2px 16px rgba(38,28,21,0.06) !important;
+    }
   </style>
 </head>
-<body class="min-h-screen bg-beige">
+<body>
 
-  <!-- Navbar -->
-  <nav class="bg-forest px-6 py-4">
-    <div class="max-w-5xl mx-auto flex items-center justify-between">
-      <a href="/" class="flex items-center gap-2">
-        <img src="/brand/sri-mark-white.svg" width="28" height="28" alt="" class="block flex-shrink-0">
-        <span class="font-serif text-white font-bold text-lg">Recanto dos Ipês</span>
+  <!-- ── Navbar ───────────────────────────────────────────────────────────── -->
+  <nav class="dash-nav">
+    <div class="dash-nav-inner">
+      <a href="/" style="display:flex; align-items:center; gap:0.625rem; text-decoration:none;">
+        <img src="/brand/sri-mark-white.svg" width="26" height="26" alt="" style="display:block; flex-shrink:0;">
+        <span style="font-family:'Merriweather',serif; color:#fff; font-weight:700; font-size:0.9375rem;">Recanto dos Ipês</span>
       </a>
-      <div class="flex items-center gap-4">
-        <span id="nav-user" class="text-white/70 text-sm hidden"></span>
-        <button onclick="logout()"
-          class="text-white/70 hover:text-white text-sm transition-colors border border-white/20 px-3 py-1.5 rounded-lg hover:border-white/50">
-          Sair
-        </button>
+      <div style="display:flex; align-items:center; gap:0.625rem;">
+        <span id="nav-user" class="hidden"></span>
+        <button onclick="logout()" class="logout-btn">Sair</button>
       </div>
     </div>
   </nav>
 
-  <div class="max-w-5xl mx-auto px-4 py-10" id="dashboard-content">
+  <!-- ── Hero strip ─────────────────────────────────────────────────────── -->
+  <div class="dash-hero">
+    <div class="dash-hero-inner">
 
-    <!-- Loading -->
-    <div id="loading-state" class="flex flex-col items-center justify-center py-24">
-      <svg class="spin w-10 h-10 text-gold mb-3" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-      </svg>
-      <p class="text-stone text-sm">Carregando suas reservas…</p>
-    </div>
-
-    <!-- Main content -->
-    <div id="main-content" class="hidden space-y-10">
-
-      <!-- Header -->
-      <div class="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 class="font-serif text-2xl md:text-3xl font-bold text-forest">Minhas reservas</h1>
-          <p class="text-stone text-sm mt-1" id="user-greeting"></p>
-        </div>
-        <!-- Profile toggle -->
-        <button onclick="toggleProfile()" id="profile-btn"
-          class="flex items-center gap-2 text-sm text-stone hover:text-forest border border-beige-dark bg-white px-3 py-2 rounded-xl transition-colors">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+      <!-- Loading state -->
+      <div id="loading-state" style="padding:1.5rem 0;">
+        <div style="display:flex; align-items:center; gap:0.875rem;">
+          <svg class="spin" width="22" height="22" fill="none" viewBox="0 0 24 24" style="color:rgba(197,216,109,0.6); flex-shrink:0;">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
           </svg>
-          Meus dados
-        </button>
+          <p style="color:rgba(255,255,255,0.45); font-size:0.875rem; margin:0;">Carregando suas reservas…</p>
+        </div>
       </div>
 
-      <!-- Profile section (collapsible) -->
+      <!-- Header row (revealed after load by JS removing hidden from main-content) -->
+      <div id="dash-hero-header" class="hidden" style="display:none;">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+          <div>
+            <p style="font-size:0.6875rem; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:rgba(197,216,109,0.65); margin:0 0 0.375rem;">Área do hóspede</p>
+            <h1 style="font-family:'Merriweather',serif; font-size:clamp(1.375rem,4vw,1.875rem); font-weight:700; color:#fff; line-height:1.2; margin:0 0 0.375rem;">Minhas reservas</h1>
+            <p id="user-greeting" style="color:rgba(255,255,255,0.5); font-size:0.875rem; margin:0;"></p>
+          </div>
+          <button onclick="toggleProfile()" id="profile-btn" class="profile-toggle-btn">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            Meus dados
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Main dashboard content ─────────────────────────────────────────── -->
+  <div class="dash-content" id="dashboard-content">
+
+    <div id="main-content" class="hidden space-y-10">
+
+      <!-- ── Profile section (collapsible) ── -->
       <div id="profile-section" class="hidden bg-white rounded-2xl border border-beige-dark shadow-sm overflow-hidden">
         <div class="p-6">
           <h2 class="font-semibold text-forest mb-4">Meus dados</h2>
@@ -121,7 +324,7 @@
         </div>
       </div>
 
-      <!-- Set-password banner (shown once to OTP users who haven't created a password) -->
+      <!-- ── Set-password banner ── -->
       <div id="set-password-banner" class="hidden bg-white rounded-2xl border border-gold/40 shadow-sm overflow-hidden">
         <div class="bg-gold/10 border-b border-gold/30 px-5 py-3 flex items-center justify-between">
           <p class="text-sm font-semibold text-forest">🔑 Crie uma senha para entrar mais rápido</p>
@@ -144,7 +347,7 @@
         </div>
       </div>
 
-      <!-- Empty state (no bookings at all) -->
+      <!-- ── Empty state ── -->
       <div id="empty-state" class="hidden bg-white rounded-2xl p-10 text-center border border-beige-dark shadow-sm">
         <div class="w-16 h-16 bg-gold/20 rounded-full flex items-center justify-center mx-auto mb-4">
           <span class="text-3xl">🌿</span>
@@ -159,41 +362,45 @@
         </a>
       </div>
 
-      <!-- Pending bookings (awaiting payment) -->
+      <!-- ── Pending bookings ── -->
       <div id="pending-section" class="hidden">
-        <h2 class="text-xs font-bold uppercase tracking-widest text-amber-600 mb-3">Aguardando pagamento</h2>
+        <p class="section-lbl" style="color:#B45309;">Aguardando pagamento</p>
         <div id="pending-list" class="space-y-3"></div>
       </div>
 
-      <!-- Current stay -->
+      <!-- ── Current stay ── -->
       <div id="current-section" class="hidden">
-        <h2 class="text-xs font-bold uppercase tracking-widest text-gold-dark mb-3">Estadia atual</h2>
-        <div id="current-card" class="bg-forest text-white rounded-2xl p-6 shadow-lg"></div>
+        <p class="section-lbl" style="color:#9BAB52;">Estadia em andamento</p>
+        <div id="current-card"></div>
       </div>
 
-      <!-- Upcoming stays -->
+      <!-- ── Upcoming stays ── -->
       <div id="upcoming-section" class="hidden">
-        <h2 class="text-xs font-bold uppercase tracking-widest text-stone mb-3">Próximas estadias</h2>
-        <div id="upcoming-card" class="bg-white rounded-2xl p-6 shadow-sm border border-beige-dark"></div>
+        <p class="section-lbl" style="color:#261C15;">Próximas estadias</p>
+        <!-- Accent bar above the card -->
+        <div class="card-upcoming-wrap">
+          <div class="card-upcoming-accent"></div>
+          <div id="upcoming-card" class="p-6"></div>
+        </div>
       </div>
 
-      <!-- Past stays -->
+      <!-- ── Past stays ── -->
       <div id="past-section" class="hidden">
-        <h2 class="text-xs font-bold uppercase tracking-widest text-stone mb-3">Histórico de estadias</h2>
+        <p class="section-lbl" style="color:#6B6B6B;">Histórico de estadias</p>
         <div id="past-list" class="space-y-3"></div>
       </div>
 
-    </div>
-  </div>
+    </div><!-- /main-content -->
+  </div><!-- /dashboard-content -->
 
-  <!-- Cancel booking modal -->
+  <!-- ── Cancel modal ──────────────────────────────────────────────────── -->
   <div id="cancel-modal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center hidden">
-    <div class="absolute inset-0 bg-black/40" onclick="closeCancelModal()"></div>
+    <div class="absolute inset-0 bg-black/40 modal-backdrop" onclick="closeCancelModal()"></div>
     <div class="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-xl">
       <div class="p-6">
         <div class="flex items-center justify-between mb-4">
           <h3 class="font-semibold text-forest">Cancelar reserva</h3>
-          <button onclick="closeCancelModal()" class="text-stone hover:text-forest">
+          <button onclick="closeCancelModal()" class="text-stone hover:text-forest transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
@@ -211,9 +418,9 @@
     </div>
   </div>
 
-  <!-- Co-guest invite modal -->
+  <!-- ── Invite modal ───────────────────────────────────────────────────── -->
   <div id="invite-modal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center hidden">
-    <div class="absolute inset-0 bg-black/40" onclick="closeInviteModal()"></div>
+    <div class="absolute inset-0 bg-black/40 modal-backdrop" onclick="closeInviteModal()"></div>
     <div class="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-xl">
       <div class="p-6">
         <div class="flex items-center justify-between mb-4">
@@ -253,6 +460,23 @@
       </div>
     </div>
   </div>
+
+  <!-- Reveal hero header when loading hides -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const loadingEl = document.getElementById('loading-state');
+      const heroHeader = document.getElementById('dash-hero-header');
+      if (loadingEl && heroHeader) {
+        const obs = new MutationObserver(() => {
+          if (loadingEl.classList.contains('hidden')) {
+            heroHeader.style.display = 'block';
+            heroHeader.classList.remove('hidden');
+          }
+        });
+        obs.observe(loadingEl, { attributes: true, attributeFilter: ['class'] });
+      }
+    });
+  </script>
 
 <script src="/js/dashboard.js"></script>
 </body>
