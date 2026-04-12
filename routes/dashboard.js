@@ -118,6 +118,28 @@ router.get('/invoice/:bookingId', async (req, res) => {
   }
 });
 
+// ── GET /api/dashboard/pending ───────────────────────────────────────────────
+// Returns PENDING bookings created in the last 48h (awaiting payment confirmation)
+router.get('/pending', async (req, res) => {
+  try {
+    const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        userId:    req.session.userId,
+        status:    'PENDING',
+        createdAt: { gt: cutoff },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({ bookings: bookings.map(sanitizeBooking) });
+  } catch (err) {
+    console.error('[dashboard] pending error:', err);
+    res.status(500).json({ error: 'Erro ao buscar reservas pendentes' });
+  }
+});
+
 // ── GET /api/dashboard/bookings/:id/guests ────────────────────────────────────
 router.get('/bookings/:id/guests', async (req, res) => {
   try {
@@ -218,6 +240,53 @@ router.delete('/bookings/:id/guests/:guestId', async (req, res) => {
   } catch (err) {
     console.error('[dashboard] remove guest error:', err);
     res.status(500).json({ error: 'Erro ao remover acompanhante' });
+  }
+});
+
+// ── POST /api/dashboard/bookings/:id/guests/:guestId/resend ───────────────────
+router.post('/bookings/:id/guests/:guestId/resend', async (req, res) => {
+  try {
+    const booking = await prisma.booking.findFirst({
+      where: { id: req.params.id, userId: req.session.userId },
+    });
+    if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    const guest = await prisma.bookingGuest.findFirst({
+      where: { id: req.params.guestId, bookingId: req.params.id },
+    });
+    if (!guest) return res.status(404).json({ error: 'Acompanhante não encontrado' });
+    if (guest.status !== 'PENDENTE') {
+      return res.status(400).json({ error: 'Convite já aceito ou cancelado' });
+    }
+
+    // Regenerate token
+    const rawToken    = crypto.randomBytes(32).toString('hex');
+    const tokenHash   = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const inviteExpiry = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72h
+
+    await prisma.bookingGuest.update({
+      where: { id: guest.id },
+      data:  { inviteToken: tokenHash, inviteExpiry },
+    });
+
+    const checkIn  = new Date(booking.checkIn).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
+    const checkOut = new Date(booking.checkOut).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+    const baseUrl  = process.env.GUEST_SITE_URL || 'https://sitiorecantodosipes.com';
+    const inviteUrl = `${baseUrl}/confirmar-hospede.html?token=${rawToken}`;
+
+    sendGuestInvite({
+      to: guest.email,
+      name: guest.name,
+      hostName: booking.guestName,
+      checkIn,
+      checkOut,
+      inviteUrl,
+    }).catch(e => console.error('[dashboard] resend invite email error:', e.message));
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[dashboard] resend invite error:', err);
+    res.status(500).json({ error: 'Erro ao reenviar convite' });
   }
 });
 

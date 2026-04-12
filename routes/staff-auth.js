@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { z } = require('zod');
 const prisma = require('../lib/db');
-const { sendAdminNotification } = require('../lib/mailer');
+const { sendAdminNotification, sendPasswordResetEmail } = require('../lib/mailer');
 
 const router = express.Router();
 
@@ -268,6 +268,102 @@ router.post('/change-password', async (req, res) => {
   await prisma.staffMember.update({ where: { id: staff.id }, data: { passwordHash } });
 
   return res.json({ ok: true });
+});
+
+// ── Rate limit for password reset (3 per email per hour) ─────────────────────
+const resetRateLimit = new Map(); // email → { count, resetAt }
+
+function checkResetRateLimit(email) {
+  const now   = Date.now();
+  const entry = resetRateLimit.get(email);
+  if (!entry || entry.resetAt < now) {
+    resetRateLimit.set(email, { count: 1, resetAt: now + 60 * 60 * 1000 });
+    return true;
+  }
+  if (entry.count >= 3) return false;
+  entry.count++;
+  return true;
+}
+
+// POST /api/staff/auth/forgot-password — staff requests a self-service reset link
+router.post('/forgot-password', async (req, res) => {
+  const parsed = z.object({ email: z.string().email() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'E-mail inválido' });
+
+  const { email } = parsed.data;
+
+  if (!checkResetRateLimit(email)) {
+    // Return ok to prevent enumeration — client shows success regardless
+    return res.json({ ok: true });
+  }
+
+  try {
+    const staff = await prisma.staffMember.findUnique({ where: { email } });
+    if (staff && staff.active) {
+      const rawToken  = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const expiry    = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      await prisma.staffMember.update({
+        where: { id: staff.id },
+        data:  { passwordResetToken: tokenHash, passwordResetExpiry: expiry },
+      });
+
+      const appUrl  = process.env.STAFF_APP_URL || 'https://app.recantosdaserra.com';
+      const resetUrl = `${appUrl}/redefinir-senha?token=${rawToken}`;
+
+      await sendPasswordResetEmail({ to: email, name: staff.name, resetUrl })
+        .catch(e => console.error('[staff-auth] forgot-password email error:', e.message));
+    }
+  } catch (e) {
+    console.error('[staff-auth] forgot-password error:', e.message);
+  }
+
+  // Always return ok — no email enumeration
+  return res.json({ ok: true });
+});
+
+// POST /api/staff/auth/reset-password — validates token and sets new password
+router.post('/reset-password', async (req, res) => {
+  const parsed = z.object({
+    token:       z.string().min(64),
+    newPassword: z.string().min(8),
+  }).safeParse(req.body);
+
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
+
+  const { token, newPassword } = parsed.data;
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+  try {
+    const staff = await prisma.staffMember.findFirst({
+      where: {
+        passwordResetToken:  tokenHash,
+        passwordResetExpiry: { gt: new Date() },
+        active:              true,
+      },
+    });
+
+    if (!staff) {
+      return res.status(400).json({ error: 'Link inválido ou expirado' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await prisma.staffMember.update({
+      where: { id: staff.id },
+      data:  {
+        passwordHash,
+        passwordResetToken:  null,
+        passwordResetExpiry: null,
+      },
+    });
+
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error('[staff-auth] reset-password error:', e.message);
+    return res.status(500).json({ error: 'Erro ao redefinir senha' });
+  }
 });
 
 // POST /api/staff/auth/request-recovery — staff asks admin to reset their password

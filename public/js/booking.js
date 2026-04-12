@@ -236,9 +236,16 @@ async function submitBooking() {
       console.warn('Confirm error:', confirmData);
     }
 
-    // 4. Show success modal
-    showSuccessModal(confirmData.booking || { invoiceNumber: bookingId, checkIn, checkOut, guestCount: guests });
-    document.getElementById('success-email').value = email;
+    // 4. Store booking data and redirect to confirmation page
+    const bookingData = confirmData.booking || { id: bookingId, invoiceNumber: bookingId, checkIn, checkOut, guestCount: guests, guestEmail: email };
+    try {
+      sessionStorage.setItem('rdi_booking_confirmation', JSON.stringify(bookingData));
+      window.location.href = '/reserva-confirmada';
+    } catch {
+      // sessionStorage unavailable (e.g. private mode blocking) — fall back to modal
+      showSuccessModal(bookingData);
+      document.getElementById('success-email').value = email;
+    }
 
   } catch (err) {
     showError('form-error', 'Erro inesperado. Tente novamente ou entre em contato.');

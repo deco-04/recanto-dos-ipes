@@ -23,6 +23,21 @@ function checkIntentRateLimit(ip) {
   return true;
 }
 
+// ── Per-IP rate limit: max 10 receipt lookups per minute ──────────────────────
+const receiptRateLimit = new Map(); // ip → { count, resetAt }
+
+function checkReceiptRateLimit(ip) {
+  const now   = Date.now();
+  const entry = receiptRateLimit.get(ip);
+  if (!entry || entry.resetAt < now) {
+    receiptRateLimit.set(ip, { count: 1, resetAt: now + 60 * 1000 });
+    return true;
+  }
+  if (entry.count >= 10) return false;
+  entry.count++;
+  return true;
+}
+
 // Best-effort IP: honour X-Forwarded-For set by Railway's proxy
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
@@ -330,6 +345,42 @@ router.post('/:id/link-account', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[bookings] link-account error:', err);
     res.status(500).json({ error: 'Erro ao vincular conta' });
+  }
+});
+
+// ── GET /api/bookings/receipt/:bookingId ──────────────────────────────────────
+// Public, no-auth endpoint for post-payment confirmation page.
+// Only returns CONFIRMED bookings — prevents leaking PENDING details.
+router.get('/receipt/:bookingId', async (req, res) => {
+  if (!checkReceiptRateLimit(getClientIp(req))) {
+    return res.status(429).json({ error: 'Muitas tentativas. Aguarde um minuto.' });
+  }
+
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.bookingId },
+    });
+
+    if (!booking || booking.status !== 'CONFIRMED') {
+      return res.status(404).json({ error: 'Reserva não encontrada' });
+    }
+
+    res.json({
+      id:            booking.id,
+      invoiceNumber: booking.invoiceNumber,
+      guestName:     booking.guestName,
+      guestEmail:    booking.guestEmail,
+      checkIn:       booking.checkIn,
+      checkOut:      booking.checkOut,
+      nights:        booking.nights,
+      guestCount:    booking.guestCount,
+      totalAmount:   Number(booking.totalAmount),
+      hasPet:        booking.hasPet,
+      status:        booking.status,
+    });
+  } catch (err) {
+    console.error('[bookings] receipt error:', err);
+    res.status(500).json({ error: 'Erro ao buscar reserva' });
   }
 });
 

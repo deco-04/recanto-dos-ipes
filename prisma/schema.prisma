@@ -214,9 +214,11 @@ model StaffMember {
   firstLoginDone     Boolean   @default(false)
   pushSubscription   Json?
   active             Boolean   @default(true)
-  inviteToken        String?
-  inviteTokenExpiry  DateTime?
-  createdAt          DateTime  @default(now())
+  inviteToken          String?
+  inviteTokenExpiry    DateTime?
+  passwordResetToken   String?
+  passwordResetExpiry  DateTime?
+  createdAt            DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
   properties       StaffPropertyAssignment[]

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Reserva Confirmada — Sítio Recanto dos Ipês</title>
+  <meta name="description" content="Sua reserva no Sítio Recanto dos Ipês foi confirmada com sucesso.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta property="og:title" content="Reserva Confirmada — Sítio Recanto dos Ipês">
+  <meta property="og:description" content="Sua reserva foi confirmada. Prepare-se para uma estadia inesquecível em Jaboticatubas, MG.">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="shortcut icon" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          forest: { DEFAULT:'#261C15', light:'#3D2B1F', dark:'#150F0A' },
+          gold:   { DEFAULT:'#C5D86D', dark:'#9BAB52' },
+          beige:  { DEFAULT:'#F7F7F2', dark:'#E4E6C3' },
+          stone:  { DEFAULT:'#6B6B6B', light:'#9A9A9A' },
+        },
+        fontFamily: { serif:['Merriweather','serif'], sans:['Lato','sans-serif'] },
+      }}
+    }
+  </script>
+  <style>
+    body { font-family:'Lato',sans-serif; }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="min-h-screen bg-beige px-4 py-12">
+
+  <div class="w-full max-w-lg mx-auto">
+
+    <!-- Brand header -->
+    <div class="text-center mb-8">
+      <a href="/" class="inline-block">
+        <p class="font-serif text-2xl font-bold text-forest">Recanto dos Ipês</p>
+        <p class="text-stone text-sm mt-1">Jaboticatubas · MG</p>
+      </a>
+    </div>
+
+    <!-- Loading state -->
+    <div id="state-loading" class="bg-white rounded-3xl shadow-lg p-8 text-center">
+      <svg class="spin w-8 h-8 text-gold mx-auto mb-3" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+      </svg>
+      <p class="text-stone text-sm">Carregando sua reserva…</p>
+    </div>
+
+    <!-- Not found state -->
+    <div id="state-notfound" class="hidden bg-white rounded-3xl shadow-lg p-8 text-center">
+      <div class="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-7 h-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </div>
+      <h2 class="font-serif text-lg font-bold text-forest mb-2">Reserva não encontrada</h2>
+      <p class="text-stone text-sm mb-6">Não foi possível localizar os detalhes da sua reserva. Verifique seu e-mail de confirmação.</p>
+      <a href="/" class="inline-block bg-forest hover:bg-forest-light text-white font-bold py-3 px-6 rounded-xl transition-colors text-sm">
+        Voltar ao início
+      </a>
+    </div>
+
+    <!-- Confirmed state -->
+    <div id="state-confirmed" class="hidden space-y-4">
+
+      <!-- Success card -->
+      <div class="bg-white rounded-3xl shadow-lg p-8">
+
+        <!-- Checkmark + title -->
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+          <h1 class="font-serif text-2xl font-bold text-forest">Reserva confirmada!</h1>
+          <p class="text-stone text-sm mt-1">Estamos ansiosos para recebê-lo(a)</p>
+        </div>
+
+        <!-- Booking details -->
+        <div class="bg-beige rounded-2xl p-4 space-y-2.5 mb-4">
+          <div class="flex justify-between text-sm">
+            <span class="text-stone">Check-in</span>
+            <span id="detail-checkin" class="font-semibold text-forest"></span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-stone">Check-out</span>
+            <span id="detail-checkout" class="font-semibold text-forest"></span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-stone">Noites</span>
+            <span id="detail-nights" class="font-semibold text-forest"></span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-stone">Hóspedes</span>
+            <span id="detail-guests" class="font-semibold text-forest"></span>
+          </div>
+          <div class="border-t border-beige-dark pt-2 flex justify-between text-sm">
+            <span class="text-stone">Total pago</span>
+            <span id="detail-total" class="font-bold text-forest"></span>
+          </div>
+          <div class="flex justify-between text-xs">
+            <span class="text-stone">Reserva nº</span>
+            <span id="detail-invoice" class="font-mono text-stone-light"></span>
+          </div>
+        </div>
+
+        <!-- Pet notice -->
+        <div id="pet-notice" class="hidden bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800 mb-4">
+          🐾 Sua reserva inclui pet. Lembre-se de informar ao sítio sobre o porte do animal.
+        </div>
+
+        <!-- Email reminder -->
+        <p id="email-reminder" class="text-xs text-stone text-center">
+          Enviamos os detalhes para <strong id="detail-email" class="text-forest"></strong>. Verifique sua caixa de entrada.
+        </p>
+      </div>
+
+      <!-- Account CTA -->
+      <div id="cta-dashboard" class="hidden bg-white rounded-3xl shadow-lg p-6 text-center">
+        <p class="text-sm font-semibold text-forest mb-1">Acesse suas reservas</p>
+        <p class="text-xs text-stone mb-4">Visualize detalhes, gerencie acompanhantes e muito mais.</p>
+        <a href="/dashboard" class="block w-full bg-forest hover:bg-forest-light text-white font-bold py-3 rounded-xl transition-colors text-sm">
+          Ver minhas reservas →
+        </a>
+      </div>
+
+      <div id="cta-create-account" class="hidden bg-white rounded-3xl shadow-lg p-6">
+        <p class="text-sm font-semibold text-forest mb-1">Crie sua conta</p>
+        <p class="text-xs text-stone mb-4">Salve sua reserva, gerencie estadias e convide acompanhantes.</p>
+
+        <!-- Step 1: email -->
+        <div id="acc-step-email">
+          <input id="acc-email" type="email" placeholder="seu@email.com"
+            class="w-full border-2 border-beige-dark rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold transition-colors mb-3"
+            autocomplete="email"/>
+          <p id="acc-email-error" class="hidden text-red-500 text-xs mb-2"></p>
+          <button onclick="accSendCode()"
+            class="w-full bg-forest hover:bg-forest-light text-white font-bold py-3 rounded-xl transition-colors text-sm">
+            Criar conta e ver reservas
+          </button>
+          <p class="text-xs text-stone text-center mt-3">Enviaremos um código de verificação para o seu e-mail.</p>
+        </div>
+
+        <!-- Step 2: OTP -->
+        <div id="acc-step-otp" class="hidden">
+          <p class="text-xs text-stone mb-3">Código enviado para <strong id="acc-sent-to" class="text-forest"></strong></p>
+          <input id="acc-code" type="text" inputmode="numeric" maxlength="6" placeholder="_ _ _ _ _ _"
+            class="w-full border-2 border-beige-dark rounded-xl px-4 py-3 text-2xl font-bold tracking-widest text-center focus:outline-none focus:border-gold transition-colors mb-3"
+            autocomplete="one-time-code"/>
+          <p id="acc-code-error" class="hidden text-red-500 text-xs mb-2"></p>
+          <button onclick="accVerifyCode()"
+            class="w-full bg-forest hover:bg-forest-light text-white font-bold py-3 rounded-xl transition-colors text-sm">
+            Verificar e acessar minhas reservas
+          </button>
+          <button onclick="accBackToEmail()" class="mt-2 w-full text-stone hover:text-forest text-xs transition-colors">
+            ← Usar outro e-mail
+          </button>
+        </div>
+
+        <!-- Loading -->
+        <div id="acc-loading" class="hidden py-4 text-center">
+          <svg class="spin w-6 h-6 text-gold mx-auto mb-2" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+          <p class="text-stone text-xs">Aguarde…</p>
+        </div>
+      </div>
+
+      <!-- Secondary CTAs -->
+      <div class="bg-white rounded-3xl shadow-lg p-6 flex flex-col sm:flex-row gap-3">
+        <button onclick="downloadIcs()"
+          class="flex-1 border-2 border-beige-dark hover:border-forest text-forest font-semibold py-3 rounded-xl transition-colors text-sm">
+          📅 Adicionar ao calendário
+        </button>
+        <a href="/"
+          class="flex-1 text-center border-2 border-beige-dark hover:border-forest text-forest font-semibold py-3 rounded-xl transition-colors text-sm">
+          ← Voltar ao início
+        </a>
+      </div>
+
+    </div><!-- /state-confirmed -->
+
+  </div>
+
+<script src="/js/reserva-confirmada.js"></script>
+</body>
+</html>

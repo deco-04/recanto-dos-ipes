@@ -30,10 +30,11 @@ let currentUser = null;
   populateProfileView(user);
 
   // Load all dashboard data in parallel
-  const [currentRes, upcomingRes, pastRes] = await Promise.all([
+  const [currentRes, upcomingRes, pastRes, pendingRes] = await Promise.all([
     fetch('/api/dashboard/current'),
     fetch('/api/dashboard/upcoming'),
     fetch('/api/dashboard/past'),
+    fetch('/api/dashboard/pending'),
   ]);
 
   document.getElementById('loading-state').classList.add('hidden');
@@ -44,22 +45,49 @@ let currentUser = null;
   if (currentRes.ok) {
     const { booking } = await currentRes.json();
     if (booking) { renderCurrentStay(booking); hasAny = true; }
+  } else if (!currentRes.ok && currentRes.status !== 401) {
+    showSectionError('current-section', 'current-error', 'Não foi possível carregar a estadia atual.', () => window.location.reload());
+  }
+
+  if (pendingRes.ok) {
+    const { bookings: pending } = await pendingRes.json();
+    if (pending?.length > 0) { renderPending(pending); hasAny = true; }
   }
 
   if (upcomingRes.ok) {
     const { bookings: upcoming } = await upcomingRes.json();
     if (upcoming?.length > 0) { renderUpcoming(upcoming); hasAny = true; }
+  } else if (!upcomingRes.ok && upcomingRes.status !== 401) {
+    showSectionError('upcoming-section', 'upcoming-error', 'Não foi possível carregar as próximas reservas.', () => window.location.reload());
+    hasAny = true;
   }
 
   if (pastRes.ok) {
     const { bookings: past } = await pastRes.json();
     if (past?.length > 0) { renderPast(past); hasAny = true; }
+  } else if (!pastRes.ok && pastRes.status !== 401) {
+    showSectionError('past-section', 'past-error', 'Não foi possível carregar o histórico.', () => window.location.reload());
+    hasAny = true;
   }
 
   if (!hasAny) {
     document.getElementById('empty-state').classList.remove('hidden');
   }
 })();
+
+function showSectionError(sectionId, errorId, msg, retryFn) {
+  const section = document.getElementById(sectionId);
+  if (!section) return;
+  section.classList.remove('hidden');
+  let el = document.getElementById(errorId);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = errorId;
+    section.appendChild(el);
+  }
+  el.className = 'bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3';
+  el.innerHTML = `<span>${msg}</span><button onclick="(${retryFn})()" class="text-xs font-medium underline">Tentar novamente</button>`;
+}
 
 // ── Profile ───────────────────────────────────────────────────────────────────
 function populateProfileView(user) {
@@ -96,11 +124,23 @@ function editProfile() {
   document.getElementById('profile-phone').value = currentUser.phone || '';
   document.getElementById('profile-cpf').value   = currentUser.cpf ? formatCPF(currentUser.cpf) : '';
   document.getElementById('profile-error').classList.add('hidden');
+
+  const cpfInput = document.getElementById('profile-cpf');
+  cpfInput.removeEventListener('input', cpfMaskHandler);
+  cpfInput.addEventListener('input', cpfMaskHandler);
 }
 
 function cancelProfile() {
   document.getElementById('profile-form').classList.add('hidden');
   document.getElementById('profile-view').classList.remove('hidden');
+}
+
+function cpfMaskHandler(e) {
+  let v = e.target.value.replace(/\D/g, '').slice(0, 11);
+  if (v.length > 9) v = v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6,9)+'-'+v.slice(9);
+  else if (v.length > 6) v = v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6);
+  else if (v.length > 3) v = v.slice(0,3)+'.'+v.slice(3);
+  e.target.value = v;
 }
 
 async function saveProfile(e) {
@@ -144,6 +184,76 @@ async function saveProfile(e) {
   }
 }
 
+// ── Pending bookings ──────────────────────────────────────────────────────────
+function renderPending(bookings) {
+  const section = document.getElementById('pending-section');
+  if (!section) return;
+  section.classList.remove('hidden');
+  const list = document.getElementById('pending-list');
+  if (!list) return;
+  list.innerHTML = bookings.map(b => `
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
+      <div class="flex-1">
+        <p class="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Aguardando confirmação de pagamento</p>
+        <p class="text-sm font-semibold text-stone-800">${fmtDate(b.checkIn)} → ${fmtDate(b.checkOut)}</p>
+        <p class="text-xs text-stone-600 mt-0.5">${b.nights} noite${b.nights > 1 ? 's' : ''} · ${b.guestCount} hóspede${b.guestCount > 1 ? 's' : ''}</p>
+        ${b.invoiceNumber ? `<p class="text-xs text-stone-400 font-mono mt-0.5">Nº ${b.invoiceNumber}</p>` : ''}
+      </div>
+      <span class="text-amber-500 text-xl">⏳</span>
+    </div>
+  `).join('');
+}
+
+// ── Invoice download ──────────────────────────────────────────────────────────
+async function downloadInvoice(bookingId) {
+  try {
+    const res = await fetch(`/api/dashboard/invoice/${bookingId}`);
+    if (!res.ok) {
+      if (res.status === 429) alert('Muitas tentativas. Aguarde antes de tentar novamente.');
+      return;
+    }
+    const { invoice } = await res.json();
+
+    const fmt = d => new Date(d).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', timeZone:'UTC' });
+    const lines = [
+      '==============================',
+      'SÍTIO RECANTO DOS IPÊS',
+      'Jaboticatubas · MG',
+      '==============================',
+      '',
+      `Reserva nº: ${invoice.invoiceNumber}`,
+      `Hóspede:    ${invoice.guestName}`,
+      `E-mail:     ${invoice.guestEmail}`,
+      invoice.guestPhone ? `Telefone:   ${invoice.guestPhone}` : null,
+      invoice.guestCpf   ? `CPF:        ${invoice.guestCpf}` : null,
+      '',
+      `Check-in:   ${fmt(invoice.checkIn)}`,
+      `Check-out:  ${fmt(invoice.checkOut)}`,
+      `Noites:     ${invoice.nights}`,
+      `Hóspedes:   ${invoice.guestCount}`,
+      invoice.extraGuests > 0 ? `Extras:     ${invoice.extraGuests}` : null,
+      invoice.hasPet ? 'Pet:        Sim' : null,
+      '',
+      `Diária base:    ${invoice.baseRatePerNight}`,
+      invoice.extraGuests > 0 ? `Taxa extra:     ${invoice.extraGuestFee}` : null,
+      invoice.hasPet ? `Taxa pet:       ${invoice.petFee}` : null,
+      `Total:          ${invoice.totalAmount}`,
+      '',
+      invoice.notes ? `Observações: ${invoice.notes}` : null,
+      '',
+      '==============================',
+    ].filter(l => l !== null).join('\n');
+
+    const blob = new Blob([lines], { type: 'text/plain;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `recibo-${invoice.invoiceNumber || bookingId}.txt`;
+    a.click(); URL.revokeObjectURL(url);
+  } catch {
+    alert('Erro ao baixar recibo. Tente novamente.');
+  }
+}
+
 // ── Current stay ──────────────────────────────────────────────────────────────
 function renderCurrentStay(b) {
   document.getElementById('current-section').classList.remove('hidden');
@@ -162,7 +272,10 @@ function renderCurrentStay(b) {
       <div><p class="text-white/60 text-xs">Hóspedes</p><p class="font-semibold">${b.guestCount}</p></div>
       <div><p class="text-white/60 text-xs">Total pago</p><p class="font-semibold">${fmtBRL(b.totalAmount)}</p></div>
     </div>
-    <p class="text-white/40 text-xs mt-4 font-mono">Reserva nº ${b.invoiceNumber}</p>
+    <div class="flex items-center justify-between mt-4">
+      <p class="text-white/40 text-xs font-mono">Reserva nº ${b.invoiceNumber}</p>
+      <button onclick="downloadInvoice('${b.id}')" class="text-xs text-white/60 hover:text-white transition-colors">⬇ Recibo</button>
+    </div>
     ${renderGuestSection(b.id, [], true)}
   `;
   loadGuests(b.id);
@@ -187,7 +300,10 @@ function renderUpcoming(bookings) {
         <div class="bg-beige rounded-xl p-3"><p class="text-xs text-stone mb-1">Hóspedes</p><p class="font-semibold text-forest">${b.guestCount}</p></div>
       </div>
       <div class="flex items-center justify-between mt-4 pt-4 border-t border-beige-dark flex-wrap gap-2">
-        <p class="text-xs text-stone font-mono">Reserva nº ${b.invoiceNumber}</p>
+        <div>
+          <p class="text-xs text-stone font-mono">Reserva nº ${b.invoiceNumber}</p>
+          <button onclick="downloadInvoice('${b.id}')" class="text-xs text-stone hover:text-forest transition-colors mt-0.5">⬇ Baixar recibo</button>
+        </div>
         <p class="font-bold text-forest text-lg">${fmtBRL(b.totalAmount)}</p>
       </div>
       ${renderGuestSection(b.id, [], false)}
@@ -211,6 +327,7 @@ function renderPast(bookings) {
         <span class="text-xs px-2 py-0.5 rounded-full ${b.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' : 'bg-stone/10 text-stone'}">
           ${b.status === 'CONFIRMED' ? 'Concluída' : b.status}
         </span>
+        <button onclick="downloadInvoice('${b.id}')" class="block text-xs text-stone hover:text-forest transition-colors mt-1 ml-auto">⬇ Recibo</button>
       </div>
     </div>
   `).join('');
@@ -260,19 +377,22 @@ function renderGuestSection(bookingId, guests, dark) {
 }
 
 async function loadGuests(bookingId) {
+  const container = document.getElementById(`guests-${bookingId}`);
+  if (!container) return;
+
+  const dark = container.closest('.bg-forest') !== null;
+  const textMuted = dark ? 'text-white/60' : 'text-stone';
+  const textMain  = dark ? 'text-white'    : 'text-forest';
+  const badgePending   = dark ? 'bg-white/10 text-white/70' : 'bg-amber-50 text-amber-700';
+  const badgeConfirmed = dark ? 'bg-gold/30 text-white'     : 'bg-green-50 text-green-700';
+
   try {
     const res = await fetch(`/api/dashboard/bookings/${bookingId}/guests`);
-    if (!res.ok) return;
+    if (!res.ok) {
+      container.innerHTML = `<p class="text-xs text-red-500">Erro ao carregar acompanhantes. <button onclick="loadGuests('${bookingId}')" class="underline">Tentar novamente</button></p>`;
+      return;
+    }
     const { guests } = await res.json();
-    const container = document.getElementById(`guests-${bookingId}`);
-    if (!container) return;
-    // Determine if we're in a dark card (current stay)
-    const dark = container.closest('.bg-forest') !== null;
-    const textMuted = dark ? 'text-white/60' : 'text-stone';
-    const textMain  = dark ? 'text-white'    : 'text-forest';
-    const badgePending   = dark ? 'bg-white/10 text-white/70' : 'bg-amber-50 text-amber-700';
-    const badgeConfirmed = dark ? 'bg-gold/30 text-white'     : 'bg-green-50 text-green-700';
-    const borderCol = dark ? 'border-white/20' : 'border-beige-dark';
 
     if (guests.length === 0) {
       container.innerHTML = `<p class="text-xs ${textMuted} italic">Nenhum acompanhante adicionado.</p>`;
@@ -291,13 +411,17 @@ async function loadGuests(bookingId) {
             ${g.status === 'CONFIRMADO' ? 'Confirmado' : 'Aguardando'}
           </span>
           ${g.status === 'PENDENTE' ? `
+            <button onclick="resendInvite('${bookingId}','${g.id}', this)"
+              class="text-xs ${textMuted} hover:opacity-100 opacity-60" title="Reenviar convite">↺</button>
             <button onclick="removeGuest('${bookingId}','${g.id}')"
-              class="text-xs ${textMuted} hover:opacity-100 opacity-60">✕</button>
+              class="text-xs ${textMuted} hover:opacity-100 opacity-60" title="Remover">✕</button>
           ` : ''}
         </div>
       </div>
     `).join('');
-  } catch { /* silent — guests are non-critical */ }
+  } catch {
+    container.innerHTML = `<p class="text-xs text-red-500">Erro ao carregar acompanhantes.</p>`;
+  }
 }
 
 // ── Co-guest invite modal ─────────────────────────────────────────────────────
@@ -356,9 +480,36 @@ async function submitInvite(e) {
 
 async function removeGuest(bookingId, guestId) {
   try {
-    await fetch(`/api/dashboard/bookings/${bookingId}/guests/${guestId}`, { method: 'DELETE' });
+    const res = await fetch(`/api/dashboard/bookings/${bookingId}/guests/${guestId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Erro ao remover acompanhante.');
+      return;
+    }
     loadGuests(bookingId);
-  } catch { /* silent */ }
+  } catch {
+    alert('Erro de conexão. Tente novamente.');
+  }
+}
+
+async function resendInvite(bookingId, guestId, btn) {
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    const res = await fetch(`/api/dashboard/bookings/${bookingId}/guests/${guestId}/resend`, { method: 'POST' });
+    if (res.ok) {
+      btn.textContent = '✓';
+      setTimeout(() => { btn.disabled = false; btn.textContent = orig; }, 3000);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Erro ao reenviar convite.');
+      btn.disabled = false; btn.textContent = orig;
+    }
+  } catch {
+    alert('Erro de conexão. Tente novamente.');
+    btn.disabled = false; btn.textContent = orig;
+  }
 }
 
 // ── Logout ────────────────────────────────────────────────────────────────────
