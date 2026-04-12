@@ -153,6 +153,7 @@
           colors: {
             forest:    { DEFAULT: '#261C15', light: '#3D2B1F', dark: '#150F0A' },
             gold:      { DEFAULT: '#C5D86D', light: '#D4E48A', dark: '#9BAB52' },
+            verde:     { DEFAULT: '#2B7929', dark: '#1E5C1D', light: '#3D9B3B' },
             beige:     { DEFAULT: '#F7F7F2', dark: '#E4E6C3' },
             stone:     { DEFAULT: '#6B6B6B', light: '#9A9A9A' },
             terracota: { DEFAULT: '#F05D23' },
@@ -267,14 +268,14 @@
         </svg>
       </a>
       <a href="/dashboard" id="nav-minhas-reservas"
-         class="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors text-sm border border-white/20 px-3.5 py-1.5 rounded-full hover:border-white/50">
+         class="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors text-sm bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-1.5 rounded-full hover:border-white/50">
         <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
         </svg>
         <span id="nav-guest-label">Minhas Reservas</span>
       </a>
       <a href="#reservas"
-         class="bg-gold hover:bg-gold-dark text-white px-5 py-2 rounded-full transition-colors font-semibold text-sm">
+         class="bg-verde hover:bg-verde-dark text-white px-5 py-2 rounded-full transition-colors font-semibold text-sm">
         Reserve Agora
       </a>
     </div>
@@ -292,7 +293,7 @@
 
   <!-- Mobile menu -->
   <div id="mobile-menu" class="md:hidden bg-forest-dark/95 backdrop-blur mt-2 rounded-2xl mx-0">
-    <div class="flex flex-col gap-1 p-4 text-white text-sm font-medium">
+    <div class="flex flex-col gap-1 p-4 pb-6 text-white text-sm font-medium">
       <a href="#sobre"        class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">O Sítio</a>
       <a href="#diferenciais" class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">Diferenciais</a>
       <a href="#espacos"      class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors" onclick="closeMobileMenu()">Espaços</a>
@@ -315,7 +316,7 @@
         Minhas Reservas
       </a>
       <a href="#reservas"
-         class="mt-2 bg-gold text-white text-center py-3 px-3 rounded-xl font-semibold" onclick="closeMobileMenu()">Reserve Agora</a>
+         class="mt-2 bg-verde hover:bg-verde-dark text-white text-center py-3 px-3 rounded-xl font-semibold" onclick="closeMobileMenu()">Reserve Agora</a>
     </div>
   </div>
 </nav>
@@ -368,7 +369,7 @@
     <div class="flex flex-col sm:flex-row gap-3 justify-center"
          data-aos="fade-up" data-aos-duration="700" data-aos-delay="300">
       <a href="#reservas"
-         class="bg-gold hover:bg-gold-dark text-white font-semibold px-8 py-4 rounded-full transition-all text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5">
+         class="bg-verde hover:bg-verde-dark text-white font-semibold px-8 py-4 rounded-full transition-all text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5">
         Verificar Disponibilidade
       </a>
       <a href="#sobre"
@@ -376,14 +377,14 @@
         Conheça o Sítio ↓
       </a>
     </div>
-    <div class="mt-4 flex items-center justify-center gap-3 text-white/45 text-xs"
+    <div class="mt-4 flex items-center justify-center gap-3 text-white/70 text-xs"
          data-aos="fade-up" data-aos-duration="600" data-aos-delay="400">
       <span>Reservas também disponíveis no</span>
       <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
-         class="underline underline-offset-2 hover:text-white/70 transition-colors">Airbnb</a>
+         class="underline underline-offset-2 hover:text-white/90 transition-colors">Airbnb</a>
       <span>e</span>
       <a href="https://www.booking.com/hotel/br/sitio-recanto-dos-ipes-com-area-de-lazer-completa-e-piscina-aquecida" target="_blank" rel="noopener"
-         class="underline underline-offset-2 hover:text-white/70 transition-colors">Booking.com</a>
+         class="underline underline-offset-2 hover:text-white/90 transition-colors">Booking.com</a>
     </div>
 
   </div>
@@ -401,7 +402,7 @@
      HIGHLIGHTS BAR
 ════════════════════════════════════════════ -->
 <section class="bg-forest py-6 px-6">
-  <div class="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-0 divide-y-2 md:divide-y-0 md:divide-x divide-white/20">
+  <div class="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-0 md:divide-x divide-white/20">
 
     <div class="flex items-center justify-center gap-3 py-3 md:py-0 px-4">
       <svg class="w-7 h-7 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -422,6 +423,8 @@
         <div class="text-white/70 text-xs uppercase tracking-wider">8 Camas</div>
       </div>
     </div>
+
+    <div class="col-span-2 border-t border-white/20 md:hidden"></div>
 
     <div class="flex items-center justify-center gap-3 py-3 md:py-0 px-4">
       <svg class="w-7 h-7 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1306,7 +1309,7 @@
       Como o canto dos ipês, queremos que cada estadia desperte lembranças, sorrisos e a vontade de voltar.
     </p>
     <a href="#reservas"
-       class="inline-flex items-center justify-center gap-3 bg-gold hover:bg-gold-dark text-white font-bold px-12 py-4 rounded-full transition-all text-lg shadow-2xl hover:shadow-gold/30 hover:-translate-y-0.5">
+       class="inline-flex items-center justify-center gap-3 bg-verde hover:bg-verde-dark text-white font-bold px-12 py-4 rounded-full transition-all text-lg shadow-2xl hover:shadow-verde/30 hover:-translate-y-0.5">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
       </svg>
