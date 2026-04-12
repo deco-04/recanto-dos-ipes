@@ -7,6 +7,7 @@
  */
 
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const { z } = require('zod');
 const prisma = require('../lib/db');
 
@@ -14,11 +15,18 @@ const router = express.Router();
 
 // ── Auth middleware ─────────────────────────────────────────────────────────
 async function requireStaff(req, res, next) {
-  const staffId = req.headers['x-staff-id'];
-  if (!staffId) return res.status(401).json({ error: 'Não autenticado' });
+  const auth = req.headers['authorization'];
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Não autenticado' });
+
+  let payload;
+  try {
+    payload = jwt.verify(auth.slice(7), process.env.STAFF_JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: 'Token inválido ou expirado' });
+  }
 
   const staff = await prisma.staffMember.findUnique({
-    where: { id: staffId },
+    where: { id: payload.sub },
     select: { id: true, role: true, active: true },
   });
   if (!staff || !staff.active) return res.status(401).json({ error: 'Acesso negado' });

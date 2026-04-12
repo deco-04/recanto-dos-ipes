@@ -142,6 +142,11 @@ app.post('/api/webhooks/stripe',
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ── Trust proxy — Railway terminates TLS at its reverse proxy ─────────────────
+// Without this, express-session sees HTTP internally and refuses to set the
+// Secure cookie, meaning the session cookie is never delivered to the browser.
+app.set('trust proxy', 1);
+
 // ── Sessions ──────────────────────────────────────────────────────────────────
 // connect-pg-simple auto-creates a "session" table (sid/sess/expire columns).
 // We do NOT use a Prisma Session model — column names are incompatible.
@@ -218,7 +223,7 @@ function staffCors(req, res, next) {
     res.setHeader('Access-Control-Allow-Origin', '*');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-staff-id');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 }
@@ -230,6 +235,7 @@ app.use('/api/pricing',    require('./routes/pricing'));
 app.use('/api/dashboard',  require('./routes/dashboard'));
 app.use('/api/staff/auth',  staffCors, require('./routes/staff-auth'));
 app.use('/api/staff',       staffCors, require('./routes/staff-portal'));
+app.use('/api/admin/staff', staffCors, require('./routes/admin-staff'));
 app.use('/api/uploads',     staffCors, require('./routes/uploads').router);
 app.use('/api/reviews',    require('./routes/reviews'));
 

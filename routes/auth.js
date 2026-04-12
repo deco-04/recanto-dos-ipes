@@ -270,7 +270,7 @@ router.get('/google/callback',
 router.post('/logout', (req, res) => {
   req.session.destroy(err => {
     if (err) console.error('[auth] logout error:', err);
-    res.clearCookie('connect.sid');
+    res.clearCookie('rdi.sid');
     res.json({ success: true });
   });
 });
