@@ -1,0 +1,57 @@
+{
+  "name": "Sítio Recanto dos Ipês",
+  "short_name": "Recanto dos Ipês",
+  "description": "Reserve e gerencie sua estadia no Sítio Recanto dos Ipês, Jaboticatubas - Serra do Cipó, MG",
+  "lang": "pt-BR",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#261C15",
+  "background_color": "#F7F7F2",
+  "categories": ["travel", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Minhas Reservas",
+      "short_name": "Reservas",
+      "description": "Veja suas reservas e estadias",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Fazer Reserva",
+      "short_name": "Reservar",
+      "description": "Reserve o Sítio Recanto dos Ipês",
+      "url": "/#reservas",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}

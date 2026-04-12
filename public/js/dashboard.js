@@ -52,6 +52,10 @@ let currentUser = null;
   document.getElementById('loading-state').classList.add('hidden');
   document.getElementById('main-content').classList.remove('hidden');
 
+  // Init push: silently sync if already granted, show banner if permission not yet decided
+  if (typeof silentPushSync === 'function') silentPushSync().catch(() => {});
+  if (typeof _initPushBanner === 'function') _initPushBanner();
+
   // Show set-password banner for OTP users who haven't created a password
   // (check sessionStorage to avoid showing again if dismissed)
   if (!sessionStorage.getItem('pw-banner-dismissed')) {

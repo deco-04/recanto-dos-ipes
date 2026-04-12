@@ -10,7 +10,8 @@
     "db:generate": "prisma generate",
     "db:seed": "node scripts/seed-pricing.js",
     "db:studio": "prisma studio",
-    "db:dev": "prisma migrate dev"
+    "db:dev": "prisma migrate dev",
+    "icons": "node scripts/generate-icons.js"
   },
   "engines": {
     "node": ">=18"

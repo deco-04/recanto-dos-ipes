@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm install && npx prisma generate"
+buildCommand = "npm install && npx prisma generate && node scripts/generate-icons.js"
 
 [deploy]
 startCommand = "sh -c 'npx prisma migrate deploy; node server.js'"

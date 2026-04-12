@@ -107,13 +107,25 @@ app.post('/api/webhooks/stripe',
           sendBookingConfirmation({ booking: updated }).catch(e => console.error('[mailer]', e.message));
 
           // Push notification to ADMIN staff (non-blocking)
-          const { sendPushToRole } = require('./lib/push');
+          const { sendPushToRole, sendPushToUser } = require('./lib/push');
           sendPushToRole('ADMIN', {
             title: 'Nova Reserva Confirmada 🏡',
             body:  `${updated.guestName} · ${new Date(updated.checkIn).toLocaleDateString('pt-BR')} → ${new Date(updated.checkOut).toLocaleDateString('pt-BR')}`,
             type:  'BOOKING_CONFIRMED',
             data:  { bookingId: updated.id },
           }).catch(e => console.error('[push] booking confirmed push failed:', e.message));
+
+          // Push notification to guest (if they have a push subscription)
+          if (updated.userId) {
+            const checkinFmt  = new Date(updated.checkIn).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
+            const checkoutFmt = new Date(updated.checkOut).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
+            sendPushToUser(updated.userId, {
+              title: 'Reserva confirmada! 🏡',
+              body:  `Check-in ${checkinFmt} · Check-out ${checkoutFmt}. Prepare-se para uma estadia incrível!`,
+              type:  'BOOKING_CONFIRMED_GUEST',
+              data:  { bookingId: updated.id, url: '/dashboard' },
+            }).catch(e => console.error('[push] guest booking confirmed push failed:', e.message));
+          }
         }
       } catch (err) {
         console.error('[stripe] webhook DB error:', err);
@@ -233,6 +245,7 @@ function staffCors(req, res, next) {
 app.use('/api/auth',        require('./routes/auth'));
 app.use('/api/bookings',   require('./routes/bookings'));
 app.use('/api/pricing',    require('./routes/pricing'));
+app.use('/api/push',       require('./routes/push'));
 app.use('/api/dashboard',  require('./routes/dashboard'));
 app.use('/api/staff/auth',  staffCors, require('./routes/staff-auth'));
 app.use('/api/staff',       staffCors, require('./routes/staff-portal'));
@@ -316,9 +329,7 @@ app.use((err, req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`Recanto dos Ipês · listening on port ${PORT}`);
 
-  // Start iCal sync cron job (only in production or when URLs are set)
-  if (process.env.AIRBNB_ICAL_URL || process.env.BOOKING_COM_ICAL_URL) {
-    const { startCronJobs } = require('./lib/cron');
-    startCronJobs();
-  }
+  // Start background cron jobs (push reminders always run; iCal sync only when URLs are configured)
+  const { startCronJobs } = require('./lib/cron');
+  startCronJobs();
 });
