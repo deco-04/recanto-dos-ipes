@@ -509,4 +509,52 @@ router.delete('/push/subscribe', async (req, res) => {
   }
 });
 
+// ── GET /api/staff/notificacoes ───────────────────────────────────────────────
+router.get('/notificacoes', async (req, res) => {
+  try {
+    const notifications = await prisma.pushNotification.findMany({
+      where: { staffId: req.staff.id },
+      orderBy: { sentAt: 'desc' },
+      take: 50,
+    });
+    res.json(notifications);
+  } catch (err) {
+    console.error('[staff] notificacoes error:', err.message);
+    res.status(500).json({ error: 'Erro ao buscar notificações' });
+  }
+});
+
+// ── PATCH /api/staff/notificacoes/:id/read ────────────────────────────────────
+router.patch('/notificacoes/:id/read', async (req, res) => {
+  try {
+    const notification = await prisma.pushNotification.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!notification) return res.status(404).json({ error: 'Notificação não encontrada' });
+    if (notification.staffId !== req.staff.id) return res.status(403).json({ error: 'Acesso negado' });
+
+    const updated = await prisma.pushNotification.update({
+      where: { id: req.params.id },
+      data: { read: true },
+    });
+    res.json(updated);
+  } catch (err) {
+    console.error('[staff] notificacoes read error:', err.message);
+    res.status(500).json({ error: 'Erro ao marcar notificação' });
+  }
+});
+
+// ── GET /api/staff/piscina/programacao ───────────────────────────────────────
+router.get('/piscina/programacao', requireRole('ADMIN', 'PISCINEIRO'), async (_req, res) => {
+  try {
+    const schedules = await prisma.maintenanceSchedule.findMany({
+      orderBy: { nextDueAt: 'asc' },
+    });
+    res.json(schedules);
+  } catch (err) {
+    console.error('[staff] piscina/programacao error:', err.message);
+    res.status(500).json({ error: 'Erro ao buscar programação' });
+  }
+});
+
 module.exports = router;
