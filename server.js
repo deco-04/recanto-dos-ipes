@@ -231,6 +231,7 @@ app.use('/api/dashboard',  require('./routes/dashboard'));
 app.use('/api/staff/auth',  staffCors, require('./routes/staff-auth'));
 app.use('/api/staff',       staffCors, require('./routes/staff-portal'));
 app.use('/api/uploads',     staffCors, require('./routes/uploads').router);
+app.use('/api/reviews',    require('./routes/reviews'));
 
 // Admin — manual iCal sync trigger
 app.post('/api/admin/sync-ical', async (req, res) => {
