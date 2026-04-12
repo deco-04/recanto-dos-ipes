@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Termos de Serviço — Sítio Recanto dos Ipês</title>
+  <meta name="description" content="Termos e condições de uso da plataforma de reservas do Sítio Recanto dos Ipês. Regras da propriedade e responsabilidades dos hóspedes.">
+  <meta name="robots" content="noindex">
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="shortcut icon" href="/favicon.svg">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            forest:    { DEFAULT: '#261C15', light: '#3D2B1F', dark: '#150F0A' },
+            gold:      { DEFAULT: '#C5D86D', light: '#D4E48A', dark: '#9BAB52' },
+            beige:     { DEFAULT: '#F7F7F2', dark: '#E4E6C3' },
+            stone:     { DEFAULT: '#6B6B6B', light: '#9A9A9A' },
+          },
+          fontFamily: {
+            serif: ['Merriweather', 'Georgia', 'serif'],
+            sans:  ['Lato', 'system-ui', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Lato', sans-serif; color: #1A1A1A; background: #F7F7F2; }
+    .font-serif { font-family: 'Merriweather', serif; }
+
+    #navbar { transition: background 0.3s, box-shadow 0.3s, padding 0.3s; }
+    #navbar.scrolled { background: rgba(38,28,21,0.97); box-shadow: 0 2px 24px rgba(0,0,0,0.22); padding-top: 0.6rem; padding-bottom: 0.6rem; }
+
+    #mobile-menu { transition: max-height 0.35s ease, opacity 0.3s; max-height: 0; opacity: 0; overflow: hidden; }
+    #mobile-menu.open { max-height: 400px; opacity: 1; }
+
+    .policy-section {
+      border-left: 3px solid #C5D86D;
+      padding-left: 1.25rem;
+      margin-bottom: 2.5rem;
+    }
+    .policy-section h2 {
+      font-family: 'Merriweather', serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #261C15;
+      margin-bottom: 0.75rem;
+    }
+    .policy-section p {
+      color: #3a3a3a;
+      line-height: 1.8;
+      font-size: 0.97rem;
+      margin-bottom: 0.5rem;
+    }
+    .policy-section ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .policy-section ul li {
+      color: #3a3a3a;
+      line-height: 1.8;
+      font-size: 0.97rem;
+      padding: 0.35rem 0;
+      padding-left: 1.1rem;
+      position: relative;
+    }
+    .policy-section ul li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: #9BAB52;
+      font-weight: 700;
+    }
+    .rules-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 0.65rem;
+      margin-top: 0.75rem;
+    }
+    .rule-item {
+      background: #fff;
+      border: 1px solid #E4E6C3;
+      border-radius: 8px;
+      padding: 0.7rem 1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.7rem;
+      font-size: 0.88rem;
+      color: #3a3a3a;
+      line-height: 1.5;
+    }
+    .rule-icon {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      color: #9BAB52;
+      margin-top: 1px;
+    }
+    .rule-item.rule-no {
+      border-color: rgba(220,50,50,0.15);
+    }
+    .rule-item.rule-no .rule-icon { color: #b22222; }
+  </style>
+</head>
+
+<body class="antialiased">
+
+<!-- ═══════════════════════════════════════════
+     NAVBAR
+════════════════════════════════════════════ -->
+<nav id="navbar" class="fixed top-0 left-0 right-0 z-50 px-6 py-5" style="background: rgba(38,28,21,0.97);">
+  <div class="max-w-6xl mx-auto flex items-center justify-between">
+
+    <a href="/" class="flex items-center group">
+      <img src="/brand/sri-mark-white.svg"
+           alt="Recanto dos Ipês"
+           class="h-10 w-auto object-contain"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+      <div style="display:none" class="items-center gap-2.5">
+        <div>
+          <div class="text-white font-serif text-base font-semibold leading-tight">Recanto dos Ipês</div>
+          <div class="text-gold text-xs font-light tracking-wide">Jaboticatubas · MG</div>
+        </div>
+      </div>
+    </a>
+
+    <div class="hidden md:flex items-center gap-7 text-sm text-white/85 font-medium">
+      <a href="/#sobre" class="hover:text-gold transition-colors">O Sítio</a>
+      <a href="/#diferenciais" class="hover:text-gold transition-colors">Diferenciais</a>
+      <a href="/#espacos" class="hover:text-gold transition-colors">Espaços</a>
+      <a href="/galeria" class="hover:text-gold transition-colors">Galeria</a>
+      <a href="/#avaliacoes" class="hover:text-gold transition-colors">Avaliações</a>
+      <a href="/faq" class="hover:text-gold transition-colors">FAQ</a>
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="hover:text-gold transition-colors" aria-label="Instagram">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+      </a>
+      <a href="/booking"
+         class="bg-gold hover:bg-gold-dark text-forest px-5 py-2 rounded-full transition-colors font-semibold text-sm">
+        Reservar
+      </a>
+    </div>
+
+    <button id="menu-btn" class="md:hidden text-white p-1" aria-label="Menu">
+      <svg id="icon-menu" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+      <svg id="icon-close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+
+  <div id="mobile-menu" class="md:hidden bg-forest-dark/95 backdrop-blur mt-2 rounded-2xl mx-0">
+    <div class="flex flex-col gap-1 p-4 text-white text-sm font-medium">
+      <a href="/#sobre"        class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">O Sítio</a>
+      <a href="/#diferenciais" class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">Diferenciais</a>
+      <a href="/#espacos"      class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">Espaços</a>
+      <a href="/#avaliacoes"   class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">Avaliações</a>
+      <a href="/faq"           class="py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">FAQ</a>
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="flex items-center gap-2 py-2.5 px-3 rounded-xl hover:bg-white/10 transition-colors">
+        <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+        Instagram
+      </a>
+      <a href="/booking"
+         class="mt-2 bg-gold text-forest text-center py-3 px-3 rounded-xl font-semibold">Reservar</a>
+    </div>
+  </div>
+</nav>
+
+
+<!-- ═══════════════════════════════════════════
+     PAGE HEADER
+════════════════════════════════════════════ -->
+<section class="bg-forest pt-28 pb-12 px-6">
+  <div class="max-w-3xl mx-auto">
+    <a href="/"
+       class="inline-flex items-center gap-2 text-white/60 hover:text-gold text-sm transition-colors mb-6">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Voltar ao site
+    </a>
+    <h1 class="font-serif text-white text-3xl md:text-4xl font-bold leading-snug mb-3">
+      Termos de Serviço
+    </h1>
+    <p class="text-white/60 text-sm">
+      Última atualização: 12 de abril de 2026 &nbsp;·&nbsp; sitiorecantodosipes.com
+    </p>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     CONTENT
+════════════════════════════════════════════ -->
+<main class="py-14 px-6">
+  <div class="max-w-3xl mx-auto">
+
+    <!-- Intro -->
+    <p class="text-stone text-base leading-relaxed mb-10 border-l-4 border-beige-dark pl-4 italic">
+      Ao realizar uma reserva ou criar uma conta no site do Sítio Recanto dos Ipês, você declara ter lido, compreendido e concordado com estes Termos de Serviço. Caso não concorde com alguma condição, recomendamos não prosseguir com a reserva.
+    </p>
+
+    <!-- Aceitação dos Termos -->
+    <div class="policy-section">
+      <h2>1. Aceitação dos Termos</h2>
+      <p>A utilização da plataforma de reservas em <strong>sitiorecantodosipes.com</strong> e a realização de qualquer reserva implica a aceitação integral destes Termos de Serviço. Estes termos se aplicam a todos os usuários, incluindo visitantes, hóspedes e quaisquer pessoas que acessem ou utilizem a plataforma.</p>
+    </div>
+
+    <!-- Sobre a Plataforma -->
+    <div class="policy-section">
+      <h2>2. Sobre a Plataforma</h2>
+      <p>Este site é a plataforma oficial de reservas diretas do <strong>Sítio Recanto dos Ipês</strong>, propriedade de aluguel para temporada localizada em Jaboticatubas, MG. A plataforma permite consultar disponibilidade, realizar reservas, gerenciar estadias e se comunicar com os anfitriões.</p>
+      <p>O sítio está situado em condomínio fechado na região serrana de Jaboticatubas, a aproximadamente 30 minutos do Parque Nacional da Serra do Cipó.</p>
+    </div>
+
+    <!-- Cadastro e Conta -->
+    <div class="policy-section">
+      <h2>3. Cadastro e Conta</h2>
+      <ul>
+        <li>Para realizar uma reserva direta, é necessário criar uma conta ou autenticar-se via <strong>Google OAuth</strong> ou <strong>código de verificação por e-mail</strong>.</li>
+        <li>Você é integralmente responsável pela segurança e pelo sigilo das credenciais de acesso à sua conta.</li>
+        <li>Ao se cadastrar, você se compromete a fornecer informações verdadeiras, completas e atualizadas. Dados falsos podem resultar no cancelamento da reserva sem reembolso.</li>
+        <li>Cada conta deve ser utilizada exclusivamente pelo seu titular.</li>
+      </ul>
+    </div>
+
+    <!-- Reservas e Pagamento -->
+    <div class="policy-section">
+      <h2>4. Reservas e Pagamento</h2>
+      <ul>
+        <li>Uma reserva é considerada <strong>confirmada apenas após o pagamento integral</strong> do valor correspondente.</li>
+        <li>Pagamentos são processados com segurança via <strong>Stripe</strong>, que aceita cartões de crédito e débito das principais bandeiras.</li>
+        <li>Todos os preços são apresentados em <strong>Reais (BRL)</strong> e podem ser ajustados sem aviso prévio para novas reservas, sem afetar reservas já confirmadas.</li>
+        <li>Um recibo de confirmação será enviado para o e-mail cadastrado imediatamente após a confirmação do pagamento.</li>
+        <li>Em caso de falha no processamento do pagamento, a reserva não será garantida até que o pagamento seja concluído com sucesso.</li>
+      </ul>
+    </div>
+
+    <!-- Regras da Propriedade -->
+    <div class="policy-section">
+      <h2>5. Regras da Propriedade</h2>
+      <p>Ao confirmar uma reserva, o hóspede responsável concorda em respeitar e fazer respeitar todas as regras da propriedade por todos os ocupantes:</p>
+
+      <div class="rules-grid mt-3">
+        <div class="rule-item">
+          <svg class="rule-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span><strong>Check-in</strong> a partir das 14h</span>
+        </div>
+        <div class="rule-item">
+          <svg class="rule-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span><strong>Check-out</strong> até as 12h</span>
+        </div>
+        <div class="rule-item">
+          <svg class="rule-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <span><strong>Capacidade máxima:</strong> 20 hóspedes</span>
+        </div>
+        <div class="rule-item">
+          <svg class="rule-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+          <span>Animais de estimação <strong>permitidos</strong> (ver política de pets)</span>
+        </div>
+        <div class="rule-item rule-no">
+          <svg class="rule-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+          <span>Festas com <strong>som alto proibidas após 22h</strong></span>
+        </div>
+        <div class="rule-item rule-no">
+          <svg class="rule-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+          <span>Fumar <strong>somente em áreas externas</strong> designadas</span>
+        </div>
+        <div class="rule-item rule-no">
+          <svg class="rule-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+          <span>Acesso à piscina <strong>proibido após 23h</strong></span>
+        </div>
+        <div class="rule-item">
+          <svg class="rule-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          <span>Hóspede responsável deve ter <strong>18 anos ou mais</strong></span>
+        </div>
+      </div>
+
+      <p class="mt-4 text-sm text-stone">O descumprimento das regras pode resultar na solicitação de retirada da propriedade sem reembolso, a critério do anfitrião.</p>
+    </div>
+
+    <!-- Responsabilidades -->
+    <div class="policy-section">
+      <h2>6. Responsabilidades do Hóspede</h2>
+      <ul>
+        <li>O hóspede responsável pela reserva responde por qualquer <strong>dano material causado à propriedade</strong> durante a estadia, incluindo móveis, eletrodomésticos, estrutura e áreas externas.</li>
+        <li>Danos identificados no check-out serão comunicados imediatamente e cobrados do hóspede responsável conforme avaliação do prejuízo.</li>
+        <li>A propriedade <strong>não se responsabiliza por objetos pessoais esquecidos, perdidos ou danificados</strong> nas dependências do sítio.</li>
+        <li>O uso da piscina, sauna e demais áreas de lazer é feito <strong>sob inteira responsabilidade do hóspede</strong>. Não há salva-vidas no local.</li>
+        <li>É responsabilidade do hóspede zelar pela segurança de crianças e pets durante toda a estadia.</li>
+      </ul>
+    </div>
+
+    <!-- Cancelamentos -->
+    <div class="policy-section">
+      <h2>7. Cancelamentos e Reembolsos</h2>
+      <p>As condições de cancelamento, reembolso e alteração de datas são regidas pela nossa <a href="/politica-cancelamento" class="text-gold-dark underline underline-offset-2 hover:text-forest transition-colors font-medium">Política de Cancelamento</a>, disponível neste site. Recomendamos sua leitura antes de confirmar uma reserva.</p>
+    </div>
+
+    <!-- Privacidade -->
+    <div class="policy-section">
+      <h2>8. Privacidade e Dados Pessoais</h2>
+      <p>O tratamento dos seus dados pessoais é regido pela nossa <a href="/politica-privacidade" class="text-gold-dark underline underline-offset-2 hover:text-forest transition-colors font-medium">Política de Privacidade</a>, em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).</p>
+    </div>
+
+    <!-- Propriedade Intelectual -->
+    <div class="policy-section">
+      <h2>9. Propriedade Intelectual</h2>
+      <p>Todo o conteúdo deste site — textos, imagens, logotipos, identidade visual — é propriedade do Sítio Recanto dos Ipês e está protegido pela legislação brasileira de direitos autorais. É vedada a reprodução, total ou parcial, sem autorização prévia por escrito.</p>
+    </div>
+
+    <!-- Limitação de Responsabilidade -->
+    <div class="policy-section">
+      <h2>10. Limitação de Responsabilidade</h2>
+      <ul>
+        <li>O Sítio Recanto dos Ipês não se responsabiliza por <strong>falhas de internet, indisponibilidade temporária da plataforma</strong> ou erros de terceiros no processamento de pagamentos.</li>
+        <li>Em caso de eventos de força maior (desastres naturais, determinações governamentais, pandemias) que impossibilitem a realização da estadia, as partes negociarão de boa-fé a melhor solução, em conformidade com o Código de Defesa do Consumidor.</li>
+        <li>A responsabilidade da propriedade é limitada ao valor pago pela reserva em questão.</li>
+      </ul>
+    </div>
+
+    <!-- Legislação Aplicável -->
+    <div class="policy-section">
+      <h2>11. Legislação Aplicável e Foro</h2>
+      <p>Estes termos são regidos pela <strong>legislação brasileira</strong>. Para dirimir quaisquer controvérsias decorrentes da utilização do site ou da prestação dos serviços, as partes elegem o foro da Comarca de <strong>Jaboticatubas, MG</strong>, com renúncia expressa a qualquer outro.</p>
+    </div>
+
+    <!-- Contato -->
+    <div class="policy-section">
+      <h2>12. Contato</h2>
+      <p>Para dúvidas, solicitações ou reclamações relacionadas a estes termos ou ao serviço, entre em contato:</p>
+      <ul>
+        <li><strong>E-mail:</strong> <a href="mailto:recantodoipes@gmail.com" class="text-gold-dark underline underline-offset-2 hover:text-forest transition-colors">recantodoipes@gmail.com</a></li>
+        <li><strong>WhatsApp:</strong> disponível no rodapé do site</li>
+        <li><strong>Instagram:</strong> <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener" class="text-gold-dark underline underline-offset-2 hover:text-forest transition-colors">@recantodoipes</a></li>
+      </ul>
+    </div>
+
+    <!-- Links para outras políticas -->
+    <div class="border-t border-beige-dark pt-8 mt-4">
+      <p class="text-stone text-sm mb-4 font-medium">Documentos relacionados:</p>
+      <div class="flex flex-wrap gap-3">
+        <a href="/politica-cancelamento"
+           class="inline-flex items-center gap-2 text-sm text-forest border border-forest/20 hover:border-gold hover:text-gold-dark px-4 py-2 rounded-full transition-colors">
+          Política de Cancelamento
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+        <a href="/politica-privacidade"
+           class="inline-flex items-center gap-2 text-sm text-forest border border-forest/20 hover:border-gold hover:text-gold-dark px-4 py-2 rounded-full transition-colors">
+          Política de Privacidade
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+        <a href="/"
+           class="inline-flex items-center gap-2 text-sm text-forest border border-forest/20 hover:border-gold hover:text-gold-dark px-4 py-2 rounded-full transition-colors">
+          Página Inicial
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+
+<!-- ═══════════════════════════════════════════
+     FOOTER
+════════════════════════════════════════════ -->
+<footer class="bg-forest-dark py-10 px-6">
+  <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+
+    <div class="flex flex-col gap-1">
+      <div class="flex items-center gap-3">
+        <img src="/brand/sri-mark-white.svg"
+             alt="Recanto dos Ipês"
+             class="h-10 w-auto object-contain opacity-60"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <div style="display:none">
+          <div class="text-white font-serif font-semibold">Recanto dos Ipês</div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="flex items-center gap-5 text-white/60 text-xs">
+      <a href="/" class="hover:text-gold transition-colors">Início</a>
+      <a href="/#sobre" class="hover:text-gold transition-colors">O Sítio</a>
+      <a href="/#reservas" class="hover:text-gold transition-colors">Reservas</a>
+      <a href="/faq" class="hover:text-gold transition-colors">FAQ</a>
+    </nav>
+
+    <div class="text-center">
+      <p class="text-white/40 text-xs">&copy; 2026 Sítio Recanto dos Ipês — Todos os direitos reservados</p>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <a href="https://www.instagram.com/recantodoipes/" target="_blank" rel="noopener"
+         class="text-white/60 hover:text-gold transition-colors" aria-label="Instagram @recantodoipes">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+      </a>
+      <a href="https://www.airbnb.com/h/recantodosipesmg" target="_blank" rel="noopener"
+         class="text-white/60 hover:text-gold text-xs transition-colors underline underline-offset-2">
+        Ver no Airbnb
+      </a>
+      <a href="https://www.booking.com/hotel/br/sitio-recanto-dos-ipes-com-area-de-lazer-completa-e-piscina-aquecida" target="_blank" rel="noopener"
+         class="text-white/60 hover:text-gold text-xs transition-colors underline underline-offset-2">
+        Ver no Booking.com
+      </a>
+    </div>
+  </div>
+</footer>
+
+
+<script>
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 20) {
+      navbar.classList.add('scrolled');
+    } else {
+      navbar.classList.remove('scrolled');
+    }
+  });
+
+  const menuBtn = document.getElementById('menu-btn');
+  const mobileMenu = document.getElementById('mobile-menu');
+  const iconMenu = document.getElementById('icon-menu');
+  const iconClose = document.getElementById('icon-close');
+
+  menuBtn.addEventListener('click', () => {
+    const isOpen = mobileMenu.classList.toggle('open');
+    iconMenu.classList.toggle('hidden', isOpen);
+    iconClose.classList.toggle('hidden', !isOpen);
+  });
+</script>
+</body>
+</html>
