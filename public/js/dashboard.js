@@ -9,6 +9,18 @@ const countdown = d => {
   return `${days} dias`;
 };
 
+// Warm, personalized countdown message shown on upcoming booking cards
+const warmMessage = d => {
+  const days = Math.ceil((new Date(d) - new Date()) / (1000*60*60*24));
+  if (days <= 0) return null;
+  if (days === 1) return '🌸 Amanhã é o grande dia! Já estamos preparando tudo com carinho para a sua chegada.';
+  if (days === 2) return '🎒 Só mais 2 dias! Hora de separar as malas e se preparar para relaxar.';
+  if (days <= 6) return `🍃 Falta pouquinho! Em ${days} dias você estará na Serra do Cipó, curtindo cada momento.`;
+  if (days <= 13) return `✨ Estamos ansiosos para receber vocês em ${days} dias! A piscina aquecida e a sauna já aguardam.`;
+  if (days <= 30) return `🌿 Que delícia de esperar! Em ${days} dias vocês chegam ao Recanto dos Ipês.`;
+  return `🌄 Sua estadia está confirmada! Ainda ${days} dias para a experiência que vocês vão adorar.`;
+};
+
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
 
@@ -289,6 +301,7 @@ function renderCurrentStay(b) {
       <div><p class="text-white/60 text-xs">Hóspedes</p><p class="font-semibold">${b.guestCount}</p></div>
       ${!isCoGuest ? `<div><p class="text-white/60 text-xs">Total pago</p><p class="font-semibold">${fmtBRL(b.totalAmount)}</p></div>` : ''}
     </div>
+    ${b.hasPet ? '<div class="flex items-center gap-2 mt-3 text-sm text-white/70"><span class="text-base">🐾</span><span>Pet incluído nesta reserva</span></div>' : ''}
     <div class="flex items-center justify-between mt-4">
       <p class="text-white/40 text-xs font-mono">Reserva nº ${b.invoiceNumber}</p>
       ${!isCoGuest ? `<button onclick="downloadInvoice('${b.id}')" class="text-xs text-white/60 hover:text-white transition-colors">⬇ Recibo</button>` : ''}
@@ -304,8 +317,10 @@ function renderUpcoming(bookings) {
   document.getElementById('upcoming-card').innerHTML = bookings.map((b, i) => {
     const isCoGuest = b.role === 'CO_GUEST';
     const canCancel = !isCoGuest && b.source === 'DIRECT';
+    const msg = warmMessage(b.checkIn);
     return `
-    <div class="${i > 0 ? 'mt-4 pt-4 border-t border-beige-dark' : ''}">
+    <div class="${i > 0 ? 'mt-6 pt-6 border-t border-beige-dark' : ''}">
+      ${msg ? `<div class="bg-gold/10 border border-gold/30 rounded-xl px-4 py-3 mb-4 text-sm text-forest/80 leading-snug">${msg}</div>` : ''}
       <div class="flex items-start justify-between mb-4 flex-wrap gap-2">
         <div>
           <p class="font-serif text-lg font-bold text-forest">Sítio Recanto dos Ipês</p>
@@ -320,8 +335,16 @@ function renderUpcoming(bookings) {
         <div class="bg-beige rounded-xl p-3"><p class="text-xs text-stone mb-1">Check-in</p><p class="font-semibold text-forest">${fmtDate(b.checkIn)}</p></div>
         <div class="bg-beige rounded-xl p-3"><p class="text-xs text-stone mb-1">Check-out</p><p class="font-semibold text-forest">${fmtDate(b.checkOut)}</p></div>
         <div class="bg-beige rounded-xl p-3"><p class="text-xs text-stone mb-1">Noites</p><p class="font-semibold text-forest">${b.nights}</p></div>
-        <div class="bg-beige rounded-xl p-3"><p class="text-xs text-stone mb-1">Hóspedes</p><p class="font-semibold text-forest">${b.guestCount}</p></div>
+        <div class="bg-beige rounded-xl p-3">
+          <p class="text-xs text-stone mb-1">Hóspedes</p>
+          <p class="font-semibold text-forest">${b.guestCount}</p>
+        </div>
       </div>
+      ${b.hasPet ? `
+      <div class="flex items-center gap-2 mt-3 text-sm text-forest/70">
+        <span class="text-base">🐾</span>
+        <span>Pet incluído nesta reserva</span>
+      </div>` : ''}
       <div class="flex items-center justify-between mt-4 pt-4 border-t border-beige-dark flex-wrap gap-2">
         <div>
           ${!isCoGuest ? `<p class="text-xs text-stone font-mono">Reserva nº ${b.invoiceNumber}</p>

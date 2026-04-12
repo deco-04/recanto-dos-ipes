@@ -1043,8 +1043,26 @@
 <section id="avaliacoes" class="py-20 md:py-28 px-6 bg-beige">
   <div class="max-w-6xl mx-auto">
 
-    <!-- AI Summary Card -->
-    <div class="bg-white rounded-2xl p-6 shadow-sm border border-beige-dark mb-8 max-w-2xl mx-auto" data-aos="fade-up">
+    <!-- Section title -->
+    <div class="text-center mb-10" data-aos="fade-up">
+      <div class="font-serif text-3xl md:text-4xl text-forest font-bold mb-2 gold-underline-center">O que nossos hóspedes dizem</div>
+    </div>
+
+    <!-- AI Summary Card with integrated rating -->
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-beige-dark mb-12 max-w-2xl mx-auto" data-aos="fade-up">
+      <!-- Rating row -->
+      <div class="flex items-center justify-center gap-3 mb-4 pb-4 border-b border-beige-dark">
+        <div class="flex gap-1">
+          <svg class="w-5 h-5 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-5 h-5 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-5 h-5 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-5 h-5 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg class="w-5 h-5 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        </div>
+        <span class="font-serif text-forest text-3xl font-bold" id="aggregate-score">4,95</span>
+        <span class="text-stone text-sm" id="aggregate-count">· 67+ avaliações</span>
+      </div>
+      <!-- AI summary -->
       <div class="flex items-center gap-2 mb-3">
         <span class="text-gold text-lg">✨</span>
         <span class="text-xs font-semibold text-stone uppercase tracking-wider">Resumo das Avaliações · IA</span>
@@ -1053,22 +1071,6 @@
         "Os hóspedes destacam de forma unânime a beleza e tranquilidade do sítio, a piscina aquecida como ponto alto da estadia, e a limpeza impecável do espaço. A localização privilegiada a 30 minutos da Serra do Cipó e o enxoval completo e impecável surpreendem positivamente. Muitos retornam pela sensação de acolhimento genuíno e pela estrutura completa para grupos e famílias."
       </p>
       <p class="text-xs text-stone/50 mt-3">Baseado em avaliações verificadas do Airbnb, Booking.com e Google</p>
-    </div>
-
-    <!-- Rating summary -->
-    <div class="text-center mb-14" data-aos="fade-up">
-      <div class="inline-flex items-center gap-3 mb-5">
-        <div class="flex gap-1">
-          <svg class="w-6 h-6 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-          <svg class="w-6 h-6 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-          <svg class="w-6 h-6 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-          <svg class="w-6 h-6 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-          <svg class="w-6 h-6 text-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-        </div>
-        <span class="font-serif text-forest text-4xl font-bold" id="aggregate-score">4,95</span>
-      </div>
-      <div class="text-stone text-sm mt-1 mb-1" id="aggregate-count">67+ avaliações</div>
-      <div class="font-serif text-3xl md:text-4xl text-forest font-bold mb-2 gold-underline-center">O que nossos hóspedes dizem</div>
     </div>
 
     <!-- Reviews grid -->
@@ -1555,7 +1557,7 @@
     // Score is fixed at 4,95 — count updates live as new reviews come in
     const totalReviews = AIRBNB.count + BOOKING.count + google.count;
     const countEl = document.getElementById('aggregate-count');
-    if (countEl) countEl.textContent = totalReviews + '+ avaliações';
+    if (countEl) countEl.textContent = '· ' + totalReviews + '+ avaliações';
 
     // Update Google badge with live rating + count
     const googleBadge = document.getElementById('google-badge-count');

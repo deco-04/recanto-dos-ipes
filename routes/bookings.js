@@ -453,9 +453,9 @@ router.post('/:id/cancel', requireAuth, async (req, res) => {
 
 /**
  * Calculates the refund amount and percentage based on cancellation policy:
- *   ≥ 7 days before check-in  → 100% refund
- *   2–6 days before check-in  → 50% refund
- *   < 2 days before check-in  → 0% refund
+ *   ≥ 21 days before check-in   → 100% refund
+ *   14–20 days before check-in  → 50% refund
+ *   < 14 days before check-in   → 0% refund
  */
 function calcRefund(booking) {
   const now      = new Date();
@@ -464,9 +464,9 @@ function calcRefund(booking) {
   const total    = Number(booking.totalAmount);
 
   let refundPercent;
-  if (daysUntil >= 7)      refundPercent = 100;
-  else if (daysUntil >= 2) refundPercent = 50;
-  else                     refundPercent = 0;
+  if (daysUntil >= 21)      refundPercent = 100;
+  else if (daysUntil >= 14) refundPercent = 50;
+  else                      refundPercent = 0;
 
   const refundAmount = Math.round(total * refundPercent) / 100;
   return { daysUntil, refundPercent, refundAmount, totalAmount: total };
