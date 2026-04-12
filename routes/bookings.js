@@ -78,19 +78,19 @@ router.get('/availability', async (req, res) => {
 });
 
 // ── GET /api/bookings/quote ───────────────────────────────────────────────────
-// Query: ?checkIn=YYYY-MM-DD&checkOut=YYYY-MM-DD&guests=N&pet=true|false
+// Query: ?checkIn=YYYY-MM-DD&checkOut=YYYY-MM-DD&guests=N&petCount=0-4
 router.get('/quote', async (req, res) => {
   try {
-    const { checkIn, checkOut, guests, pet } = req.query;
+    const { checkIn, checkOut, guests, petCount } = req.query;
 
     if (!checkIn || !checkOut) {
       return res.status(400).json({ error: 'checkIn e checkOut são obrigatórios' });
     }
 
     const guestCount = Math.max(1, parseInt(guests) || 1);
-    const hasPet     = pet === 'true' || pet === '1';
+    const petCountInt = Math.min(Math.max(parseInt(petCount) || 0, 0), 4);
 
-    const quote = await calculateQuote({ checkIn, checkOut, guestCount, hasPet });
+    const quote = await calculateQuote({ checkIn, checkOut, guestCount, petCount: petCountInt });
     res.json(quote);
   } catch (err) {
     console.error('[bookings] quote error:', err);
@@ -111,7 +111,7 @@ router.post('/intent', async (req, res) => {
       checkIn:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       checkOut:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       guestCount: z.number().int().min(1).max(20),
-      hasPet:     z.boolean().optional().default(false),
+      petCount:   z.number().int().min(0).max(4).optional().default(0),
       guestName:  z.string().min(2).max(120),
       guestEmail: z.string().email(),
       guestPhone: z.string().min(8).max(30),
@@ -120,7 +120,8 @@ router.post('/intent', async (req, res) => {
     });
 
     const data = schema.parse(req.body);
-    const { checkIn, checkOut, guestCount, hasPet, guestName, guestEmail, guestPhone, guestCpf, notes } = data;
+    const { checkIn, checkOut, guestCount, petCount, guestName, guestEmail, guestPhone, guestCpf, notes } = data;
+    const hasPet = petCount > 0;
 
     const inDate  = new Date(checkIn);
     const outDate = new Date(checkOut);
@@ -146,7 +147,7 @@ router.post('/intent', async (req, res) => {
       return res.status(409).json({ error: 'Datas indisponíveis. Por favor selecione outras datas.' });
     }
 
-    const quote = await calculateQuote({ checkIn, checkOut, guestCount, hasPet });
+    const quote = await calculateQuote({ checkIn, checkOut, guestCount, petCount });
 
     // Create Stripe PaymentIntent
     const stripe = require('../lib/stripe');
@@ -156,6 +157,7 @@ router.post('/intent', async (req, res) => {
       metadata: {
         checkIn, checkOut,
         guestCount: String(guestCount),
+        petCount:   String(petCount),
         hasPet:     String(hasPet),
         guestName, guestEmail,
       },

@@ -2,7 +2,7 @@
 
 const express = require('express');
 const router  = express.Router();
-const { getPricingCalendar, TIER_PRICES, EXTRA_GUEST_RATE, PET_FEE, BASE_GUEST_LIMIT, MAX_GUESTS } = require('../lib/pricing');
+const { getPricingCalendar, TIER_PRICES, EXTRA_GUEST_RATE, PET_FEE_MAP, BASE_GUEST_LIMIT, MAX_GUESTS } = require('../lib/pricing');
 
 // GET /api/pricing/calendar
 // Returns all future seasonal pricing periods (used by the calendar widget to color dates)
@@ -27,7 +27,7 @@ router.get('/tiers', (_req, res) => {
       { tier: 'PEAK',     label: 'Temporada máxima',  price: TIER_PRICES.PEAK },
     ],
     extraGuestRate:  EXTRA_GUEST_RATE,
-    petFee:          PET_FEE,
+    petFeeMap:       PET_FEE_MAP,
     baseGuestLimit:  BASE_GUEST_LIMIT,
     maxGuests:       MAX_GUESTS,
   });
