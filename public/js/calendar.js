@@ -68,7 +68,7 @@
     checkIn:        null,
     checkOut:       null,
     guestCount:     2,
-    hasPet:         false,
+    petCount:       0,
     currentMonth:   new Date(),
     selectingCheckOut: false,
     quoteTimer:     null,
@@ -213,15 +213,24 @@
           </div>
 
           <!-- Pet -->
-          <div class="bg-white rounded-2xl p-4 border border-beige-dark flex items-center justify-between">
-            <div>
-              <div class="text-sm font-semibold text-forest">🐾 Pet</div>
-              <div class="text-xs text-stone/70 mt-0.5">Taxa única de R$50 por reserva</div>
+          <div class="bg-white rounded-2xl p-4 border border-beige-dark">
+            <div class="flex items-center justify-between">
+              <div class="text-sm font-semibold text-forest">🐾 Vou levar pet(s)</div>
+              <button id="pet-toggle" role="switch" aria-checked="false"
+                class="relative w-12 h-6 rounded-full bg-stone/25 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-1">
+                <span class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200"></span>
+              </button>
             </div>
-            <button id="pet-toggle" role="switch" aria-checked="false"
-              class="relative w-12 h-6 rounded-full bg-stone/25 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-1">
-              <span class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200"></span>
-            </button>
+            <div id="pet-stepper-row" class="hidden mt-3 flex items-center gap-3">
+              <button id="pet-minus"
+                class="w-8 h-8 rounded-full border border-beige-dark flex items-center justify-center text-forest font-bold hover:bg-beige-dark transition-colors">−</button>
+              <span id="pet-count-display" class="text-sm font-semibold text-forest w-4 text-center">1</span>
+              <button id="pet-plus"
+                class="w-8 h-8 rounded-full border border-beige-dark flex items-center justify-center text-forest font-bold hover:bg-beige-dark transition-colors">+</button>
+              <span class="text-xs text-stone/60">máx. 4 pets</span>
+            </div>
+            <p id="pet-fee-hint" class="hidden text-xs text-stone/60 mt-2">1–2 pets: grátis · 3+ pets: +R$50/2 pets</p>
+            <p id="pet-notice" class="hidden text-xs text-stone/60 mt-1">🐾 Pets devem ser supervisionados e dejetos recolhidos durante a estadia.</p>
           </div>
 
           <!-- Price breakdown -->
@@ -260,13 +269,34 @@
       if (state.guestCount < MAX_GUESTS) { state.guestCount++; updateGuestDisplay(); scheduleQuote(); }
     });
 
-    const petBtn = document.getElementById('pet-toggle');
+    const petBtn       = document.getElementById('pet-toggle');
+    const petStepper   = document.getElementById('pet-stepper-row');
+    const petFeeHint   = document.getElementById('pet-fee-hint');
+    const petNotice    = document.getElementById('pet-notice');
+    const petCountDisp = document.getElementById('pet-count-display');
+
+    function updatePetUI() {
+      const on = state.petCount > 0;
+      petBtn.setAttribute('aria-checked', String(on));
+      petBtn.style.backgroundColor = on ? '#C5D86D' : '';
+      petBtn.querySelector('span').style.transform = on ? 'translateX(24px)' : '';
+      petStepper.classList.toggle('hidden', !on);
+      petFeeHint.classList.toggle('hidden', !on);
+      petNotice.classList.toggle('hidden', !on);
+      if (on) petCountDisp.textContent = String(state.petCount);
+    }
+
     petBtn.addEventListener('click', () => {
-      state.hasPet = !state.hasPet;
-      petBtn.setAttribute('aria-checked', String(state.hasPet));
-      petBtn.style.backgroundColor = state.hasPet ? '#C5D86D' : '';
-      petBtn.querySelector('span').style.transform = state.hasPet ? 'translateX(24px)' : '';
+      state.petCount = state.petCount > 0 ? 0 : 1;
+      updatePetUI();
       scheduleQuote();
+    });
+
+    document.getElementById('pet-minus').addEventListener('click', () => {
+      if (state.petCount > 1) { state.petCount--; updatePetUI(); scheduleQuote(); }
+    });
+    document.getElementById('pet-plus').addEventListener('click', () => {
+      if (state.petCount < 4) { state.petCount++; updatePetUI(); scheduleQuote(); }
     });
 
     document.getElementById('cal-cta').addEventListener('click', () => {
@@ -275,7 +305,7 @@
         checkIn:  toISO(state.checkIn),
         checkOut: toISO(state.checkOut),
         guests:   String(state.guestCount),
-        pet:      String(state.hasPet),
+        petCount: String(state.petCount),
       });
       window.location.href = `/booking?${params.toString()}`;
     });
@@ -533,7 +563,7 @@
         checkIn:  toISO(state.checkIn),
         checkOut: toISO(state.checkOut),
         guests:   String(state.guestCount),
-        pet:      String(state.hasPet),
+        petCount: String(state.petCount),
       });
       const res  = await fetch(`/api/bookings/quote?${params.toString()}`);
       const data = await res.json();
@@ -558,8 +588,8 @@
     if (q.extraGuests > 0) {
       rows.push([`${q.extraGuests} hóspede${q.extraGuests > 1 ? 's' : ''} extra × R$50 × ${q.nights}n`, q.formatted.extraGuestFee]);
     }
-    if (q.hasPet) {
-      rows.push(['🐾 Pet (taxa única)', q.formatted.petFee]);
+    if (q.petCount > 2) {
+      rows.push([`🐾 ${q.petCount} pets (taxa)`, q.formatted.petFee]);
     }
 
     document.getElementById('price-breakdown').innerHTML = `
