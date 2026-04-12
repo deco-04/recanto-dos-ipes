@@ -1,9 +1,11 @@
 'use strict';
 
 const express = require('express');
+const crypto  = require('crypto');
 const router  = express.Router();
 const prisma  = require('../lib/db');
 const { requireAuth } = require('../lib/auth-middleware');
+const { sendGuestInvite } = require('../lib/mailer');
 
 // All dashboard routes require authentication
 router.use(requireAuth);
@@ -113,6 +115,109 @@ router.get('/invoice/:bookingId', async (req, res) => {
   } catch (err) {
     console.error('[dashboard] invoice error:', err);
     res.status(500).json({ error: 'Erro ao buscar fatura' });
+  }
+});
+
+// ── GET /api/dashboard/bookings/:id/guests ────────────────────────────────────
+router.get('/bookings/:id/guests', async (req, res) => {
+  try {
+    // Verify booking belongs to this user
+    const booking = await prisma.booking.findFirst({
+      where: { id: req.params.id, userId: req.session.userId },
+    });
+    if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    const guests = await prisma.bookingGuest.findMany({
+      where:   { bookingId: req.params.id },
+      orderBy: { createdAt: 'asc' },
+      select:  { id: true, name: true, email: true, phone: true, status: true },
+    });
+
+    res.json({ guests });
+  } catch (err) {
+    console.error('[dashboard] guests list error:', err);
+    res.status(500).json({ error: 'Erro ao buscar acompanhantes' });
+  }
+});
+
+// ── POST /api/dashboard/bookings/:id/guests ───────────────────────────────────
+router.post('/bookings/:id/guests', async (req, res) => {
+  try {
+    const booking = await prisma.booking.findFirst({
+      where: { id: req.params.id, userId: req.session.userId },
+    });
+    if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    const { name, email, phone } = req.body;
+    if (!name?.trim() || !email?.trim()) {
+      return res.status(400).json({ error: 'Nome e e-mail são obrigatórios' });
+    }
+
+    // Max 10 co-guests per booking
+    const count = await prisma.bookingGuest.count({ where: { bookingId: req.params.id } });
+    if (count >= 10) return res.status(400).json({ error: 'Limite de 10 acompanhantes por reserva' });
+
+    // Generate invite token (raw token sent in URL, hashed version stored)
+    const rawToken   = crypto.randomBytes(32).toString('hex');
+    const tokenHash  = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const inviteExpiry = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72h
+
+    const guest = await prisma.bookingGuest.create({
+      data: {
+        bookingId:   req.params.id,
+        addedById:   req.session.userId,
+        name:        name.trim(),
+        email:       email.trim().toLowerCase(),
+        phone:       phone?.trim() || null,
+        inviteToken: tokenHash,
+        inviteExpiry,
+        status:      'PENDENTE',
+      },
+    });
+
+    // Send invite email (non-blocking)
+    const checkIn  = new Date(booking.checkIn).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
+    const checkOut = new Date(booking.checkOut).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+    const baseUrl  = process.env.GUEST_SITE_URL || 'https://sitiorecantodosipes.com';
+    const inviteUrl = `${baseUrl}/confirmar-hospede.html?token=${rawToken}`;
+
+    sendGuestInvite({
+      to: guest.email,
+      name: guest.name,
+      hostName: booking.guestName,
+      checkIn,
+      checkOut,
+      inviteUrl,
+    }).catch(e => console.error('[dashboard] guest invite email error:', e.message));
+
+    res.json({ guest: { id: guest.id, name: guest.name, email: guest.email, status: guest.status } });
+  } catch (err) {
+    console.error('[dashboard] add guest error:', err);
+    res.status(500).json({ error: 'Erro ao convidar acompanhante' });
+  }
+});
+
+// ── DELETE /api/dashboard/bookings/:id/guests/:guestId ───────────────────────
+router.delete('/bookings/:id/guests/:guestId', async (req, res) => {
+  try {
+    const booking = await prisma.booking.findFirst({
+      where: { id: req.params.id, userId: req.session.userId },
+    });
+    if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    const guest = await prisma.bookingGuest.findFirst({
+      where: { id: req.params.guestId, bookingId: req.params.id },
+    });
+    if (!guest) return res.status(404).json({ error: 'Acompanhante não encontrado' });
+    if (guest.status !== 'PENDENTE') {
+      return res.status(400).json({ error: 'Não é possível remover acompanhante já confirmado' });
+    }
+
+    await prisma.bookingGuest.delete({ where: { id: req.params.guestId } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[dashboard] remove guest error:', err);
+    res.status(500).json({ error: 'Erro ao remover acompanhante' });
   }
 });
 

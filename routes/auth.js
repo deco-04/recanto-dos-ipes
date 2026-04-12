@@ -7,6 +7,7 @@ const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const { z }    = require('zod');
 const prisma   = require('../lib/db');
 const { sendOtpEmail } = require('../lib/mailer');
+const { notifyContactCreated } = require('../lib/ghl-webhook');
 const { CookieStateStore } = require('../lib/oauth-state-store');
 
 const router = express.Router();
@@ -170,7 +171,8 @@ router.post('/verify-code', async (req, res) => {
     });
 
     // Upsert user by email
-    const user = await prisma.user.upsert({
+    const isNew = !(await prisma.user.findUnique({ where: { email } }));
+    const user  = await prisma.user.upsert({
       where:  { email },
       update: {},
       create: { email },
@@ -182,11 +184,24 @@ router.post('/verify-code', async (req, res) => {
       data:  { userId: user.id },
     }).catch(e => console.error('[auth] auto-link bookings error:', e.message));
 
-    // Set session
+    // Notify GHL on first registration (non-blocking)
+    if (isNew) {
+      notifyContactCreated({ user }).catch(e =>
+        console.error('[auth] GHL notify error:', e.message)
+      );
+    }
+
+    // Set session — explicit save required with resave:false + saveUninitialized:false
     req.session.userId    = user.id;
     req.session.userEmail = user.email;
 
-    res.json({ success: true, user: sanitizeUser(user) });
+    req.session.save((err) => {
+      if (err) {
+        console.error('[auth] session save error:', err);
+        return res.status(500).json({ error: 'Erro interno ao salvar sessão' });
+      }
+      res.json({ success: true, user: sanitizeUser(user) });
+    });
   } catch (err) {
     if (err?.name === 'ZodError') {
       return res.status(400).json({ error: 'Dados inválidos' });
@@ -210,20 +225,33 @@ router.get('/google',
 
 // ── GET /api/auth/google/callback ─────────────────────────────────────────────
 router.get('/google/callback',
-  passport.authenticate('google', { failureRedirect: '/login?error=google' }),
+  passport.authenticate('google', { failureRedirect: '/login?error=google', session: false }),
   async (req, res) => {
-    req.session.userId    = req.user.id;
-    req.session.userEmail = req.user.email;
+    try {
+      req.session.userId    = req.user.id;
+      req.session.userEmail = req.user.email;
 
-    // Auto-link any anonymous bookings made with this Google account's email
-    await prisma.booking.updateMany({
-      where: { guestEmail: req.user.email, userId: null },
-      data:  { userId: req.user.id },
-    }).catch(e => console.error('[auth] auto-link bookings (google) error:', e.message));
+      // Auto-link any anonymous bookings made with this Google account's email
+      await prisma.booking.updateMany({
+        where: { guestEmail: req.user.email, userId: null },
+        data:  { userId: req.user.id },
+      }).catch(e => console.error('[auth] auto-link bookings (google) error:', e.message));
 
-    const next = req.session.returnTo || '/dashboard';
-    delete req.session.returnTo;
-    res.redirect(next);
+      const next = req.session.returnTo || '/dashboard';
+      delete req.session.returnTo;
+
+      // Explicit save required with resave:false + saveUninitialized:false
+      req.session.save((err) => {
+        if (err) {
+          console.error('[auth] session save error (google):', err);
+          return res.redirect('/login?error=google');
+        }
+        res.redirect(next);
+      });
+    } catch (err) {
+      console.error('[auth] google callback error:', err);
+      res.redirect('/login?error=google');
+    }
   }
 );
 
@@ -250,8 +278,100 @@ router.get('/me', async (req, res) => {
   }
 });
 
+// ── POST /api/auth/confirm-guest-invite ──────────────────────────────────────
+router.post('/confirm-guest-invite', async (req, res) => {
+  try {
+    const { token, name, phone } = z.object({
+      token: z.string().min(64),
+      name:  z.string().min(2).max(100).optional(),
+      phone: z.string().max(20).optional(),
+    }).parse(req.body);
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const invite = await prisma.bookingGuest.findFirst({
+      where: {
+        inviteToken:  tokenHash,
+        inviteExpiry: { gt: new Date() },
+        status:       'PENDENTE',
+      },
+    });
+
+    if (!invite) return res.status(400).json({ error: 'Convite inválido ou expirado' });
+
+    // Upsert guest user
+    const updateData = {};
+    if (name)  updateData.name  = name;
+    if (phone) updateData.phone = phone;
+
+    const user = await prisma.user.upsert({
+      where:  { email: invite.email },
+      update: updateData,
+      create: { email: invite.email, name: name || invite.name, phone: phone || null },
+    });
+
+    // Mark invite confirmed
+    await prisma.bookingGuest.update({
+      where: { id: invite.id },
+      data:  { status: 'CONFIRMADO', userId: user.id, inviteToken: null, inviteExpiry: null },
+    });
+
+    // Auto-link any bookings by email
+    await prisma.booking.updateMany({
+      where: { guestEmail: user.email, userId: null },
+      data:  { userId: user.id },
+    }).catch(e => console.error('[auth] confirm-guest auto-link error:', e.message));
+
+    // Log in
+    req.session.userId    = user.id;
+    req.session.userEmail = user.email;
+
+    req.session.save((err) => {
+      if (err) {
+        console.error('[auth] confirm-guest session save error:', err);
+        return res.status(500).json({ error: 'Erro interno' });
+      }
+      res.json({ success: true, user: sanitizeUser(user) });
+    });
+  } catch (err) {
+    if (err?.name === 'ZodError') return res.status(400).json({ error: 'Dados inválidos' });
+    console.error('[auth] confirm-guest-invite error:', err);
+    res.status(500).json({ error: 'Erro ao confirmar convite' });
+  }
+});
+
+// ── PATCH /api/auth/profile ───────────────────────────────────────────────────
+router.patch('/profile', async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: 'Não autenticado' });
+
+  try {
+    const { name, phone, cpf } = z.object({
+      name:  z.string().min(2).max(100).optional(),
+      phone: z.string().max(20).optional(),
+      cpf:   z.string().regex(/^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/).optional().or(z.literal('')),
+    }).parse(req.body);
+
+    const data = {};
+    if (name  !== undefined) data.name  = name;
+    if (phone !== undefined) data.phone = phone || null;
+    if (cpf   !== undefined) data.cpf   = cpf ? cpf.replace(/\D/g, '') : null;
+
+    const user = await prisma.user.update({
+      where: { id: req.session.userId },
+      data,
+    });
+
+    res.json({ user: sanitizeUser(user) });
+  } catch (err) {
+    if (err?.name === 'ZodError') return res.status(400).json({ error: 'Dados inválidos' });
+    if (err?.code === 'P2002') return res.status(409).json({ error: 'CPF já cadastrado' });
+    console.error('[auth] profile update error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar perfil' });
+  }
+});
+
 function sanitizeUser(u) {
-  return { id: u.id, email: u.email, name: u.name, avatarUrl: u.avatarUrl };
+  return { id: u.id, email: u.email, name: u.name, phone: u.phone, cpf: u.cpf, avatarUrl: u.avatarUrl };
 }
 
 module.exports = router;

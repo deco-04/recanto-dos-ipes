@@ -72,9 +72,11 @@ async function verifyCode() {
       return;
     }
 
-    // Redirect to dashboard or returnTo
+    // Redirect to dashboard or returnTo (validated to be same-origin)
     const params = new URLSearchParams(window.location.search);
-    window.location.href = params.get('returnTo') || '/dashboard';
+    const returnTo = params.get('returnTo') || '/dashboard';
+    const safeReturn = returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/dashboard';
+    window.location.href = safeReturn;
   } catch {
     setLoading(false);
     showError('code-error', 'Erro de conexão. Tente novamente.');
@@ -147,11 +149,14 @@ function hideError(id) {
   const params = new URLSearchParams(window.location.search);
   const error  = params.get('error');
   if (error) {
-    const el = document.getElementById('url-error');
-    el.textContent = error === 'google'
-      ? 'Ocorreu um erro ao autenticar com o Google. Tente pelo e-mail.'
+    const container = document.getElementById('url-error');
+    const msg       = document.getElementById('url-error-msg');
+    msg.textContent = error === 'google'
+      ? 'Ocorreu um erro ao autenticar com o Google. Tente pelo e-mail ou tente novamente.'
       : 'Ocorreu um erro. Tente novamente.';
-    el.classList.remove('hidden');
+    container.classList.remove('hidden');
+    // Clean URL so refresh doesn't re-show the error
+    history.replaceState(null, '', window.location.pathname);
   }
 })();
 

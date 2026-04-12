@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Confirmar presença — Sítio Recanto dos Ipês</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="shortcut icon" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          forest: { DEFAULT:'#261C15', light:'#3D2B1F' },
+          gold:   { DEFAULT:'#C5D86D', dark:'#9BAB52' },
+          beige:  { DEFAULT:'#F7F7F2', dark:'#E4E6C3' },
+          stone:  { DEFAULT:'#6B6B6B', light:'#9A9A9A' },
+        },
+        fontFamily: { serif:['Merriweather','serif'], sans:['Lato','sans-serif'] },
+      }}
+    }
+  </script>
+  <style>body { font-family:'Lato',sans-serif; }</style>
+</head>
+<body class="min-h-screen bg-beige flex items-center justify-center px-4 py-12">
+
+  <div class="w-full max-w-md">
+
+    <!-- Logo -->
+    <div class="text-center mb-8">
+      <a href="/" class="inline-block">
+        <p class="font-serif text-2xl font-bold text-forest">Recanto dos Ipês</p>
+        <p class="text-stone text-sm mt-1">Jaboticatubas · MG</p>
+      </a>
+    </div>
+
+    <!-- Loading state -->
+    <div id="state-loading" class="bg-white rounded-3xl shadow-lg p-8 text-center">
+      <p class="text-stone text-sm">Verificando convite…</p>
+    </div>
+
+    <!-- Invalid / expired token -->
+    <div id="state-invalid" class="hidden bg-white rounded-3xl shadow-lg p-8 text-center">
+      <div class="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <span class="text-2xl">❌</span>
+      </div>
+      <h2 class="font-serif text-xl font-bold text-forest mb-2">Convite inválido</h2>
+      <p class="text-stone text-sm mb-6">Este link de convite não é válido ou já expirou. Peça ao anfitrião que envie um novo convite.</p>
+      <a href="/" class="text-sm text-stone hover:text-forest transition-colors">← Voltar ao site</a>
+    </div>
+
+    <!-- Confirm form -->
+    <div id="state-form" class="hidden bg-white rounded-3xl shadow-lg p-8">
+      <div class="text-center mb-6">
+        <div class="w-14 h-14 bg-gold/20 rounded-full flex items-center justify-center mx-auto mb-3">
+          <span class="text-2xl">🌿</span>
+        </div>
+        <h1 class="font-serif text-xl font-bold text-forest">Você foi convidado!</h1>
+        <p class="text-stone text-sm mt-2">Confirme sua presença para acessar os detalhes da estadia.</p>
+      </div>
+
+      <form id="confirm-form" onsubmit="handleConfirm(event)" class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-forest mb-1.5">Seu nome completo</label>
+          <input id="input-name" type="text" required minlength="2"
+            class="w-full border-2 border-beige-dark rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold transition-colors"
+            placeholder="Como prefere ser chamado(a)?"/>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-forest mb-1.5">Telefone / WhatsApp <span class="text-stone font-normal">(opcional)</span></label>
+          <input id="input-phone" type="tel"
+            class="w-full border-2 border-beige-dark rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold transition-colors"
+            placeholder="(31) 99999-9999"/>
+        </div>
+        <p id="form-error" class="text-red-500 text-xs hidden"></p>
+        <button type="submit" id="submit-btn"
+          class="w-full bg-forest hover:bg-forest-light text-white font-bold py-3.5 rounded-xl transition-colors text-sm">
+          Confirmar presença
+        </button>
+      </form>
+    </div>
+
+    <!-- Success state -->
+    <div id="state-success" class="hidden bg-white rounded-3xl shadow-lg p-8 text-center">
+      <div class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <span class="text-2xl">✅</span>
+      </div>
+      <h2 class="font-serif text-xl font-bold text-forest mb-2">Presença confirmada!</h2>
+      <p class="text-stone text-sm mb-6">
+        Boa notícia! Você já pode acessar os detalhes da estadia no seu painel.
+      </p>
+      <a href="/dashboard"
+        class="inline-block bg-forest text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-forest-light transition-colors">
+        Ver minha estadia →
+      </a>
+    </div>
+
+  </div>
+
+<script>
+'use strict';
+
+const params = new URLSearchParams(window.location.search);
+const token  = params.get('token');
+
+function show(id) {
+  ['state-loading','state-invalid','state-form','state-success'].forEach(s => {
+    document.getElementById(s).classList.toggle('hidden', s !== id);
+  });
+}
+
+// On load: validate token exists (we don't call the backend just to validate —
+// we submit optimistically and handle error on form submit)
+if (!token || token.length < 64) {
+  show('state-invalid');
+} else {
+  show('state-form');
+}
+
+async function handleConfirm(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Confirmando…';
+  document.getElementById('form-error').classList.add('hidden');
+
+  const name  = document.getElementById('input-name').value.trim();
+  const phone = document.getElementById('input-phone').value.trim();
+
+  try {
+    const res  = await fetch('/api/auth/confirm-guest-invite', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ token, name, phone: phone || undefined }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (res.status === 400) { show('state-invalid'); return; }
+      document.getElementById('form-error').textContent = data.error || 'Erro ao confirmar. Tente novamente.';
+      document.getElementById('form-error').classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Confirmar presença';
+      return;
+    }
+
+    show('state-success');
+  } catch {
+    document.getElementById('form-error').textContent = 'Erro de conexão. Tente novamente.';
+    document.getElementById('form-error').classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Confirmar presença';
+  }
+}
+</script>
+</body>
+</html>

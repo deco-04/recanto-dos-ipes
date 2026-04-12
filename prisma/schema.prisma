@@ -19,9 +19,11 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  codes      VerificationCode[]
-  bookings   Booking[]
-  reputation GuestReputation?
+  codes        VerificationCode[]
+  bookings     Booking[]
+  reputation   GuestReputation?
+  guestsAdded  BookingGuest[]     @relation("GuestsAdded")
+  guestProfile BookingGuest[]     @relation("GuestProfile")
 }
 
 // Sessions are managed by connect-pg-simple (its own "session" table, auto-created)
@@ -71,6 +73,7 @@ model Booking {
   invoiceNumber         String        @unique @default(cuid())
   notes                 String?
   source                BookingSource @default(DIRECT)
+  externalId            String?       @unique  // iCal UID for OTA bookings (dedup)
   propertyId            String?
   cabinId               String?
   surveyStatus          SurveyStatus  @default(NAO_ENVIADO)
@@ -83,6 +86,7 @@ model Booking {
   survey      Survey?
   inspections     InspectionReport[]
   maintenanceLogs MaintenanceLog[]
+  coGuests        BookingGuest[]
 
   @@index([checkIn, checkOut])
   @@index([guestEmail])
@@ -210,6 +214,8 @@ model StaffMember {
   firstLoginDone     Boolean   @default(false)
   pushSubscription   Json?
   active             Boolean   @default(true)
+  inviteToken        String?
+  inviteTokenExpiry  DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -462,6 +468,34 @@ enum SuggestionStatus {
   PENDENTE
   ACEITA
   REJEITADA
+}
+
+// ── Co-Guest Invitations ──────────────────────────────────────────────────────
+model BookingGuest {
+  id           String            @id @default(cuid())
+  bookingId    String
+  addedById    String
+  name         String
+  email        String
+  phone        String?
+  inviteToken  String?           // SHA-256 hash, 72h expiry
+  inviteExpiry DateTime?
+  status       GuestInviteStatus @default(PENDENTE)
+  userId       String?
+  createdAt    DateTime          @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  addedBy User    @relation("GuestsAdded",  fields: [addedById], references: [id])
+  user    User?   @relation("GuestProfile", fields: [userId],    references: [id])
+
+  @@index([bookingId])
+  @@index([inviteToken])
+}
+
+enum GuestInviteStatus {
+  PENDENTE
+  CONFIRMADO
+  CANCELADO
 }
 
 // ── Push Notifications ────────────────────────────────────────────────────────
