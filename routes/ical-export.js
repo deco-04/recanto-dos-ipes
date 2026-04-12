@@ -85,7 +85,7 @@ router.get('/direct', async (req, res) => {
       orderBy: { checkIn: 'asc' },
     });
 
-    const now    = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '') + 'Z';
+    const now    = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
     const prodId = '-//Sítio Recanto dos Ipês//Direct Bookings//PT';
     const calUrl = process.env.PUBLIC_URL
       ? `${process.env.PUBLIC_URL}/api/ical/direct`
@@ -114,7 +114,7 @@ router.get('/direct', async (req, res) => {
       const dtEnd   = toIcalDate(b.checkOut);
 
       // DTSTAMP: time the event was last updated (RFC 5545 required field)
-      const dtstamp = b.updatedAt.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '') + 'Z';
+      const dtstamp = b.updatedAt.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
       // Summary: "Reserved" hides guest details from OTA platforms
       const summary = escapeText('Reserved');
