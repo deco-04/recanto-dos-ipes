@@ -77,9 +77,9 @@
     /* Botanical SVG behind */
     .brand-botanical {
       position: absolute;
-      bottom: -20px; right: -20px;
-      width: 340px; height: 340px;
-      opacity: 0.055;
+      bottom: -30px; right: -40px;
+      width: 420px; height: 420px;
+      opacity: 0.10;
       pointer-events: none;
     }
 
@@ -89,8 +89,8 @@
       animation: fadeUpIn 0.8s ease both;
     }
     .brand-mark {
-      width: 48px; height: 48px;
-      margin-bottom: 1.5rem;
+      width: 80px; height: 80px;
+      margin-bottom: 1.75rem;
     }
     .brand-name {
       font-family: 'Merriweather', serif;
@@ -376,18 +376,120 @@
   <!-- ── Brand panel ─────────────────────────────────────────────────────── -->
   <div class="brand-panel">
 
-    <!-- Botanical SVG decoration -->
-    <svg class="brand-botanical" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="100" cy="100" r="95" stroke="white" stroke-width="1.5" stroke-dasharray="4 6"/>
-      <path d="M100 10 C100 10 60 50 60 100 C60 150 100 190 100 190 C100 190 140 150 140 100 C140 50 100 10 100 10Z" stroke="white" stroke-width="1.5" fill="none"/>
-      <path d="M10 100 C10 100 50 60 100 60 C150 60 190 100 190 100 C190 100 150 140 100 140 C50 140 10 100 10 100Z" stroke="white" stroke-width="1.5" fill="none"/>
-      <path d="M30 30 C30 30 70 50 100 100 C130 150 170 170 170 170" stroke="white" stroke-width="1" stroke-dasharray="3 5"/>
-      <path d="M170 30 C170 30 130 50 100 100 C70 150 30 170 30 170" stroke="white" stroke-width="1" stroke-dasharray="3 5"/>
-      <circle cx="100" cy="100" r="6" fill="white" opacity="0.4"/>
-      <circle cx="100" cy="10"  r="3" fill="white" opacity="0.3"/>
-      <circle cx="100" cy="190" r="3" fill="white" opacity="0.3"/>
-      <circle cx="10"  cy="100" r="3" fill="white" opacity="0.3"/>
-      <circle cx="190" cy="100" r="3" fill="white" opacity="0.3"/>
+    <!-- Cerrado / Ipê botanical illustration -->
+    <svg class="brand-botanical" viewBox="0 0 420 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Serra do Cipó mountain ridge -->
+      <path d="M0 290 Q50 240 100 258 Q145 215 185 248 Q220 200 265 235 Q300 198 345 222 Q380 205 420 218 L420 420 L0 420Z" fill="white" opacity="0.12"/>
+      <!-- Second ridge (depth) -->
+      <path d="M0 320 Q60 295 110 308 Q160 280 200 300 Q250 272 300 292 Q340 270 420 285 L420 420 L0 420Z" fill="white" opacity="0.08"/>
+
+      <!-- Cerrado background trees (horizon silhouettes) -->
+      <rect x="55" y="264" width="7" height="38" rx="2" fill="white" opacity="0.18"/>
+      <ellipse cx="58" cy="258" rx="22" ry="16" fill="white" opacity="0.14"/>
+      <rect x="108" y="258" width="6" height="30" rx="2" fill="white" opacity="0.18"/>
+      <ellipse cx="111" cy="253" rx="17" ry="13" fill="white" opacity="0.13"/>
+      <rect x="310" y="250" width="7" height="35" rx="2" fill="white" opacity="0.18"/>
+      <ellipse cx="313" cy="244" rx="20" ry="15" fill="white" opacity="0.14"/>
+      <rect x="370" y="255" width="6" height="28" rx="2" fill="white" opacity="0.18"/>
+      <ellipse cx="373" cy="250" rx="16" ry="12" fill="white" opacity="0.13"/>
+
+      <!-- Central Ipê tree trunk -->
+      <path d="M210 400 C208 370 205 340 203 310 C201 280 202 255 200 228" stroke="white" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.35"/>
+      <path d="M210 400 C212 368 215 338 217 308 C219 278 218 253 222 228" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.22"/>
+
+      <!-- Main branches left -->
+      <path d="M202 310 Q178 295 155 282" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.28"/>
+      <path d="M203 340 Q178 332 155 336" stroke="white" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.22"/>
+      <path d="M200 280 Q175 265 148 258" stroke="white" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.25"/>
+
+      <!-- Main branches right -->
+      <path d="M218 308 Q242 293 265 280" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.28"/>
+      <path d="M217 338 Q242 330 265 334" stroke="white" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.22"/>
+      <path d="M220 278 Q248 263 275 256" stroke="white" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.25"/>
+
+      <!-- Upper branches -->
+      <path d="M200 228 Q182 210 162 198 Q148 190 132 184" stroke="white" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.28"/>
+      <path d="M200 228 Q200 208 198 190 Q197 174 194 160" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.25"/>
+      <path d="M222 228 Q240 210 260 198 Q274 190 290 184" stroke="white" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.28"/>
+      <path d="M222 228 Q224 208 226 190 Q228 174 230 160" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.25"/>
+
+      <!-- Tertiary branches -->
+      <path d="M132 184 Q118 174 106 168" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.22"/>
+      <path d="M132 184 Q128 170 125 158" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.22"/>
+      <path d="M194 160 Q188 146 185 132" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.22"/>
+      <path d="M194 160 Q198 146 202 132" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.22"/>
+      <path d="M290 184 Q304 174 316 168" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.22"/>
+      <path d="M290 184 Q294 170 297 158" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.22"/>
+      <path d="M230 160 Q226 146 223 132" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.22"/>
+      <path d="M230 160 Q234 146 238 132" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.22"/>
+
+      <!-- Ipê flower clusters (5-circle rosette = ipê flower) -->
+      <!-- Cluster at upper-left tip (106,168) -->
+      <circle cx="106" cy="168" r="4.5" fill="white" opacity="0.42"/>
+      <circle cx="97" cy="161" r="3.5" fill="white" opacity="0.32"/>
+      <circle cx="115" cy="160" r="3.5" fill="white" opacity="0.32"/>
+      <circle cx="95" cy="175" r="3" fill="white" opacity="0.25"/>
+      <circle cx="117" cy="176" r="3" fill="white" opacity="0.25"/>
+
+      <!-- Cluster at 125,158 -->
+      <circle cx="125" cy="158" r="4" fill="white" opacity="0.38"/>
+      <circle cx="117" cy="151" r="3" fill="white" opacity="0.28"/>
+      <circle cx="133" cy="150" r="3" fill="white" opacity="0.28"/>
+      <circle cx="115" cy="165" r="2.5" fill="white" opacity="0.22"/>
+      <circle cx="135" cy="166" r="2.5" fill="white" opacity="0.22"/>
+
+      <!-- Cluster at 185,132 -->
+      <circle cx="185" cy="132" r="4.5" fill="white" opacity="0.42"/>
+      <circle cx="176" cy="125" r="3.5" fill="white" opacity="0.32"/>
+      <circle cx="194" cy="124" r="3.5" fill="white" opacity="0.32"/>
+      <circle cx="174" cy="139" r="3" fill="white" opacity="0.25"/>
+      <circle cx="196" cy="140" r="3" fill="white" opacity="0.25"/>
+
+      <!-- Cluster at 202,132 -->
+      <circle cx="202" cy="132" r="4" fill="white" opacity="0.38"/>
+      <circle cx="210" cy="125" r="3" fill="white" opacity="0.28"/>
+      <circle cx="208" cy="140" r="2.5" fill="white" opacity="0.22"/>
+
+      <!-- Cluster at 316,168 -->
+      <circle cx="316" cy="168" r="4.5" fill="white" opacity="0.42"/>
+      <circle cx="307" cy="161" r="3.5" fill="white" opacity="0.32"/>
+      <circle cx="325" cy="160" r="3.5" fill="white" opacity="0.32"/>
+      <circle cx="305" cy="175" r="3" fill="white" opacity="0.25"/>
+      <circle cx="327" cy="176" r="3" fill="white" opacity="0.25"/>
+
+      <!-- Cluster at 297,158 -->
+      <circle cx="297" cy="158" r="4" fill="white" opacity="0.38"/>
+      <circle cx="289" cy="151" r="3" fill="white" opacity="0.28"/>
+      <circle cx="305" cy="150" r="3" fill="white" opacity="0.28"/>
+
+      <!-- Cluster at 223,132 -->
+      <circle cx="223" cy="132" r="4.5" fill="white" opacity="0.42"/>
+      <circle cx="214" cy="125" r="3.5" fill="white" opacity="0.32"/>
+      <circle cx="232" cy="124" r="3.5" fill="white" opacity="0.32"/>
+      <circle cx="212" cy="139" r="3" fill="white" opacity="0.25"/>
+      <circle cx="234" cy="140" r="3" fill="white" opacity="0.25"/>
+
+      <!-- Cluster at 238,132 -->
+      <circle cx="238" cy="132" r="4" fill="white" opacity="0.38"/>
+      <circle cx="246" cy="125" r="3" fill="white" opacity="0.28"/>
+      <circle cx="244" cy="140" r="2.5" fill="white" opacity="0.22"/>
+
+      <!-- Leaves along mid-branches -->
+      <ellipse cx="155" cy="282" rx="9" ry="4" transform="rotate(-35 155 282)" fill="white" opacity="0.16"/>
+      <ellipse cx="148" cy="258" rx="9" ry="4" transform="rotate(-28 148 258)" fill="white" opacity="0.15"/>
+      <ellipse cx="265" cy="280" rx="9" ry="4" transform="rotate(35 265 280)" fill="white" opacity="0.16"/>
+      <ellipse cx="275" cy="256" rx="9" ry="4" transform="rotate(28 275 256)" fill="white" opacity="0.15"/>
+      <ellipse cx="155" cy="336" rx="8" ry="3.5" transform="rotate(-18 155 336)" fill="white" opacity="0.13"/>
+      <ellipse cx="265" cy="334" rx="8" ry="3.5" transform="rotate(18 265 334)" fill="white" opacity="0.13"/>
+
+      <!-- Floating petals / windblown dots -->
+      <circle cx="160" cy="108" r="2.5" fill="white" opacity="0.18"/>
+      <circle cx="250" cy="100" r="2" fill="white" opacity="0.15"/>
+      <circle cx="140" cy="140" r="2" fill="white" opacity="0.14"/>
+      <circle cx="272" cy="138" r="2.5" fill="white" opacity="0.18"/>
+      <circle cx="172" cy="90" r="2" fill="white" opacity="0.15"/>
+      <circle cx="340" cy="155" r="2" fill="white" opacity="0.14"/>
+      <circle cx="88" cy="145" r="2" fill="white" opacity="0.14"/>
     </svg>
 
     <!-- Main brand content -->
@@ -417,7 +519,7 @@
       <!-- Mobile brand header -->
       <div class="mobile-brand">
         <a href="/" style="display:inline-block;">
-          <img src="/brand/sri-mark-color.svg" width="52" height="36" alt="" style="margin: 0 auto 0.75rem; display:block;">
+          <img src="/brand/sri-mark-color.svg" width="80" height="56" alt="" style="margin: 0 auto 1rem; display:block;">
           <div style="font-family:'Merriweather',serif; font-size:1.25rem; font-weight:700; color:#261C15;">Recanto dos Ipês</div>
           <div style="font-size:0.6875rem; color:#9A9A9A; letter-spacing:0.08em; margin-top:0.25rem;">Jaboticatubas · MG</div>
         </a>
