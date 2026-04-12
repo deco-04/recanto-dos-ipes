@@ -48,7 +48,12 @@
 
   <!-- Navbar -->
   <nav class="bg-forest px-6 py-4 flex items-center justify-between">
-    <a href="/" class="font-serif text-white font-bold text-lg">Recanto dos Ipês</a>
+    <a href="/" class="flex items-center gap-3">
+      <img src="/brand/sri-mark-white.svg" alt="Recanto dos Ipês" class="h-10 w-auto object-contain"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+      <span style="display:none" class="font-serif text-white font-bold text-lg">Recanto dos Ipês</span>
+      <span class="font-serif text-white font-bold text-lg hidden sm:block">Recanto dos Ipês</span>
+    </a>
     <a href="/#reservas" class="text-white/70 hover:text-white text-sm transition-colors">← Voltar ao calendário</a>
   </nav>
 
@@ -173,7 +178,7 @@
           <div id="summary-content" class="hidden">
             <div class="space-y-2 text-sm" id="summary-rows"></div>
             <div class="border-t border-white/20 mt-4 pt-4 flex justify-between items-center">
-              <span class="font-bold text-base">Total</span>
+              <span class="font-bold text-base">Total geral</span>
               <span class="font-bold text-gold text-2xl" id="summary-total">—</span>
             </div>
             <p class="text-white/40 text-xs mt-2" id="summary-season"></p>
@@ -183,21 +188,34 @@
         </div>
 
         <!-- Property highlights -->
-        <div class="mt-4 bg-white rounded-2xl p-5 border border-beige-dark text-sm text-stone space-y-2">
-          <div class="flex items-center gap-2">✅ Reserva segura e confirmada em minutos</div>
-          <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-gold flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-            Piscina aquecida · Sauna · Salão de jogos
+        <div class="mt-4 bg-white rounded-2xl p-5 border border-beige-dark text-sm space-y-2.5">
+
+          <!-- 1. Avaliações — destaque máximo, ícone estrela -->
+          <div class="flex items-center gap-2 font-semibold text-forest">
+            <svg class="w-4 h-4 text-gold flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+            </svg>
+            4,95 · 44 avaliações verificadas
           </div>
-          <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-gold flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-            Self check-in · Entrada sem burocracia
+
+          <!-- 2. Reserva segura -->
+          <div class="flex items-center gap-2 text-stone">✅ Reserva segura e confirmada em minutos</div>
+
+          <!-- 3. Enxoval -->
+          <div class="flex items-center gap-2 text-stone">🛏️ Enxoval completo incluso — tudo novo e limpo</div>
+
+          <!-- Separator + checkmark group -->
+          <div class="border-t border-beige-dark pt-2.5 space-y-2">
+            <div class="flex items-center gap-2 text-stone">
+              <svg class="w-4 h-4 text-gold flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              Piscina aquecida · Sauna · Salão de jogos
+            </div>
+            <div class="flex items-center gap-2 text-stone">
+              <svg class="w-4 h-4 text-gold flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              Self check-in · Entrada sem burocracia
+            </div>
           </div>
-          <div class="flex items-center gap-2">🛏️ Enxoval completo incluso — tudo novo e limpo</div>
-          <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-gold flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-            4,95 ★ · 44 avaliações verificadas
-          </div>
+
         </div>
       </div>
     </div>
