@@ -164,10 +164,11 @@ app.use(session({
   secret:            process.env.SESSION_SECRET || 'dev-secret-change-in-production',
   resave:            false,
   saveUninitialized: false,
+  rolling:           true,   // reset maxAge on every response (keeps active users logged in)
   cookie: {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
-    maxAge:   30 * 24 * 60 * 60 * 1000, // 30 days
+    maxAge:   30 * 24 * 60 * 60 * 1000, // 30 days, resets on each request
     sameSite: 'strict',
   },
   name: 'rdi.sid',
@@ -238,6 +239,7 @@ app.use('/api/staff',       staffCors, require('./routes/staff-portal'));
 app.use('/api/admin/staff', staffCors, require('./routes/admin-staff'));
 app.use('/api/uploads',     staffCors, require('./routes/uploads').router);
 app.use('/api/reviews',    require('./routes/reviews'));
+app.use('/api/ical',       require('./routes/ical-export'));
 
 // Admin — manual iCal sync trigger
 app.post('/api/admin/sync-ical', async (req, res) => {

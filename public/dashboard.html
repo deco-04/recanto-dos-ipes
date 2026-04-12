@@ -121,6 +121,29 @@
         </div>
       </div>
 
+      <!-- Set-password banner (shown once to OTP users who haven't created a password) -->
+      <div id="set-password-banner" class="hidden bg-white rounded-2xl border border-gold/40 shadow-sm overflow-hidden">
+        <div class="bg-gold/10 border-b border-gold/30 px-5 py-3 flex items-center justify-between">
+          <p class="text-sm font-semibold text-forest">🔑 Crie uma senha para entrar mais rápido</p>
+          <button onclick="dismissPasswordBanner()" class="text-stone hover:text-forest text-xs transition-colors">✕ Agora não</button>
+        </div>
+        <div class="p-5">
+          <p class="text-xs text-stone mb-4">Você entrou com código por e-mail. Se quiser, crie uma senha para acessar sua conta sem precisar de código nas próximas vezes.</p>
+          <div id="set-pw-form" class="flex flex-col sm:flex-row gap-3">
+            <input id="banner-password" type="password" placeholder="Nova senha (mín. 6 caracteres)" maxlength="128"
+              class="flex-1 border border-beige-dark rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gold"/>
+            <input id="banner-password-confirm" type="password" placeholder="Confirmar senha" maxlength="128"
+              class="flex-1 border border-beige-dark rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gold"/>
+            <button onclick="setPassword()" id="banner-pw-btn"
+              class="bg-forest text-white font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-forest-light transition-colors whitespace-nowrap">
+              Salvar senha
+            </button>
+          </div>
+          <p id="banner-pw-error" class="text-red-600 text-xs mt-2 hidden"></p>
+          <p id="banner-pw-success" class="text-green-700 text-xs mt-2 hidden">✓ Senha criada! Nas próximas visitas você pode entrar diretamente com ela.</p>
+        </div>
+      </div>
+
       <!-- Empty state (no bookings at all) -->
       <div id="empty-state" class="hidden bg-white rounded-2xl p-10 text-center border border-beige-dark shadow-sm">
         <div class="w-16 h-16 bg-gold/20 rounded-full flex items-center justify-center mx-auto mb-4">

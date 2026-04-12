@@ -2,6 +2,7 @@
 
 const express  = require('express');
 const crypto   = require('crypto');
+const bcrypt   = require('bcryptjs');
 const passport = require('passport');
 const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const { z }    = require('zod');
@@ -13,7 +14,7 @@ const { CookieStateStore } = require('../lib/oauth-state-store');
 const router = express.Router();
 
 // ── In-memory rate limiting ───────────────────────────────────────────────────
-// send-code: max 3 OTPs per email per hour (prevents OTP spam)
+// send-code: max 6 OTPs per email per hour (generous for older users)
 const otpRateLimit = new Map(); // email → { count, resetAt }
 
 function checkOtpRateLimit(email) {
@@ -22,13 +23,16 @@ function checkOtpRateLimit(email) {
 
   if (!entry || entry.resetAt < now) {
     otpRateLimit.set(email, { count: 1, resetAt: now + 60 * 60 * 1000 });
-    return true; // allowed
+    return { ok: true };
   }
 
-  if (entry.count >= 3) return false; // rate-limited
+  if (entry.count >= 6) {
+    const minutesLeft = Math.ceil((entry.resetAt - now) / 60000);
+    return { ok: false, minutesLeft };
+  }
 
   entry.count++;
-  return true;
+  return { ok: true };
 }
 
 // verify-code: max 5 failed attempts per email → 15-min lockout (prevents OTP brute-force)
@@ -102,8 +106,12 @@ router.post('/send-code', async (req, res) => {
       purpose: z.enum(['LOGIN', 'LINK_BOOKING']).optional().default('LOGIN'),
     }).parse(req.body);
 
-    if (!checkOtpRateLimit(email)) {
-      return res.status(429).json({ error: 'Muitas tentativas. Aguarde 1 hora antes de tentar novamente.' });
+    const rateCheck = checkOtpRateLimit(email);
+    if (!rateCheck.ok) {
+      return res.status(429).json({
+        error: `Código enviado muitas vezes. Aguarde ${rateCheck.minutesLeft} min antes de tentar novamente.`,
+        minutesLeft: rateCheck.minutesLeft,
+      });
     }
 
     // Invalidate previous codes for this email + purpose
@@ -383,6 +391,78 @@ router.patch('/profile', async (req, res) => {
     if (err?.code === 'P2002') return res.status(409).json({ error: 'CPF já cadastrado' });
     console.error('[auth] profile update error:', err);
     res.status(500).json({ error: 'Erro ao atualizar perfil' });
+  }
+});
+
+// ── POST /api/auth/login-password ────────────────────────────────────────────
+// Email + password login (for users who have set a password)
+router.post('/login-password', async (req, res) => {
+  try {
+    const { email, password } = z.object({
+      email:    z.string().email(),
+      password: z.string().min(6).max(128),
+    }).parse(req.body);
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user?.passwordHash) {
+      return res.status(401).json({ error: 'Sem senha cadastrada. Use o código por e-mail.' });
+    }
+
+    const match = await bcrypt.compare(password, user.passwordHash);
+    if (!match) {
+      return res.status(401).json({ error: 'Senha incorreta.' });
+    }
+
+    req.session.regenerate((err) => {
+      if (err) return res.status(500).json({ error: 'Erro ao criar sessão' });
+      req.session.userId    = user.id;
+      req.session.userEmail = user.email;
+      req.session.save((err2) => {
+        if (err2) return res.status(500).json({ error: 'Erro ao salvar sessão' });
+        res.json({ success: true, user: sanitizeUser(user) });
+      });
+    });
+  } catch (err) {
+    if (err?.name === 'ZodError') return res.status(400).json({ error: 'Dados inválidos' });
+    console.error('[auth] login-password error:', err);
+    res.status(500).json({ error: 'Erro ao fazer login' });
+  }
+});
+
+// ── POST /api/auth/set-password ───────────────────────────────────────────────
+// Set or update password for the currently authenticated user
+router.post('/set-password', async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: 'Não autenticado' });
+  try {
+    const { password } = z.object({
+      password: z.string().min(6).max(128),
+    }).parse(req.body);
+
+    const hash = await bcrypt.hash(password, 12);
+    await prisma.user.update({
+      where: { id: req.session.userId },
+      data:  { passwordHash: hash },
+    });
+    res.json({ success: true });
+  } catch (err) {
+    if (err?.name === 'ZodError') return res.status(400).json({ error: 'Senha deve ter no mínimo 6 caracteres' });
+    console.error('[auth] set-password error:', err);
+    res.status(500).json({ error: 'Erro ao salvar senha' });
+  }
+});
+
+// ── GET /api/auth/has-password ────────────────────────────────────────────────
+// Returns whether the current user has a password set (for showing/hiding set-password UI)
+router.get('/has-password', async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: 'Não autenticado' });
+  try {
+    const user = await prisma.user.findUnique({
+      where:  { id: req.session.userId },
+      select: { passwordHash: true },
+    });
+    res.json({ hasPassword: !!user?.passwordHash });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao verificar senha' });
   }
 });
 

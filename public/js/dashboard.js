@@ -40,6 +40,19 @@ let currentUser = null;
   document.getElementById('loading-state').classList.add('hidden');
   document.getElementById('main-content').classList.remove('hidden');
 
+  // Show set-password banner for OTP users who haven't created a password
+  // (check sessionStorage to avoid showing again if dismissed)
+  if (!sessionStorage.getItem('pw-banner-dismissed')) {
+    fetch('/api/auth/has-password')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && data.hasPassword === false) {
+          document.getElementById('set-password-banner').classList.remove('hidden');
+        }
+      })
+      .catch(() => {/* silently ignore */});
+  }
+
   let hasAny = false;
 
   if (currentRes.ok) {
@@ -509,6 +522,65 @@ async function resendInvite(bookingId, guestId, btn) {
   } catch {
     alert('Erro de conexão. Tente novamente.');
     btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+// ── Set-password banner ───────────────────────────────────────────────────────
+function dismissPasswordBanner() {
+  sessionStorage.setItem('pw-banner-dismissed', '1');
+  document.getElementById('set-password-banner').classList.add('hidden');
+}
+
+async function setPassword() {
+  const pw  = document.getElementById('banner-password').value;
+  const pw2 = document.getElementById('banner-password-confirm').value;
+  const err = document.getElementById('banner-pw-error');
+  const ok  = document.getElementById('banner-pw-success');
+  const btn = document.getElementById('banner-pw-btn');
+
+  err.classList.add('hidden');
+  ok.classList.add('hidden');
+
+  if (!pw || pw.length < 6) {
+    err.textContent = 'A senha deve ter pelo menos 6 caracteres.';
+    err.classList.remove('hidden');
+    return;
+  }
+  if (pw !== pw2) {
+    err.textContent = 'As senhas não conferem.';
+    err.classList.remove('hidden');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+
+  try {
+    const res  = await fetch('/api/auth/set-password', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ password: pw }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      err.textContent = data.error || 'Erro ao salvar senha.';
+      err.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Salvar senha';
+      return;
+    }
+
+    // Hide the form, show success message, auto-close banner after 6s
+    document.getElementById('set-pw-form').classList.add('hidden');
+    ok.classList.remove('hidden');
+    sessionStorage.setItem('pw-banner-dismissed', '1');
+    setTimeout(() => document.getElementById('set-password-banner').classList.add('hidden'), 6000);
+  } catch {
+    err.textContent = 'Erro de conexão. Tente novamente.';
+    err.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Salvar senha';
   }
 }
 

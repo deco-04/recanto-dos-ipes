@@ -9,15 +9,16 @@ generator client {
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  phone     String?
-  cpf       String?  @unique
-  googleId  String?  @unique
-  avatarUrl String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  phone        String?
+  cpf          String?  @unique
+  googleId     String?  @unique
+  avatarUrl    String?
+  passwordHash String?  // optional — set by user after first OTP login
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   codes        VerificationCode[]
   bookings     Booking[]
