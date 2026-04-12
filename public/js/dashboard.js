@@ -13,8 +13,7 @@ const countdown = d => {
   // Check authentication
   const meRes = await fetch('/api/auth/me');
   if (!meRes.ok) {
-    document.getElementById('loading-state').classList.add('hidden');
-    document.getElementById('error-state').classList.remove('hidden');
+    window.location.replace('/login?returnTo=/dashboard');
     return;
   }
   const { user } = await meRes.json();

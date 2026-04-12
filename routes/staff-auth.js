@@ -82,7 +82,7 @@ router.post('/send-sms', async (req, res) => {
   const twilioClient = getTwilioClient();
   if (!twilioClient || !process.env.TWILIO_VERIFY_SID) {
     console.error('[staff-auth] Twilio not configured — set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SID');
-    return res.status(503).json({ error: 'SMS não configurado. Use o login por e-mail.' });
+    return res.status(503).json({ error: 'WhatsApp não configurado. Use o login por e-mail.' });
   }
 
   // Verificar se o staff existe (sem revelar ao cliente)
@@ -95,7 +95,7 @@ router.post('/send-sms', async (req, res) => {
   try {
     await twilioClient.verify.v2
       .services(process.env.TWILIO_VERIFY_SID)
-      .verifications.create({ to: phone, channel: 'sms' });
+      .verifications.create({ to: phone, channel: 'whatsapp' });
     return res.json({ sent: true });
   } catch (err) {
     console.error('[staff-auth] Twilio send-sms error:', err.message);
