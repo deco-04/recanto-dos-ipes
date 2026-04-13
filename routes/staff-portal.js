@@ -46,6 +46,34 @@ function requireRole(...roles) {
 
 router.use(requireStaff);
 
+// GET /api/staff/me — returns full staff profile (used by WebAuthn + token exchange)
+router.get('/me', async (req, res) => {
+  try {
+    const staff = await prisma.staffMember.findUnique({
+      where:  { id: req.staff.id },
+      select: {
+        id: true, name: true, email: true, phone: true,
+        role: true, fontSizePreference: true, firstLoginDone: true,
+        properties: { select: { property: { select: { id: true, name: true, slug: true } } } },
+      },
+    });
+    if (!staff) return res.status(404).json({ error: 'Não encontrado' });
+    res.json({
+      id:                 staff.id,
+      name:               staff.name,
+      email:              staff.email,
+      phone:              staff.phone,
+      role:               staff.role,
+      fontSizePreference: staff.fontSizePreference,
+      firstLoginDone:     staff.firstLoginDone,
+      properties:         staff.properties.map(p => p.property),
+    });
+  } catch (err) {
+    console.error('[staff-portal] GET /me error:', err);
+    res.status(500).json({ error: 'Erro ao buscar perfil' });
+  }
+});
+
 // Helper: serialize booking for front-end consumption
 function serializeBooking(b) {
   const sourceMap = { BOOKING_COM: 'BOOKING', AIRBNB: 'AIRBNB', DIRECT: 'DIRECT' };
@@ -395,6 +423,7 @@ router.get('/vistorias/:id', async (req, res) => {
         booking: { include: { user: { select: { name: true } } } },
         items: true,
         photos: true,
+        videos: true,
       },
     });
     if (!report) return res.status(404).json({ error: 'Vistoria não encontrada' });
@@ -407,12 +436,18 @@ router.get('/vistorias/:id', async (req, res) => {
       staffName: report.staff?.name || 'Equipe',
       guestName: report.booking?.user?.name || report.booking?.guestName || 'Hóspede',
       observacaoGeral: report.notes || '',
+      signatureUrl: report.signatureUrl || null,
       checklist: report.items.map((i) => ({
         label: i.description,
         status: i.status === 'NAO_VERIFICADO' ? 'PENDENTE' : i.status,
         observacao: i.problemDescription || '',
       })),
-      photos: report.photos.map((p) => ({ url: p.cloudinaryUrl })),
+      photos: report.photos
+        .map((p) => ({ url: p.thumbnailUrl || p.cloudinaryUrl }))
+        .filter((p) => p.url),
+      video: report.videos[0]
+        ? { url: report.videos[0].storageUrl }
+        : null,
     });
   } catch (err) {
     console.error('[staff-portal] vistorias/:id error:', err);
@@ -428,7 +463,7 @@ router.get('/vistorias/:id/pdf', async (req, res) => {
       include: {
         staff: { select: { name: true } },
         booking: { select: { guestName: true, checkIn: true, checkOut: true } },
-        property: { select: { name: true } },
+        property: { select: { name: true, slug: true } },
         items: true,
         photos: true,
         videos: true,
@@ -436,9 +471,34 @@ router.get('/vistorias/:id/pdf', async (req, res) => {
     });
     if (!report) return res.status(404).json({ error: 'Vistoria não encontrada' });
 
+    // Helper: resolve a storage URL to a Buffer for PDF embedding.
+    // Prefers the thumbnail for photos (smaller, sufficient for PDF grid).
+    async function resolveBuffer(storageUrl) {
+      if (!storageUrl) return null;
+      const { UPLOAD_DIR } = require('../lib/storage');
+      const publicBase = process.env.UPLOAD_PUBLIC_URL || 'http://localhost:3000';
+
+      if (process.env.STORAGE_PROVIDER === 'r2') {
+        try {
+          const res2 = await fetch(storageUrl, { signal: AbortSignal.timeout(5000) });
+          if (!res2.ok) return null;
+          return Buffer.from(await res2.arrayBuffer());
+        } catch { return null; }
+      }
+
+      // Local storage — derive fs path from URL
+      try {
+        const relPath = storageUrl.startsWith(publicBase)
+          ? storageUrl.slice(publicBase.length).replace(/^\/uploads\//, '')
+          : storageUrl.replace(/^\/uploads\//, '');
+        const fullPath = require('path').join(UPLOAD_DIR, relPath);
+        return await require('fs').promises.readFile(fullPath);
+      } catch { return null; }
+    }
+
     // Lazy-load pdfkit to avoid startup cost when not needed
     const PDFDocument = require('pdfkit');
-    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    const doc = new PDFDocument({ margin: 45, size: 'A4', autoFirstPage: true });
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
@@ -451,69 +511,146 @@ router.get('/vistorias/:id/pdf', async (req, res) => {
     const dateStr = report.submittedAt
       ? new Date(report.submittedAt).toLocaleDateString('pt-BR', { dateStyle: 'full' })
       : new Date(report.createdAt).toLocaleDateString('pt-BR', { dateStyle: 'full' });
+    const pageW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
-    // Header
-    doc.fontSize(18).font('Helvetica-Bold').text('Relatório de Vistoria', { align: 'center' });
-    doc.fontSize(12).font('Helvetica').text(`${tipoLabel} — ${dateStr}`, { align: 'center' });
-    doc.moveDown(0.5);
-    doc.fontSize(10).text(`Propriedade: ${report.property?.name || 'Recantos da Serra'}`);
+    // ── Header ────────────────────────────────────────────────────────────────
+    doc.rect(0, 0, doc.page.width, 80).fill('#3D2B1A');
+    doc.fillColor('white')
+      .fontSize(16).font('Helvetica-Bold')
+      .text('Relatório de Vistoria', doc.page.margins.left, 18, { width: pageW, align: 'center' });
+    doc.fontSize(10).font('Helvetica')
+      .text(`${tipoLabel} — ${dateStr}`, doc.page.margins.left, 42, { width: pageW, align: 'center' });
+    doc.fillColor('black');
+    doc.y = 100;
+
+    // ── Meta ─────────────────────────────────────────────────────────────────
+    doc.fontSize(10).font('Helvetica');
+    doc.text(`Propriedade: ${report.property?.name || 'Recantos da Serra'}`);
     doc.text(`Responsável: ${report.staff?.name || 'Equipe'}`);
     doc.text(`Hóspede: ${report.booking?.guestName || 'Não informado'}`);
-    doc.moveDown();
+    doc.moveDown(0.5);
+    doc.moveTo(doc.page.margins.left, doc.y)
+      .lineTo(doc.page.margins.left + pageW, doc.y)
+      .strokeColor('#e7e5e4').stroke();
+    doc.moveDown(0.5);
 
-    // Checklist
-    doc.fontSize(13).font('Helvetica-Bold').text('Checklist');
+    // ── Checklist ────────────────────────────────────────────────────────────
+    doc.fontSize(12).font('Helvetica-Bold').fillColor('#3D2B1A').text('Checklist');
     doc.moveDown(0.3);
-    doc.font('Helvetica').fontSize(10);
+    doc.font('Helvetica').fontSize(9).fillColor('black');
 
     for (const item of report.items) {
+      const isProblema = item.status === 'PROBLEMA';
       const statusLabel = item.status === 'OK' ? '✓ OK'
         : item.status === 'PROBLEMA' ? '⚠ Problema'
-        : '— Pendente';
-      doc.text(`${statusLabel}  ${item.description}`, { continued: false });
+        : '– Pendente';
+      doc.fillColor(isProblema ? '#b91c1c' : item.status === 'OK' ? '#15803d' : '#78716c');
+      doc.text(statusLabel, { continued: true, width: 70 });
+      doc.fillColor('black').text(`  ${item.description}`);
       if (item.problemDescription) {
-        doc.fillColor('#c45c2e').text(`   Obs: ${item.problemDescription}`).fillColor('black');
+        doc.fillColor('#c45c2e').text(`    ↳ ${item.problemDescription}`).fillColor('black');
       }
     }
 
-    // Notes
+    // ── Notes ────────────────────────────────────────────────────────────────
     if (report.notes) {
-      doc.moveDown();
-      doc.fontSize(13).font('Helvetica-Bold').text('Observações Gerais');
-      doc.font('Helvetica').fontSize(10).text(report.notes);
+      doc.moveDown(0.5);
+      doc.moveTo(doc.page.margins.left, doc.y).lineTo(doc.page.margins.left + pageW, doc.y)
+        .strokeColor('#e7e5e4').stroke();
+      doc.moveDown(0.5);
+      doc.fontSize(12).font('Helvetica-Bold').fillColor('#3D2B1A').text('Observações Gerais');
+      doc.font('Helvetica').fontSize(9).fillColor('black').text(report.notes);
     }
 
-    // Photos section header
-    if (report.photos.length > 0) {
-      doc.moveDown();
-      doc.fontSize(13).font('Helvetica-Bold').text(`Fotos (${report.photos.length})`);
-      doc.font('Helvetica').fontSize(9).fillColor('#888')
-        .text('Imagens registradas durante a vistoria.')
-        .fillColor('black');
-    }
-
-    // Video note
+    // ── Video note ────────────────────────────────────────────────────────────
     if (report.videos && report.videos.length > 0) {
-      doc.moveDown();
-      doc.fontSize(10).font('Helvetica')
-        .text(`Vídeo anexado: ${report.videos[0].storageUrl}`);
-    }
-
-    // Signature
-    doc.moveDown();
-    if (report.signatureUrl) {
-      doc.fontSize(13).font('Helvetica-Bold').text('Assinatura');
-      // Note: embedding remote image URLs in pdfkit requires fetching first
-      // For now, include the URL as a reference
-      doc.font('Helvetica').fontSize(9).fillColor('#888')
-        .text(`(Assinatura registrada em: ${report.signatureUrl})`)
+      doc.moveDown(0.5);
+      doc.fontSize(9).font('Helvetica').fillColor('#57534e')
+        .text(`🎥  Vídeo anexado ao relatório — acesse pelo aplicativo para visualizar.`)
         .fillColor('black');
     }
 
-    // Footer
-    doc.moveDown(2);
-    doc.fontSize(8).fillColor('#aaa')
-      .text(`Gerado em ${new Date().toLocaleString('pt-BR')} — ID: ${report.id}`, { align: 'center' });
+    // ── Photos ────────────────────────────────────────────────────────────────
+    if (report.photos.length > 0) {
+      doc.addPage();
+      doc.fontSize(12).font('Helvetica-Bold').fillColor('#3D2B1A')
+        .text(`Fotos (${report.photos.length})`);
+      doc.moveDown(0.4);
+      doc.fillColor('black');
+
+      const cols   = 2;
+      const gap    = 10;
+      const imgW   = (pageW - gap) / cols;
+      const imgH   = Math.round(imgW * 0.70); // ~4:3 aspect
+      const marginL = doc.page.margins.left;
+
+      let col = 0;
+      let rowY = doc.y;
+
+      for (const photo of report.photos) {
+        // Use thumbnail if available (smaller/faster), fall back to original
+        const src = photo.thumbnailUrl || photo.cloudinaryUrl;
+        const buf = await resolveBuffer(src);
+
+        // Add a new page when row would overflow
+        if (rowY + imgH > doc.page.height - doc.page.margins.bottom - 20) {
+          doc.addPage();
+          rowY = doc.page.margins.top;
+          col  = 0;
+        }
+
+        const x = marginL + col * (imgW + gap);
+        if (buf) {
+          try {
+            doc.image(buf, x, rowY, { width: imgW, height: imgH, cover: [imgW, imgH], align: 'center', valign: 'center' });
+          } catch {
+            // Unsupported format — draw placeholder box
+            doc.rect(x, rowY, imgW, imgH).strokeColor('#d6d3d1').lineWidth(1).stroke();
+            doc.fontSize(7).fillColor('#a8a29e')
+              .text('(imagem indisponível)', x + 5, rowY + imgH / 2 - 5, { width: imgW - 10, align: 'center' })
+              .fillColor('black');
+          }
+        } else {
+          doc.rect(x, rowY, imgW, imgH).strokeColor('#d6d3d1').lineWidth(1).stroke();
+        }
+
+        col++;
+        if (col >= cols) {
+          col  = 0;
+          rowY += imgH + gap;
+        }
+      }
+
+      // Advance cursor past last row
+      doc.y = rowY + imgH + gap;
+    }
+
+    // ── Signature ────────────────────────────────────────────────────────────
+    if (report.signatureUrl) {
+      doc.moveDown(0.5);
+      doc.moveTo(doc.page.margins.left, doc.y).lineTo(doc.page.margins.left + pageW, doc.y)
+        .strokeColor('#e7e5e4').stroke();
+      doc.moveDown(0.5);
+      doc.fontSize(12).font('Helvetica-Bold').fillColor('#3D2B1A').text('Assinatura');
+      doc.moveDown(0.3);
+
+      const sigBuf = await resolveBuffer(report.signatureUrl);
+      if (sigBuf) {
+        try {
+          doc.image(sigBuf, doc.page.margins.left, doc.y, { height: 60, fit: [200, 60] });
+          doc.y += 70;
+        } catch {
+          doc.fontSize(8).fillColor('#a8a29e').text('(assinatura indisponível)').fillColor('black');
+        }
+      } else {
+        doc.fontSize(8).fillColor('#a8a29e').text('(assinatura indisponível)').fillColor('black');
+      }
+    }
+
+    // ── Footer ────────────────────────────────────────────────────────────────
+    doc.moveDown(1.5);
+    doc.fontSize(7).fillColor('#a8a29e')
+      .text(`Gerado em ${new Date().toLocaleString('pt-BR')} · ID ${report.id}`, { align: 'center' });
 
     doc.end();
   } catch (err) {
@@ -639,6 +776,129 @@ router.post('/chamados', async (req, res) => {
   }
 });
 
+// ── GET /api/staff/chamados ──────────────────────────────────────────────────
+// Returns open/in-progress service tickets for the active property.
+router.get('/chamados', async (req, res) => {
+  try {
+    const property = await prisma.property.findFirst({ where: { active: true } });
+    if (!property) return res.status(500).json({ error: 'Propriedade não encontrada' });
+
+    const tickets = await prisma.serviceTicket.findMany({
+      where: {
+        propertyId: property.id,
+        status: { in: ['ABERTO', 'EM_ANDAMENTO'] },
+      },
+      include: {
+        openedBy: { select: { id: true, name: true } },
+      },
+      orderBy: [{ createdAt: 'desc' }],
+      take: 50,
+    });
+    res.json(tickets);
+  } catch (err) {
+    console.error('[staff-portal] GET /chamados error:', err);
+    res.status(500).json({ error: 'Erro ao buscar chamados' });
+  }
+});
+
+// ── PATCH /api/staff/chamados/:id ─────────────────────────────────────────────
+// Updates ticket status. ADMIN and GUARDIA only.
+router.patch('/chamados/:id', requireRole('ADMIN', 'GUARDIA'), async (req, res) => {
+  const { status } = req.body;
+  const valid = ['ABERTO', 'EM_ANDAMENTO', 'RESOLVIDO', 'FECHADO'];
+  if (!status || !valid.includes(status)) {
+    return res.status(400).json({ error: 'Status inválido' });
+  }
+  try {
+    const ticket = await prisma.serviceTicket.update({
+      where: { id: req.params.id },
+      data: { status },
+    });
+    res.json(ticket);
+  } catch {
+    res.status(500).json({ error: 'Erro ao atualizar chamado' });
+  }
+});
+
+// ── GET /api/staff/tarefas ───────────────────────────────────────────────────
+// Returns tasks assigned to the requesting staff member.
+router.get('/tarefas', async (req, res) => {
+  try {
+    const tasks = await prisma.staffTask.findMany({
+      where: { assignedToId: req.staff.id },
+      orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
+    });
+    res.json(tasks);
+  } catch (err) {
+    console.error('[staff-portal] GET /tarefas error:', err);
+    res.status(500).json({ error: 'Erro ao buscar tarefas' });
+  }
+});
+
+// ── Guest Messages ────────────────────────────────────────────────────────────
+
+// GET /api/staff/reservas/:id/mensagens — all messages for a booking (all roles)
+router.get('/reservas/:id/mensagens', async (req, res) => {
+  try {
+    const booking = await prisma.booking.findUnique({ where: { id: req.params.id }, select: { id: true } });
+    if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    const messages = await prisma.guestMessage.findMany({
+      where: { bookingId: req.params.id },
+      include: { staff: { select: { id: true, name: true } } },
+      orderBy: { sentAt: 'asc' },
+    });
+    res.json(messages);
+  } catch (err) {
+    console.error('[staff-portal] GET /reservas/:id/mensagens error:', err);
+    res.status(500).json({ error: 'Erro ao buscar mensagens' });
+  }
+});
+
+// POST /api/staff/reservas/:id/mensagens — send a message (ADMIN + GUARDIA only)
+router.post('/reservas/:id/mensagens', requireRole('ADMIN', 'GUARDIA'), async (req, res) => {
+  try {
+    const { body, channel = 'MANUAL', direction = 'OUTBOUND' } = req.body;
+    if (!body?.trim()) return res.status(400).json({ error: 'Mensagem não pode ser vazia' });
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, guestName: true, guestPhone: true },
+    });
+    if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    const message = await prisma.guestMessage.create({
+      data: {
+        bookingId: req.params.id,
+        staffId: req.staff.id,
+        direction,
+        channel,
+        body: body.trim(),
+      },
+      include: { staff: { select: { id: true, name: true } } },
+    });
+
+    // TODO: wire GHL webhook when phone number and integration are configured
+    // if (channel === 'WHATSAPP' && process.env.GHL_WEBHOOK_URL && booking.guestPhone) {
+    //   await fetch(process.env.GHL_WEBHOOK_URL, {
+    //     method: 'POST',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify({
+    //       bookingId: booking.id,
+    //       guestPhone: booking.guestPhone,
+    //       message: body.trim(),
+    //       staffName: req.staff.name,
+    //     }),
+    //   }).catch(err => console.error('[GHL webhook] error:', err));
+    // }
+
+    res.status(201).json(message);
+  } catch (err) {
+    console.error('[staff-portal] POST /reservas/:id/mensagens error:', err);
+    res.status(500).json({ error: 'Erro ao enviar mensagem' });
+  }
+});
+
 // ── GET /api/staff/push/vapid-key ─────────────────────────────────────────────
 // Returns the VAPID public key so the PWA can create a PushSubscription.
 router.get('/push/vapid-key', (_req, res) => {
@@ -730,6 +990,288 @@ router.get('/piscina/programacao', requireRole('ADMIN', 'PISCINEIRO'), async (_r
   } catch (err) {
     console.error('[staff] piscina/programacao error:', err.message);
     res.status(500).json({ error: 'Erro ao buscar programação' });
+  }
+});
+
+// ── Inventário (AmenitiesItem) ────────────────────────────────────────────────
+
+// GET /api/staff/propriedade — active property type + cabin list (for form context)
+router.get('/propriedade', async (_req, res) => {
+  try {
+    const property = await prisma.property.findFirst({
+      where:  { active: true },
+      select: { id: true, name: true, type: true, cabins: { where: { active: true }, select: { id: true, name: true, slug: true }, orderBy: { name: 'asc' } } },
+    });
+    if (!property) return res.status(404).json({ error: 'Propriedade não encontrada' });
+    res.json(property);
+  } catch (err) {
+    console.error('[staff-portal] GET /propriedade error:', err);
+    res.status(500).json({ error: 'Erro ao buscar propriedade' });
+  }
+});
+
+router.get('/inventario', async (req, res) => {
+  try {
+    const property = await prisma.property.findFirst({ where: { active: true }, select: { id: true } });
+    if (!property) return res.json([]);
+    const items = await prisma.amenitiesItem.findMany({
+      where:   { propertyId: property.id },
+      orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    });
+    res.json(items);
+  } catch (err) {
+    console.error('[staff] inventario GET error:', err);
+    res.status(500).json({ error: 'Erro ao buscar inventário' });
+  }
+});
+
+router.post('/inventario', requireRole('ADMIN'), async (req, res) => {
+  const schema = z.object({
+    category:    z.string().min(1).max(60),
+    name:        z.string().min(1).max(100),
+    quantity:    z.number().int().min(0).default(1),
+    minQuantity: z.number().int().min(0).default(1),
+    unit:        z.string().min(1).max(20).default('un'),
+    notes:       z.string().max(300).optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
+
+  try {
+    const property = await prisma.property.findFirst({ where: { active: true }, select: { id: true } });
+    if (!property) return res.status(404).json({ error: 'Nenhuma propriedade ativa' });
+    const item = await prisma.amenitiesItem.create({
+      data: { ...parsed.data, propertyId: property.id },
+    });
+    res.json(item);
+  } catch (err) {
+    console.error('[staff] inventario POST error:', err);
+    res.status(500).json({ error: 'Erro ao criar item' });
+  }
+});
+
+router.patch('/inventario/:id', requireRole('ADMIN', 'GUARDIA'), async (req, res) => {
+  const schema = z.object({
+    quantity:     z.number().int().min(0).optional(),
+    minQuantity:  z.number().int().min(0).optional(),
+    name:         z.string().min(1).max(100).optional(),
+    category:     z.string().min(1).max(60).optional(),
+    unit:         z.string().min(1).max(20).optional(),
+    notes:        z.string().max(300).nullable().optional(),
+    lastChecked:  z.string().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
+
+  try {
+    const item = await prisma.amenitiesItem.update({
+      where: { id: req.params.id },
+      data:  {
+        ...parsed.data,
+        ...(parsed.data.lastChecked ? { lastChecked: new Date(parsed.data.lastChecked) } : {}),
+        updatedAt: new Date(),
+      },
+    });
+    res.json(item);
+  } catch (err) {
+    console.error('[staff] inventario PATCH error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar item' });
+  }
+});
+
+router.delete('/inventario/:id', requireRole('ADMIN'), async (req, res) => {
+  try {
+    await prisma.amenitiesItem.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[staff] inventario DELETE error:', err);
+    res.status(500).json({ error: 'Erro ao deletar item' });
+  }
+});
+
+// ── Fornecedores ──────────────────────────────────────────────────────────────
+
+router.get('/fornecedores', async (_req, res) => {
+  try {
+    const items = await prisma.fornecedor.findMany({
+      where:   { active: true },
+      orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    });
+    res.json(items);
+  } catch (err) {
+    console.error('[staff] fornecedores GET error:', err);
+    res.status(500).json({ error: 'Erro ao buscar fornecedores' });
+  }
+});
+
+router.post('/fornecedores', requireRole('ADMIN'), async (req, res) => {
+  const schema = z.object({
+    name:     z.string().min(1).max(100),
+    category: z.string().min(1).max(60),
+    phone:    z.string().max(20).optional(),
+    email:    z.string().email().optional().or(z.literal('')),
+    notes:    z.string().max(500).optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
+
+  try {
+    const item = await prisma.fornecedor.create({ data: parsed.data });
+    res.json(item);
+  } catch (err) {
+    console.error('[staff] fornecedores POST error:', err);
+    res.status(500).json({ error: 'Erro ao criar fornecedor' });
+  }
+});
+
+router.patch('/fornecedores/:id', requireRole('ADMIN'), async (req, res) => {
+  const schema = z.object({
+    name:     z.string().min(1).max(100).optional(),
+    category: z.string().min(1).max(60).optional(),
+    phone:    z.string().max(20).nullable().optional(),
+    email:    z.string().email().nullable().optional().or(z.literal('')),
+    notes:    z.string().max(500).nullable().optional(),
+    active:   z.boolean().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
+
+  try {
+    const item = await prisma.fornecedor.update({
+      where: { id: req.params.id },
+      data:  { ...parsed.data, updatedAt: new Date() },
+    });
+    res.json(item);
+  } catch (err) {
+    console.error('[staff] fornecedores PATCH error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar fornecedor' });
+  }
+});
+
+router.delete('/fornecedores/:id', requireRole('ADMIN'), async (req, res) => {
+  try {
+    // Soft-delete
+    await prisma.fornecedor.update({ where: { id: req.params.id }, data: { active: false } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[staff] fornecedores DELETE error:', err);
+    res.status(500).json({ error: 'Erro ao remover fornecedor' });
+  }
+});
+
+// ── IA Operações ──────────────────────────────────────────────────────────────
+const { runAlertRules } = require('../lib/alert-rules');
+
+// GET /api/staff/ia/alertas — live operational alerts
+router.get('/ia/alertas', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const property = await prisma.property.findFirst({
+      where: { active: true },
+      select: { id: true },
+    });
+    if (!property) return res.json({ alertas: [], geradoEm: new Date().toISOString() });
+
+    const propertyId = req.query.propertyId || property.id;
+    const alertas    = await runAlertRules(prisma, propertyId);
+    res.json({ alertas, geradoEm: new Date().toISOString() });
+  } catch (err) {
+    console.error('[staff-portal] ia/alertas error:', err);
+    res.status(500).json({ error: 'Erro ao gerar alertas' });
+  }
+});
+
+// POST /api/staff/ia/briefing — daily narrative brief via Claude
+// 6-hour module-level cache. Pass ?refresh=1 to force regeneration.
+const _briefCache = new Map(); // propertyId → { text, cachedAt }
+const BRIEF_TTL_MS = 6 * 60 * 60 * 1000;
+
+router.post('/ia/briefing', requireRole('ADMIN'), async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(503).json({ error: 'ANTHROPIC_API_KEY não configurada' });
+  }
+
+  try {
+    const property = await prisma.property.findFirst({
+      where: { active: true },
+      select: { id: true, name: true },
+    });
+    if (!property) return res.status(404).json({ error: 'Nenhuma propriedade ativa' });
+
+    const propertyId  = req.query.propertyId || property.id;
+    const forceRefresh = req.query.refresh === '1';
+    const cached       = _briefCache.get(propertyId);
+
+    if (cached && !forceRefresh && Date.now() - cached.cachedAt < BRIEF_TTL_MS) {
+      return res.json({ text: cached.text, cachedAt: new Date(cached.cachedAt).toISOString(), fromCache: true });
+    }
+
+    // Gather operational snapshot
+    const now         = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const threeDaysAhead = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+    const [recentBookings, upcomingBookings, openTickets, overdueSchedules, alertas] = await Promise.all([
+      prisma.booking.findMany({
+        where:  { propertyId, checkOut: { gte: sevenDaysAgo, lt: now } },
+        select: { status: true, guestName: true, nights: true },
+      }),
+      prisma.booking.findMany({
+        where:  { propertyId, status: 'CONFIRMED', checkIn: { gte: now, lte: threeDaysAhead } },
+        select: { guestName: true, checkIn: true, guestCount: true },
+      }),
+      prisma.serviceTicket.findMany({
+        where:  { propertyId, status: { in: ['ABERTO', 'EM_ANDAMENTO'] } },
+        select: { title: true, priority: true, status: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.maintenanceSchedule.findMany({
+        where:  { propertyId, nextDueAt: { lt: now } },
+        select: { item: true, nextDueAt: true },
+      }),
+      runAlertRules(prisma, propertyId),
+    ]);
+
+    const urgent = alertas.filter(a => a.severity === 'URGENTE');
+
+    const ticketsSection = openTickets.length > 0
+      ? `\nChamados abertos (${openTickets.length}):\n${openTickets.slice(0, 5).map(t => `• ${t.title} [${t.priority}]`).join('\n')}`
+      : '';
+    const overdueSection = overdueSchedules.length > 0
+      ? `\nManutenções atrasadas:\n${overdueSchedules.map(s => `• ${s.item} (desde ${s.nextDueAt.toLocaleDateString('pt-BR')})`).join('\n')}`
+      : '';
+    const upcomingSection = upcomingBookings.length > 0
+      ? `\nCheck-ins nos próximos 3 dias:\n${upcomingBookings.map(b => `• ${b.guestName} — ${new Date(b.checkIn).toLocaleDateString('pt-BR')} (${b.guestCount} hóspede${b.guestCount !== 1 ? 's' : ''})`).join('\n')}`
+      : '';
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client    = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const response = await client.messages.create({
+      model:      'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      messages:   [{
+        role:    'user',
+        content: `Você é o sistema de gestão operacional do ${property.name}, uma pousada em Jaboticatubas, MG.
+
+Snapshot do dia ${now.toLocaleDateString('pt-BR')}:
+- Check-outs nos últimos 7 dias: ${recentBookings.length}
+- Check-ins nos próximos 3 dias: ${upcomingBookings.length}
+- Alertas ativos: ${alertas.length} (${urgent.length} urgentes)
+- Chamados abertos: ${openTickets.length}
+- Manutenções atrasadas: ${overdueSchedules.length}
+${ticketsSection}${overdueSection}${upcomingSection}
+
+Escreva um briefing operacional diário em português. 3 a 4 parágrafos curtos. Destaque prioridades imediatas, o que está bem encaminhado, e qualquer ação recomendada. Tom: direto, profissional, sem dramaturgia.`,
+      }],
+    });
+
+    const text = response.content[0]?.text || '';
+    _briefCache.set(propertyId, { text, cachedAt: Date.now() });
+
+    res.json({ text, cachedAt: new Date().toISOString(), fromCache: false });
+  } catch (err) {
+    console.error('[staff-portal] ia/briefing error:', err);
+    res.status(500).json({ error: 'Erro ao gerar briefing' });
   }
 });
 

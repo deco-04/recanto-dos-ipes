@@ -90,6 +90,7 @@ model Booking {
   inspections     InspectionReport[]
   maintenanceLogs MaintenanceLog[]
   coGuests        BookingGuest[]
+  messages        GuestMessage[]
 
   @@index([checkIn, checkOut])
   @@index([guestEmail])
@@ -182,6 +183,7 @@ model Property {
   schedules   MaintenanceSchedule[]
   pricing     SeasonalPricing[]         @relation("PropertyPricing")
   suggestions PricingSuggestion[]
+  inventory   AmenitiesItem[]
 }
 
 enum PropertyType {
@@ -232,6 +234,8 @@ model StaffMember {
   tasksCreated     StaffTask[]         @relation("TaskCreator")
   notifications    PushNotification[]
   pricingApprovals PricingSuggestion[]
+  messages         GuestMessage[]
+  webauthnCreds    WebAuthnCredential[]
 }
 
 enum StaffRole {
@@ -405,6 +409,38 @@ model MaintenanceSchedule {
   property Property @relation(fields: [propertyId], references: [id])
 }
 
+// ── Amenities / Inventory ─────────────────────────────────────────────────────
+model AmenitiesItem {
+  id           String    @id @default(cuid())
+  propertyId   String
+  category     String
+  name         String
+  quantity     Int       @default(1)
+  minQuantity  Int       @default(1)
+  unit         String    @default("un")
+  notes        String?
+  lastChecked  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id])
+
+  @@index([propertyId])
+}
+
+// ── Suppliers ─────────────────────────────────────────────────────────────────
+model Fornecedor {
+  id        String   @id @default(cuid())
+  name      String
+  category  String
+  phone     String?
+  email     String?
+  notes     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // ── Tasks ─────────────────────────────────────────────────────────────────────
 model StaffTask {
   id           String     @id @default(cuid())
@@ -517,6 +553,44 @@ enum GuestInviteStatus {
   PENDENTE
   CONFIRMADO
   CANCELADO
+}
+
+// ── WebAuthn Credentials ──────────────────────────────────────────────────────
+model WebAuthnCredential {
+  id           String      @id @default(cuid())
+  staffId      String
+  credentialId String      @unique  // base64url-encoded credential ID
+  publicKey    Bytes
+  counter      BigInt      @default(0)
+  transports   String[]
+  createdAt    DateTime    @default(now())
+  lastUsedAt   DateTime?
+
+  staff StaffMember @relation(fields: [staffId], references: [id])
+
+  @@index([staffId])
+}
+
+// ── Guest Messages ────────────────────────────────────────────────────────────
+model GuestMessage {
+  id        String           @id @default(cuid())
+  bookingId String
+  staffId   String?
+  direction MessageDirection
+  channel   String           @default("MANUAL") // WHATSAPP | EMAIL | MANUAL
+  body      String           @db.Text
+  sentAt    DateTime         @default(now())
+
+  booking Booking      @relation(fields: [bookingId], references: [id])
+  staff   StaffMember? @relation(fields: [staffId], references: [id])
+
+  @@index([bookingId])
+  @@index([sentAt])
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
 }
 
 // ── Push Notifications ────────────────────────────────────────────────────────
