@@ -160,14 +160,35 @@ app.use(express.urlencoded({ extended: true }));
 app.set('trust proxy', 1);
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
-// connect-pg-simple auto-creates a "session" table (sid/sess/expire columns).
-// We do NOT use a Prisma Session model — column names are incompatible.
+// connect-pg-simple stores sessions in a "session" table. createTableIfMissing
+// only fires on first SET (write), not GET, so we ensure the table exists
+// explicitly on startup to avoid "relation does not exist" errors on every request.
 const sessionStore = process.env.DATABASE_URL
   ? new PgSession({
       conString:            process.env.DATABASE_URL,
-      createTableIfMissing: true,   // auto-creates "session" table on first boot
+      createTableIfMissing: true,
     })
   : new session.MemoryStore();
+
+if (process.env.DATABASE_URL) {
+  const { Pool } = require('pg');
+  const _pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  _pool.query(`
+    CREATE TABLE IF NOT EXISTS "session" (
+      "sid"    varchar     NOT NULL COLLATE "default",
+      "sess"   json        NOT NULL,
+      "expire" timestamp(6) NOT NULL
+    );
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'session_pkey'
+      ) THEN
+        ALTER TABLE "session" ADD CONSTRAINT "session_pkey" PRIMARY KEY ("sid");
+      END IF;
+    END $$;
+    CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+  `).then(() => _pool.end()).catch(err => console.error('[session-init]', err.message));
+}
 
 // SESSION_SECRET is validated above (process.exit(1) if missing in production)
 
