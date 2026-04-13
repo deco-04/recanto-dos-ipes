@@ -1,55 +1,73 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-     viewBox="0 0 32 32" width="32" height="32">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
   <!--
-    Sítio Recanto dos Ipês — Favicon
-    Official SRI brand mark (gold) on deep forest background.
-    Mark is landscape (3779×2645) — detail compresses at 16–32px by design;
-    the silhouette shape and gold-on-dark identity reinforce the brand.
+    Sítio Recanto dos Ipês — Favicon (self-contained, no external refs)
+    Design: Simplified silhouette of the SRI brand mark landscape — a gentle mountain
+    ridgeline with a central ipê tree form, in brand gold on forest dark.
+    At 16–32px the shape reads as the brand's nature/landscape identity.
+    All paths are inline; no external resource loading required.
     Brand colors: Forest #1C1208 · Gold #C5D86D · Green #2B7929
   -->
   <defs>
-
-    <!-- Forest dark gradient -->
     <linearGradient id="bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
       <stop offset="0%"   stop-color="#1F1409"/>
       <stop offset="100%" stop-color="#110B03"/>
     </linearGradient>
-
-    <!-- Green ambient — top-left -->
-    <radialGradient id="gg" cx="3" cy="3" r="16" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#2B7929" stop-opacity="0.35"/>
+    <radialGradient id="gg" cx="4" cy="4" r="14" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#2B7929" stop-opacity="0.32"/>
       <stop offset="100%" stop-color="#2B7929" stop-opacity="0"/>
     </radialGradient>
-
-    <!-- Gold warmth — bottom -->
-    <radialGradient id="ga" cx="16" cy="30" r="14" gradientUnits="userSpaceOnUse">
+    <radialGradient id="ga" cx="16" cy="29" r="13" gradientUnits="userSpaceOnUse">
       <stop offset="0%"   stop-color="#C5D86D" stop-opacity="0.22"/>
       <stop offset="100%" stop-color="#C5D86D" stop-opacity="0"/>
     </radialGradient>
-
-    <!-- Edge vignette -->
-    <radialGradient id="vg" cx="16" cy="16" r="17" gradientUnits="userSpaceOnUse">
-      <stop offset="58%"  stop-color="rgba(0,0,0,0)"/>
-      <stop offset="100%" stop-color="rgba(0,0,0,0.50)"/>
-    </radialGradient>
-
   </defs>
 
-  <!-- ── Background ── -->
-  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
-  <rect width="32" height="32" rx="7" fill="url(#gg)"/>
-  <rect width="32" height="32" rx="7" fill="url(#ga)"/>
+  <!-- Background -->
+  <rect width="32" height="32" rx="6" fill="url(#bg)"/>
+  <rect width="32" height="32" rx="6" fill="url(#gg)"/>
+  <rect width="32" height="32" rx="6" fill="url(#ga)"/>
 
-  <!-- ── Brand mark — gold, centred, fills 84% of favicon width ──
-       Mark ratio: 3779 ÷ 2645 = 1.4286
-       Width = 27px → Height = 18.9px → x=2.5, y=6.5
-  ── -->
-  <image href="/brand/sri-mark-gold.svg"
-         x="2.5" y="6.5"
-         width="27" height="18.9"
-         preserveAspectRatio="xMidYMid meet"/>
+  <!--
+    Simplified SRI brand mark silhouette — gold (#C5D86D):
 
-  <!-- ── Edge vignette ── -->
-  <rect width="32" height="32" rx="7" fill="url(#vg)"/>
+    The mark is a landscape scene: a sweeping arc from lower-left to upper-right
+    with tree forms beneath it, and the property name below.
+
+    At 32px we render the core visual: a rising arc (mountain/treetop ridgeline)
+    with three distinct crown forms beneath — the characteristic tree canopy profile
+    of the brand mark — plus a baseline bar representing the text zone.
+
+    Path breakdown:
+      1. Main arc: sweeping curve from left rising to right (the landscape ridgeline)
+      2. Three tree-crown humps: left (shorter), centre (tallest, the ipê), right (mid)
+      3. Thin base bar: anchors the mark like the text base in the original
+  -->
+
+  <!-- Tree canopy profile + landscape arc — the brand mark's core silhouette -->
+  <path d="
+    M 4 22
+    Q 6 18  8 17
+    Q 10 16  10 14
+    Q 10 11  13 10
+    Q 16 9   16 7
+    Q 16 9   19 10
+    Q 22 11  22 14
+    Q 22 16  24 17
+    Q 26 18  28 22
+    Z
+  " fill="#C5D86D" opacity="0.92"/>
+
+  <!--
+    Notch cuts to separate the three "tree crown" forms from the main fill.
+    Left crown, centre peak (tallest — the ipê), right crown.
+    Created by overlaying dark triangular notches between the crowns.
+  -->
+  <!-- Left notch (between left crown and centre) -->
+  <polygon points="12,22 13,15 14,22" fill="#1C1208"/>
+  <!-- Right notch (between centre and right crown) -->
+  <polygon points="18,22 19,15 20,22" fill="#1C1208"/>
+
+  <!-- Base bar — represents the text band in the original mark -->
+  <rect x="4" y="24" width="24" height="2" rx="1" fill="#C5D86D" opacity="0.55"/>
 
 </svg>

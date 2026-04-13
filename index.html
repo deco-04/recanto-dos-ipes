@@ -11,7 +11,9 @@
   <link rel="canonical" href="https://sitiorecantodosipes.com/">
   <link rel="sitemap" type="application/xml" href="/sitemap.xml">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="shortcut icon" href="/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png">
+  <link rel="shortcut icon" href="/icons/favicon-32.png">
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#261C15">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -229,7 +231,11 @@
     }
 
     /* Navbar scroll effect */
-    #navbar { transition: background 0.3s, box-shadow 0.3s, padding 0.3s; }
+    /* Mobile: forest dark immediately so white mark is visible before hero image loads */
+    #navbar { transition: background 0.3s, box-shadow 0.3s, padding 0.3s; background: rgba(28,18,8,0.72); }
+    @media (min-width: 768px) {
+      #navbar { background: transparent; }
+    }
     #navbar.scrolled { background: rgba(38,28,21,0.97); box-shadow: 0 2px 24px rgba(0,0,0,0.22); padding-top: 0.6rem; padding-bottom: 0.6rem; }
 
     /* Gold underline accent */
@@ -379,9 +385,9 @@
 <!-- ═══════════════════════════════════════════
      HERO
 ════════════════════════════════════════════ -->
-<section id="inicio" class="relative min-h-screen flex items-center justify-center overflow-hidden">
+<section id="inicio" class="relative min-h-screen flex items-center justify-center overflow-hidden" style="background-color:#1C1208;">
 
-  <!-- Background image -->
+  <!-- Background image — fallback color #1C1208 (forest dark) shows while JPEG loads on mobile -->
   <div class="absolute inset-0 bg-cover bg-center bg-no-repeat"
        style="background-image: url('/images/rancho.jpg');">
   </div>
