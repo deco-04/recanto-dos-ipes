@@ -267,16 +267,30 @@ model InspectionReport {
   staffId          String
   type             InspectionType
   status           InspectionStatus @default(DRAFT)
-  signatureDataUrl String?          @db.Text
+  signatureDataUrl String?          @db.Text  // deprecated — use signatureUrl
+  signatureUrl     String?          // URL to stored signature file
   submittedAt      DateTime?
   notes            String?          @db.Text
   createdAt        DateTime         @default(now())
 
-  booking  Booking     @relation(fields: [bookingId], references: [id])
-  property Property    @relation(fields: [propertyId], references: [id])
-  staff    StaffMember @relation(fields: [staffId], references: [id])
+  booking  Booking           @relation(fields: [bookingId], references: [id])
+  property Property          @relation(fields: [propertyId], references: [id])
+  staff    StaffMember       @relation(fields: [staffId], references: [id])
   items    InspectionItem[]
   photos   InspectionPhoto[]
+  videos   InspectionVideo[]
+}
+
+model InspectionVideo {
+  id              String           @id @default(cuid())
+  reportId        String
+  storagePath     String
+  storageUrl      String
+  durationMs      Int?
+  takenAt         DateTime         @default(now())
+  originalDeleted Boolean          @default(false) // true after retention purge
+
+  report InspectionReport @relation(fields: [reportId], references: [id])
 }
 
 enum InspectionType {
@@ -312,10 +326,12 @@ model InspectionPhoto {
   id                 String   @id @default(cuid())
   reportId           String
   itemId             String?
-  cloudinaryPublicId String
-  cloudinaryUrl      String
+  cloudinaryPublicId String   // relative storage path of the original
+  cloudinaryUrl      String   // URL of the original (may 404 after retention purge)
+  thumbnailUrl       String?  // URL of the thumbnail — kept forever
   caption            String?
   takenAt            DateTime @default(now())
+  originalDeleted    Boolean  @default(false) // true after retention purge
 
   report InspectionReport  @relation(fields: [reportId], references: [id])
   item   InspectionItem?   @relation(fields: [itemId], references: [id])

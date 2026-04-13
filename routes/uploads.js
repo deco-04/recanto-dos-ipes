@@ -1,48 +1,56 @@
 'use strict';
 
 /**
- * Upload service — Central da Equipe PWA photo storage.
+ * Upload service — Central da Equipe PWA photo and video storage.
  *
  * POST /api/uploads
- *   multipart/form-data: file (image), bookingId (string), tipo ('PRE_CHECKIN' | 'CHECKOUT')
- *   Returns: { id: "recanto-dos-ipes/2026/04/joao-silva/checkin/uuid.jpg", url: "https://..." }
+ *   multipart/form-data: file (image), bookingId, tipo
+ *   Returns: { id: relPath, url }
  *
- * Storage structure (matches business requirement):
- *   {property-slug}/{YYYY}/{MM}/{guest-name-slug}/{tipo}/
+ * POST /api/uploads/video
+ *   multipart/form-data: file (video), bookingId, tipo
+ *   Max 100MB. Duration enforced client-side (≤15s).
+ *   Returns: { id: relPath, url }
  *
- * Files are stored in UPLOAD_DIR (Railway Volume at /data/uploads in prod,
- * or ./uploads in local dev). Served as static files at /uploads.
- *
- * Images are resized to max 1200px wide, quality 82 JPEG — ~50-150KB per photo.
+ * Storage: local filesystem or Cloudflare R2, via lib/storage.js
+ * Set STORAGE_PROVIDER=r2 to switch. Default: local.
  */
 
 const express = require('express');
 const multer  = require('multer');
 const sharp   = require('sharp');
 const path    = require('path');
-const fs      = require('fs');
 const { randomUUID: uuidv4 } = require('crypto');
+const { saveFile, UPLOAD_DIR } = require('../lib/storage');
 
 const router = express.Router();
 
-// ── Config ──────────────────────────────────────────────────────────────────
-const UPLOAD_DIR = process.env.UPLOAD_DIR
-  || (process.env.NODE_ENV === 'production' ? '/data/uploads' : path.join(process.cwd(), 'uploads'));
+// ── Auth ─────────────────────────────────────────────────────────────────────
+const jwt    = require('jsonwebtoken');
+const prisma = require('../lib/db');
 
-const PUBLIC_URL = process.env.UPLOAD_PUBLIC_URL
-  || (process.env.NODE_ENV === 'production'
-      ? process.env.RAILWAY_PUBLIC_DOMAIN
-        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-        : process.env.NEXT_PUBLIC_API_URL || ''
-      : 'http://localhost:3000');
+async function requireStaff(req, res, next) {
+  const auth = req.headers['authorization'];
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Não autenticado' });
+  let payload;
+  try {
+    payload = jwt.verify(auth.slice(7), process.env.STAFF_JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: 'Token inválido ou expirado' });
+  }
+  const staff = await prisma.staffMember.findUnique({
+    where: { id: payload.sub },
+    select: { id: true, role: true, active: true },
+  });
+  if (!staff || !staff.active) return res.status(401).json({ error: 'Acesso negado' });
+  req.staff = staff;
+  next();
+}
 
-// Ensure base directory exists
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-// ── Multer (memory storage — Sharp processes before writing to disk) ─────────
-const upload = multer({
+// ── Multer: images ────────────────────────────────────────────────────────────
+const uploadImage = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB raw max
+  limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter(req, file, cb) {
     if (!file.mimetype.startsWith('image/')) {
       return cb(new Error('Apenas imagens são permitidas'));
@@ -51,38 +59,24 @@ const upload = multer({
   },
 });
 
-// ── Auth: JWT Bearer token (same as staff-portal) ───────────────────────────
-const jwt = require('jsonwebtoken');
-const prisma = require('../lib/db');
-
-async function requireStaff(req, res, next) {
-  const auth = req.headers['authorization'];
-  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Não autenticado' });
-
-  let payload;
-  try {
-    payload = jwt.verify(auth.slice(7), process.env.STAFF_JWT_SECRET);
-  } catch {
-    return res.status(401).json({ error: 'Token inválido ou expirado' });
-  }
-
-  const staff = await prisma.staffMember.findUnique({
-    where: { id: payload.sub },
-    select: { id: true, active: true },
-  });
-  if (!staff || !staff.active) return res.status(401).json({ error: 'Acesso negado' });
-  req.staff = staff;
-  next();
-}
+// ── Multer: videos ────────────────────────────────────────────────────────────
+const uploadVideo = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB raw max
+  fileFilter(req, file, cb) {
+    if (!file.mimetype.startsWith('video/')) {
+      return cb(new Error('Apenas vídeos são permitidos'));
+    }
+    cb(null, true);
+  },
+});
 
 // ── Build organized folder path from booking data ────────────────────────────
 async function buildFolderPath(bookingId, tipo) {
   if (!bookingId) {
-    // Fallback for photos without a booking
     const now = new Date();
     return `geral/${now.getFullYear()}/${pad(now.getMonth() + 1)}`;
   }
-
   try {
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
@@ -93,13 +87,10 @@ async function buildFolderPath(bookingId, tipo) {
         user: { select: { name: true } },
       },
     });
-
     if (!booking) {
-      // Booking not found — use bookingId as fallback
       const now = new Date();
       return `reservas/${now.getFullYear()}/${pad(now.getMonth() + 1)}/${bookingId}`;
     }
-
     const propertySlug = booking.property?.slug || 'recanto-dos-ipes';
     const guestName    = booking.user?.name || booking.guestName || 'hospede';
     const date         = booking.checkIn ? new Date(booking.checkIn) : new Date();
@@ -107,8 +98,6 @@ async function buildFolderPath(bookingId, tipo) {
     const month        = pad(date.getMonth() + 1);
     const guestSlug    = slugify(guestName);
     const tipoDir      = tipo === 'CHECKOUT' ? 'checkout' : 'checkin';
-
-    // Structure: recanto-dos-ipes/2026/04/joao-silva/checkin
     return `${propertySlug}/${year}/${month}/${guestSlug}/${tipoDir}`;
   } catch {
     const now = new Date();
@@ -116,47 +105,58 @@ async function buildFolderPath(bookingId, tipo) {
   }
 }
 
-// ── POST /api/uploads ────────────────────────────────────────────────────────
-router.post('/', requireStaff, upload.single('file'), async (req, res) => {
+// ── POST /api/uploads — photo upload ─────────────────────────────────────────
+router.post('/', requireStaff, uploadImage.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
 
   try {
     const bookingId = sanitizeId(req.body.bookingId || '');
     const tipo      = ['PRE_CHECKIN', 'CHECKOUT'].includes(req.body.tipo) ? req.body.tipo : 'PRE_CHECKIN';
-
     const folder    = await buildFolderPath(bookingId, tipo);
-    const id        = uuidv4();
-    const filename  = `${id}.jpg`;
-    const relPath   = `${folder}/${filename}`;
-    const fullDir   = path.join(UPLOAD_DIR, folder);
+    const relPath   = `${folder}/${uuidv4()}.jpg`;
 
-    fs.mkdirSync(fullDir, { recursive: true });
-
-    // Resize + convert to JPEG
-    await sharp(req.file.buffer)
+    // Resize + JPEG conversion via Sharp
+    const processed = await sharp(req.file.buffer)
       .resize({ width: 1200, withoutEnlargement: true })
       .jpeg({ quality: 82, progressive: true })
-      .toFile(path.join(fullDir, filename));
+      .toBuffer();
 
-    const url = `${PUBLIC_URL}/uploads/${relPath}`;
-
+    const { url } = await saveFile(processed, relPath);
     res.json({ id: relPath, url });
   } catch (err) {
-    console.error('[uploads] processing error:', err);
+    console.error('[uploads] photo error:', err);
     res.status(500).json({ error: 'Erro ao processar imagem' });
   }
 });
 
-// ── DELETE /api/uploads — soft cleanup, admins only ─────────────────────────
-// Accepts path encoded as base64 or slash-separated segments
-router.delete('/*', requireStaff, async (req, res) => {
-  const staff = await prisma.staffMember.findUnique({
-    where: { id: req.staff.id },
-    select: { role: true },
-  });
-  if (staff?.role !== 'ADMIN') return res.status(403).json({ error: 'Apenas admins podem deletar imagens' });
+// ── POST /api/uploads/video — video upload ────────────────────────────────────
+router.post('/video', requireStaff, uploadVideo.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
 
-  // req.params[0] is everything after /api/uploads/
+  try {
+    const bookingId = sanitizeId(req.body.bookingId || '');
+    const tipo      = ['PRE_CHECKIN', 'CHECKOUT'].includes(req.body.tipo) ? req.body.tipo : 'PRE_CHECKIN';
+    const folder    = await buildFolderPath(bookingId, tipo);
+
+    // Determine file extension from mimetype
+    const ext = req.file.mimetype === 'video/webm' ? 'webm'
+      : req.file.mimetype === 'video/quicktime' ? 'mov'
+      : 'mp4';
+
+    const relPath = `videos/${folder}/${uuidv4()}.${ext}`;
+
+    const { url } = await saveFile(req.file.buffer, relPath);
+    res.json({ id: relPath, url });
+  } catch (err) {
+    console.error('[uploads] video error:', err);
+    res.status(500).json({ error: 'Erro ao salvar vídeo' });
+  }
+});
+
+// ── DELETE /api/uploads — admins only ────────────────────────────────────────
+router.delete('/*', requireStaff, async (req, res) => {
+  if (req.staff.role !== 'ADMIN') return res.status(403).json({ error: 'Apenas admins podem deletar arquivos' });
+
   const rawPath = req.params[0] || '';
   const safePath = sanitizePath(rawPath);
   if (!safePath) return res.status(400).json({ error: 'Caminho inválido' });
@@ -167,6 +167,7 @@ router.delete('/*', requireStaff, async (req, res) => {
   }
 
   try {
+    const fs = require('fs');
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     res.json({ ok: true });
   } catch (err) {
@@ -181,22 +182,19 @@ function pad(n) {
   return String(n).padStart(2, '0');
 }
 
-/** Convert guest name to a safe folder slug */
 function slugify(str) {
   return str
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 40) || 'hospede';
 }
 
-/** Allow only cuid/uuid-style booking IDs */
 function sanitizeId(id) {
   return /^[a-zA-Z0-9_-]{1,40}$/.test(id) ? id : '';
 }
 
-/** Allow path segments: letters, numbers, hyphens, underscores, slashes, dots */
 function sanitizePath(p) {
   const clean = p.replace(/[^a-zA-Z0-9/_.-]/g, '').replace(/\.\.+/g, '').replace(/\/+/g, '/');
   return clean.startsWith('/') ? clean.slice(1) : clean;

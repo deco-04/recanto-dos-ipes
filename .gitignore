@@ -24,3 +24,6 @@ desktop.ini
 .vscode/
 *.swp
 *.swo
+
+# Binary / design assets (keep out of repo)
+*.pdf

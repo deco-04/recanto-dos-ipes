@@ -64,7 +64,7 @@
     /* ── Hero ── */
     .dash-hero {
       background: linear-gradient(155deg, #261C15 0%, #3D2B1F 60%, #4A3020 100%);
-      padding: 2.5rem 1.5rem 4rem;
+      padding: 1.75rem 1.5rem 2.75rem;
       position: relative;
       overflow: hidden;
     }
@@ -81,7 +81,7 @@
       content: '';
       position: absolute;
       bottom: -1px; left: 0; right: 0;
-      height: 56px;
+      height: 38px;
       background: #FBF9F4;
       clip-path: ellipse(55% 100% at 50% 100%);
     }
@@ -96,7 +96,7 @@
     .dash-content {
       max-width: 72rem;
       margin: 0 auto;
-      padding: 2rem 1.5rem 4rem;
+      padding: 1rem 1.5rem 4rem;
     }
 
     /* ── Section labels ── */
@@ -304,6 +304,87 @@
     #empty-state {
       box-shadow: 0 2px 16px rgba(38,28,21,0.06) !important;
     }
+
+    /* ── App install card ── */
+    .app-install-card {
+      background: linear-gradient(135deg, #261C15 0%, #3D2B1F 100%);
+      border-radius: 1.25rem;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      transition: box-shadow 200ms, transform 200ms;
+    }
+    .app-install-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(38,28,21,0.22); }
+    .app-install-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 65% 90% at 95% 50%, rgba(197,216,109,0.13), transparent);
+      pointer-events: none;
+    }
+
+    /* ── Install modal ── */
+    #install-modal .install-sheet {
+      animation: sheetUp 0.32s cubic-bezier(0.34,1.2,0.64,1) both;
+    }
+    @keyframes sheetUp {
+      from { opacity:0; transform: translateY(2rem); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+    .platform-tab {
+      flex: 1;
+      padding: 0.625rem 0;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      border-radius: 0.625rem;
+      cursor: pointer;
+      transition: all 180ms;
+      border: none;
+      background: transparent;
+      color: #9A9A9A;
+    }
+    .platform-tab.active {
+      background: #261C15;
+      color: #C5D86D;
+    }
+    .platform-content { display: none; }
+    .platform-content.active { display: block; }
+    .step-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.875rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #F0EEE9;
+    }
+    .step-row:last-child { border-bottom: none; }
+    .step-num {
+      width: 1.625rem;
+      height: 1.625rem;
+      border-radius: 50%;
+      background: #261C15;
+      color: #C5D86D;
+      font-size: 0.75rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
+    .url-pill {
+      background: #F7F7F2;
+      border: 1.5px solid #E4E6C3;
+      border-radius: 0.75rem;
+      padding: 0.75rem 1rem;
+      font-size: 0.8125rem;
+      font-family: monospace;
+      color: #261C15;
+      word-break: break-all;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
   </style>
 </head>
 <body>
@@ -468,6 +549,32 @@
         <div id="past-list" class="space-y-3"></div>
       </div>
 
+      <!-- ── Install app card ── -->
+      <div class="app-install-card" onclick="openInstallModal()" role="button" tabindex="0"
+           onkeydown="if(event.key==='Enter'||event.key===' ')openInstallModal()"
+           aria-label="Instalar o app do Sítio Recanto dos Ipês">
+        <div style="position:relative; z-index:1; padding:1.25rem 1.5rem;">
+          <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:0.875rem; min-width:0;">
+              <div style="width:2.75rem; height:2.75rem; background:rgba(197,216,109,0.15); border-radius:0.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#C5D86D" stroke-width="1.8">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2" stroke="#C5D86D"/>
+                  <line x1="12" y1="18" x2="12.01" y2="18" stroke="#C5D86D" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div style="min-width:0;">
+                <p style="color:#fff; font-weight:700; font-size:0.9rem; margin:0 0 0.2rem; line-height:1.3;">Instale o app no seu celular</p>
+                <p style="color:rgba(255,255,255,0.5); font-size:0.775rem; margin:0; line-height:1.4;">Notificações de check-in, promoções exclusivas e acesso rápido às suas reservas</p>
+              </div>
+            </div>
+            <span style="color:#C5D86D; font-size:0.8125rem; font-weight:700; white-space:nowrap; flex-shrink:0; display:flex; align-items:center; gap:0.375rem;">
+              Ver como instalar
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /main-content -->
   </div><!-- /dashboard-content -->
 
@@ -540,7 +647,8 @@
   </div>
 
   <!-- ── Push notification banner (shown after login if permission not decided) ── -->
-  <div id="push-banner" class="hidden" role="complementary" aria-label="Ativar notificações">
+  <div id="push-banner" class="hidden" role="complementary" aria-label="Ativar notificações"
+       onclick="openInstallModal()" style="cursor:pointer;" title="Saiba como instalar o app e ativar notificações">
     <div class="push-banner-icon">
       <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#C5D86D" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round"
@@ -552,8 +660,181 @@
       <p class="push-banner-sub">Confirmações de reserva, lembretes de check-in e mais.</p>
     </div>
     <div class="push-banner-actions">
-      <button class="push-banner-btn-primary" onclick="activatePushFromBanner()">Ativar</button>
-      <button class="push-banner-btn-dismiss" onclick="dismissPushBanner()" aria-label="Dispensar">✕</button>
+      <button class="push-banner-btn-primary" onclick="event.stopPropagation(); activatePushFromBanner()">Ativar</button>
+      <button class="push-banner-btn-dismiss" onclick="event.stopPropagation(); dismissPushBanner()" aria-label="Dispensar">✕</button>
+    </div>
+  </div>
+
+  <!-- ── Install App Modal ──────────────────────────────────────────────── -->
+  <div id="install-modal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center hidden">
+    <div class="absolute inset-0 bg-black/50 modal-backdrop" onclick="closeInstallModal()"></div>
+    <div class="install-sheet relative bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl"
+         style="max-height:92vh; overflow-y:auto;">
+
+      <!-- Handle bar (mobile) -->
+      <div class="sm:hidden flex justify-center pt-3 pb-1">
+        <div style="width:2.5rem; height:4px; background:#E4E6C3; border-radius:2px;"></div>
+      </div>
+
+      <!-- Header -->
+      <div style="padding:1.25rem 1.5rem 0; display:flex; align-items:flex-start; justify-content:space-between; gap:1rem;">
+        <div style="display:flex; align-items:center; gap:0.875rem;">
+          <div style="width:3rem; height:3rem; background:#261C15; border-radius:0.875rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#C5D86D" stroke-width="1.8">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+              <line x1="12" y1="18" x2="12.01" y2="18" stroke="#C5D86D" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <p style="font-family:'Merriweather',serif; font-weight:700; font-size:1rem; color:#261C15; margin:0 0 0.2rem; line-height:1.25;">Instale o app no celular</p>
+            <p style="font-size:0.775rem; color:#9A9A9A; margin:0;">Sítio Recanto dos Ipês · gratuito</p>
+          </div>
+        </div>
+        <button onclick="closeInstallModal()" style="color:#9A9A9A; background:none; border:none; cursor:pointer; padding:0.25rem; border-radius:0.375rem; transition:color 150ms; flex-shrink:0;" onmouseover="this.style.color='#261C15'" onmouseout="this.style.color='#9A9A9A'" aria-label="Fechar">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Benefits strip -->
+      <div style="margin:1.125rem 1.5rem; background:#F7F7F2; border-radius:0.875rem; padding:0.875rem 1rem; display:flex; flex-wrap:wrap; gap:0.5rem 1.25rem;">
+        <span style="font-size:0.775rem; color:#4A6A3A; display:flex; align-items:center; gap:0.375rem;">
+          <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+          Lembretes de check-in
+        </span>
+        <span style="font-size:0.775rem; color:#4A6A3A; display:flex; align-items:center; gap:0.375rem;">
+          <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+          Confirmações de reserva
+        </span>
+        <span style="font-size:0.775rem; color:#4A6A3A; display:flex; align-items:center; gap:0.375rem;">
+          <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+          Promoções exclusivas
+        </span>
+        <span style="font-size:0.775rem; color:#4A6A3A; display:flex; align-items:center; gap:0.375rem;">
+          <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+          Acesso rápido, como app nativo
+        </span>
+      </div>
+
+      <!-- URL to open on phone -->
+      <div style="padding:0 1.5rem; margin-bottom:1.25rem;">
+        <p style="font-size:0.7rem; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:#9A9A9A; margin:0 0 0.5rem;">Abra este endereço no seu celular</p>
+        <div class="url-pill">
+          <span>sitiorecantodosipes.com/dashboard</span>
+          <button id="copy-url-btn" onclick="copyInstallUrl()"
+            style="background:#261C15; color:#C5D86D; border:none; border-radius:0.5rem; padding:0.375rem 0.75rem; font-size:0.75rem; font-weight:700; cursor:pointer; white-space:nowrap; transition:background 150ms; flex-shrink:0;"
+            onmouseover="this.style.background='#3D2B1F'" onmouseout="this.style.background='#261C15'">
+            Copiar
+          </button>
+        </div>
+      </div>
+
+      <!-- Platform selector -->
+      <div style="padding:0 1.5rem; margin-bottom:0.875rem;">
+        <p style="font-size:0.7rem; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:#9A9A9A; margin:0 0 0.75rem;">Passo a passo para instalar</p>
+        <div style="display:flex; gap:0.375rem; background:#F7F7F2; border-radius:0.75rem; padding:0.3rem;">
+          <button class="platform-tab active" data-platform="ios" onclick="selectPlatform('ios')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:inline; margin-right:5px; vertical-align:-2px;"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+            iPhone / iPad
+          </button>
+          <button class="platform-tab" data-platform="android" onclick="selectPlatform('android')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:inline; margin-right:5px; vertical-align:-2px;"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.65-.06-.83.22l-1.88 3.24c-1.43-.64-3.03-1-4.76-1s-3.33.36-4.76 1L4.69 5.67c-.19-.29-.55-.37-.83-.22-.3.16-.42.54-.26.85L5.44 9.48C2.31 11.25.5 14.36.5 18h23c0-3.64-1.81-6.75-4.9-8.52z"/></svg>
+            Android
+          </button>
+        </div>
+      </div>
+
+      <!-- iOS steps -->
+      <div id="steps-ios" class="platform-content active" style="padding:0 1.5rem; margin-bottom:1.5rem;">
+        <div class="step-row">
+          <div class="step-num">1</div>
+          <div>
+            <p style="font-weight:700; font-size:0.875rem; color:#261C15; margin:0 0 0.2rem;">Abra o Safari</p>
+            <p style="font-size:0.8rem; color:#6B6B6B; margin:0;">O Safari é o único navegador no iPhone que permite instalar apps na tela inicial.</p>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">2</div>
+          <div>
+            <p style="font-weight:700; font-size:0.875rem; color:#261C15; margin:0 0 0.2rem;">Acesse o endereço</p>
+            <p style="font-size:0.8rem; color:#6B6B6B; margin:0;">Digite ou cole <strong style="color:#261C15;">sitiorecantodosipes.com/dashboard</strong> na barra de endereço.</p>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">3</div>
+          <div>
+            <p style="font-weight:700; font-size:0.875rem; color:#261C15; margin:0 0 0.2rem;">Toque em Compartilhar</p>
+            <p style="font-size:0.8rem; color:#6B6B6B; margin:0;">Toque no ícone de compartilhar <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline; vertical-align:-2px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg> na barra inferior do Safari.</p>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">4</div>
+          <div>
+            <p style="font-weight:700; font-size:0.875rem; color:#261C15; margin:0 0 0.2rem;">Toque em "Adicionar à Tela Inicial"</p>
+            <p style="font-size:0.8rem; color:#6B6B6B; margin:0;">Role o menu que aparece e toque em <strong style="color:#261C15;">"Adicionar à Tela Inicial"</strong>. Confirme tocando em Adicionar.</p>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">5</div>
+          <div>
+            <p style="font-weight:700; font-size:0.875rem; color:#261C15; margin:0 0 0.2rem;">Pronto! O app aparece na sua tela inicial</p>
+            <p style="font-size:0.8rem; color:#6B6B6B; margin:0;">Ao abrir, ative as notificações para receber lembretes de check-in e novidades do Recanto.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Android steps -->
+      <div id="steps-android" class="platform-content" style="padding:0 1.5rem; margin-bottom:1.5rem;">
+        <div class="step-row">
+          <div class="step-num">1</div>
+          <div>
+            <p style="font-weight:700; font-size:0.875rem; color:#261C15; margin:0 0 0.2rem;">Abra o Google Chrome</p>
+            <p style="font-size:0.8rem; color:#6B6B6B; margin:0;">O Chrome oferece a melhor experiência de instalação em dispositivos Android.</p>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">2</div>
+          <div>
+            <p style="font-weight:700; font-size:0.875rem; color:#261C15; margin:0 0 0.2rem;">Acesse o endereço</p>
+            <p style="font-size:0.8rem; color:#6B6B6B; margin:0;">Digite ou cole <strong style="color:#261C15;">sitiorecantodosipes.com/dashboard</strong> na barra de endereço.</p>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">3</div>
+          <div>
+            <p style="font-weight:700; font-size:0.875rem; color:#261C15; margin:0 0 0.2rem;">Abra o menu ⋮</p>
+            <p style="font-size:0.8rem; color:#6B6B6B; margin:0;">Toque nos três pontos <strong style="color:#261C15;">⋮</strong> no canto superior direito do Chrome.</p>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">4</div>
+          <div>
+            <p style="font-weight:700; font-size:0.875rem; color:#261C15; margin:0 0 0.2rem;">Toque em "Instalar app" ou "Adicionar à tela inicial"</p>
+            <p style="font-size:0.8rem; color:#6B6B6B; margin:0;">Dependendo da versão do Chrome, a opção pode aparecer como banner automático ou dentro do menu.</p>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">5</div>
+          <div>
+            <p style="font-weight:700; font-size:0.875rem; color:#261C15; margin:0 0 0.2rem;">Confirme a instalação</p>
+            <p style="font-size:0.8rem; color:#6B6B6B; margin:0;">Toque em <strong style="color:#261C15;">"Instalar"</strong> na caixa de confirmação. O ícone do app aparece na sua tela inicial.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer buttons -->
+      <div style="padding:0 1.5rem 1.5rem; display:flex; gap:0.75rem; flex-wrap:wrap;">
+        <button onclick="closeInstallModal(); setTimeout(activatePushFromBanner,100)"
+          style="flex:1; background:#261C15; color:#C5D86D; border:none; border-radius:0.875rem; padding:0.875rem; font-size:0.875rem; font-weight:700; cursor:pointer; transition:background 150ms; white-space:nowrap; min-width:0;"
+          onmouseover="this.style.background='#3D2B1F'" onmouseout="this.style.background='#261C15'">
+          🔔 Ativar notificações
+        </button>
+        <button onclick="closeInstallModal()"
+          style="flex:0 0 auto; background:#F7F7F2; color:#6B6B6B; border:none; border-radius:0.875rem; padding:0.875rem 1.25rem; font-size:0.875rem; font-weight:600; cursor:pointer; transition:all 150ms;"
+          onmouseover="this.style.background='#E4E6C3';this.style.color='#261C15'" onmouseout="this.style.background='#F7F7F2';this.style.color='#6B6B6B'">
+          Fechar
+        </button>
+      </div>
+
     </div>
   </div>
 
@@ -641,6 +922,76 @@
 
   // Expose so dashboard.js can call after confirming login
   window._initPushBanner = maybeShowPushBanner;
+})();
+
+// ── Install App Modal ─────────────────────────────────────────────────────────
+(function () {
+  'use strict';
+
+  function detectPlatform() {
+    const ua = navigator.userAgent;
+    if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) return 'ios';
+    if (/Android/.test(ua)) return 'android';
+    return 'ios'; // default to iOS steps on desktop
+  }
+
+  window.openInstallModal = function () {
+    const modal = document.getElementById('install-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    // Auto-select the right platform tab
+    selectPlatform(detectPlatform());
+  };
+
+  window.closeInstallModal = function () {
+    const modal = document.getElementById('install-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    document.body.style.overflow = '';
+  };
+
+  window.selectPlatform = function (platform) {
+    document.querySelectorAll('.platform-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.platform === platform);
+    });
+    document.querySelectorAll('.platform-content').forEach(c => {
+      c.classList.remove('active');
+    });
+    const active = document.getElementById('steps-' + platform);
+    if (active) active.classList.add('active');
+  };
+
+  window.copyInstallUrl = function () {
+    const url = 'https://www.sitiorecantodosipes.com/dashboard';
+    const btn = document.getElementById('copy-url-btn');
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => {
+        if (btn) { btn.textContent = '✓ Copiado!'; setTimeout(() => { btn.textContent = 'Copiar'; }, 2200); }
+      }).catch(() => fallbackCopy(url, btn));
+    } else {
+      fallbackCopy(url, btn);
+    }
+  };
+
+  function fallbackCopy(text, btn) {
+    const el = document.createElement('textarea');
+    el.value = text;
+    el.style.cssText = 'position:fixed;left:-9999px;top:0;';
+    document.body.appendChild(el);
+    el.focus(); el.select();
+    try { document.execCommand('copy'); if (btn) { btn.textContent = '✓ Copiado!'; setTimeout(() => { btn.textContent = 'Copiar'; }, 2200); } }
+    catch (_) {}
+    document.body.removeChild(el);
+  }
+
+  // Close on Escape key
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      const modal = document.getElementById('install-modal');
+      if (modal && !modal.classList.contains('hidden')) closeInstallModal();
+    }
+  });
 })();
 </script>
 </body>

@@ -77,7 +77,7 @@ router.get('/reservas', requireRole('ADMIN'), async (req, res) => {
 });
 
 // ── GET /api/staff/reservas/:id ─────────────────────────────────────────────
-router.get('/reservas/:id', async (req, res) => {
+router.get('/reservas/:id', requireRole('ADMIN', 'GUARDIA'), async (req, res) => {
   try {
     const booking = await prisma.booking.findUnique({
       where: { id: req.params.id },
@@ -247,12 +247,14 @@ router.post('/vistorias', async (req, res) => {
   const schema = z.object({
     bookingId: z.string(),
     tipo: z.enum(['PRE_CHECKIN', 'CHECKOUT']),
+    cabinId: z.string().optional(),
     checklist: z.array(z.object({
       label: z.string(),
       status: z.enum(['OK', 'PENDENTE', 'PROBLEMA', 'NAO_VERIFICADO']),
       observacao: z.string(),
     })),
     photos: z.array(z.object({ publicId: z.string(), url: z.string() })).optional().default([]),
+    videoId: z.string().optional(),
     observacaoGeral: z.string().optional().default(''),
     assinaturaDataUrl: z.string().nullable().optional(),
     timestamp: z.string(),
@@ -261,7 +263,7 @@ router.post('/vistorias', async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
 
-  const { bookingId, tipo, checklist, photos, observacaoGeral, assinaturaDataUrl, timestamp } = parsed.data;
+  const { bookingId, tipo, cabinId, checklist, photos, videoId, observacaoGeral, assinaturaDataUrl, timestamp } = parsed.data;
 
   try {
     const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
@@ -272,9 +274,28 @@ router.post('/vistorias', async (req, res) => {
     });
     if (existing) return res.status(409).json({ error: 'Vistoria já registrada para esta reserva' });
 
-    // property is required — find the active one
     const property = await prisma.property.findFirst({ where: { active: true } });
     if (!property) return res.status(500).json({ error: 'Nenhuma propriedade ativa configurada' });
+
+    // Save signature as a file instead of storing base64 in the DB
+    let signatureUrl = null;
+    if (assinaturaDataUrl) {
+      try {
+        const PNG_PREFIX = 'data:image/png;base64,';
+        if (!assinaturaDataUrl.startsWith(PNG_PREFIX)) throw new Error('Invalid signature format');
+        const base64Data = assinaturaDataUrl.slice(PNG_PREFIX.length);
+        // Decoded size guard: base64 is ~4/3 raw bytes; 200 KB decoded ≈ 267 KB base64
+        if (base64Data.length > 270_000) throw new Error('Signature too large');
+        const sigBuffer = Buffer.from(base64Data, 'base64');
+        const { saveFile } = require('../lib/storage');
+        const sigPath = `signatures/${property.slug}/${bookingId}-${tipo.toLowerCase()}.png`;
+        const result = await saveFile(sigBuffer, sigPath);
+        signatureUrl = result.url;
+      } catch (sigErr) {
+        console.error('[staff-portal] signature save error (non-fatal):', sigErr.message);
+        // Fall through — report is still saved, signature just won't be stored
+      }
+    }
 
     const report = await prisma.inspectionReport.create({
       data: {
@@ -283,14 +304,14 @@ router.post('/vistorias', async (req, res) => {
         staffId: req.staff.id,
         type: tipo,
         status: 'SUBMITTED',
-        signatureDataUrl: assinaturaDataUrl || null,
+        signatureDataUrl: null,          // deprecated — no longer storing base64
+        signatureUrl: signatureUrl,
         submittedAt: new Date(timestamp),
         notes: observacaoGeral || null,
         items: {
           create: checklist.map((item) => ({
             category: 'Checklist',
             description: item.label,
-            // PENDENTE from form → NAO_VERIFICADO in DB
             status: item.status === 'PENDENTE' ? 'NAO_VERIFICADO' : item.status,
             problemDescription: item.observacao || null,
           })),
@@ -301,8 +322,61 @@ router.post('/vistorias', async (req, res) => {
             cloudinaryUrl: p.url,
           })),
         },
+        ...(videoId ? {
+          videos: {
+            create: [{
+              storagePath: videoId,
+              storageUrl: `${process.env.UPLOAD_PUBLIC_URL || 'http://localhost:3000'}/uploads/${videoId}`,
+            }],
+          },
+        } : {}),
       },
     });
+
+    // Auto-create ServiceTicket for any PROBLEMA items
+    const problemas = checklist.filter(
+      (i) => i.status === 'PROBLEMA' && i.observacao?.trim()
+    );
+    if (problemas.length > 0) {
+      try {
+        const tipoLabel = tipo === 'PRE_CHECKIN' ? 'Pré Check-in' : 'Checkout';
+        await prisma.serviceTicket.create({
+          data: {
+            propertyId: property.id,
+            openedById: req.staff.id,
+            title: `Vistoria ${tipoLabel} — ${problemas.length} problema${problemas.length > 1 ? 's' : ''}`,
+            description: problemas.map((i) => `• ${i.label}: ${i.observacao}`).join('\n'),
+            photoUrls: [],
+            priority: 'ALTA',
+            status: 'ABERTO',
+          },
+        });
+      } catch (ticketErr) {
+        // Non-fatal — vistoria was saved successfully
+        console.error('[staff-portal] auto-ticket error (non-fatal):', ticketErr);
+      }
+    }
+
+    // CHECKOUT — send detailed alert email to admin with AI solutions + guest message draft
+    if (tipo === 'CHECKOUT' && problemas.length > 0) {
+      try {
+        const { sendCheckoutProblemaAlert } = require('../lib/mailer');
+        const staffMember = await prisma.staffMember.findUnique({
+          where:  { id: req.staff.id },
+          select: { name: true },
+        });
+        await sendCheckoutProblemaAlert({
+          booking,
+          staffName: staffMember?.name || 'Equipe',
+          problemas,
+          reportId: report.id,
+          propertySlug: property.slug,
+        });
+      } catch (emailErr) {
+        // Non-fatal — vistoria was saved successfully
+        console.error('[staff-portal] checkout alert email error (non-fatal):', emailErr.message);
+      }
+    }
 
     res.json({ id: report.id, ok: true });
   } catch (err) {
@@ -343,6 +417,108 @@ router.get('/vistorias/:id', async (req, res) => {
   } catch (err) {
     console.error('[staff-portal] vistorias/:id error:', err);
     res.status(500).json({ error: 'Erro ao buscar vistoria' });
+  }
+});
+
+// ── GET /api/staff/vistorias/:id/pdf ─────────────────────────────────────────
+router.get('/vistorias/:id/pdf', async (req, res) => {
+  try {
+    const report = await prisma.inspectionReport.findUnique({
+      where: { id: req.params.id },
+      include: {
+        staff: { select: { name: true } },
+        booking: { select: { guestName: true, checkIn: true, checkOut: true } },
+        property: { select: { name: true } },
+        items: true,
+        photos: true,
+        videos: true,
+      },
+    });
+    if (!report) return res.status(404).json({ error: 'Vistoria não encontrada' });
+
+    // Lazy-load pdfkit to avoid startup cost when not needed
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="vistoria-${report.id.slice(0, 8)}.pdf"`
+    );
+    doc.pipe(res);
+
+    const tipoLabel = report.type === 'PRE_CHECKIN' ? 'Pré Check-in' : 'Checkout';
+    const dateStr = report.submittedAt
+      ? new Date(report.submittedAt).toLocaleDateString('pt-BR', { dateStyle: 'full' })
+      : new Date(report.createdAt).toLocaleDateString('pt-BR', { dateStyle: 'full' });
+
+    // Header
+    doc.fontSize(18).font('Helvetica-Bold').text('Relatório de Vistoria', { align: 'center' });
+    doc.fontSize(12).font('Helvetica').text(`${tipoLabel} — ${dateStr}`, { align: 'center' });
+    doc.moveDown(0.5);
+    doc.fontSize(10).text(`Propriedade: ${report.property?.name || 'Recantos da Serra'}`);
+    doc.text(`Responsável: ${report.staff?.name || 'Equipe'}`);
+    doc.text(`Hóspede: ${report.booking?.guestName || 'Não informado'}`);
+    doc.moveDown();
+
+    // Checklist
+    doc.fontSize(13).font('Helvetica-Bold').text('Checklist');
+    doc.moveDown(0.3);
+    doc.font('Helvetica').fontSize(10);
+
+    for (const item of report.items) {
+      const statusLabel = item.status === 'OK' ? '✓ OK'
+        : item.status === 'PROBLEMA' ? '⚠ Problema'
+        : '— Pendente';
+      doc.text(`${statusLabel}  ${item.description}`, { continued: false });
+      if (item.problemDescription) {
+        doc.fillColor('#c45c2e').text(`   Obs: ${item.problemDescription}`).fillColor('black');
+      }
+    }
+
+    // Notes
+    if (report.notes) {
+      doc.moveDown();
+      doc.fontSize(13).font('Helvetica-Bold').text('Observações Gerais');
+      doc.font('Helvetica').fontSize(10).text(report.notes);
+    }
+
+    // Photos section header
+    if (report.photos.length > 0) {
+      doc.moveDown();
+      doc.fontSize(13).font('Helvetica-Bold').text(`Fotos (${report.photos.length})`);
+      doc.font('Helvetica').fontSize(9).fillColor('#888')
+        .text('Imagens registradas durante a vistoria.')
+        .fillColor('black');
+    }
+
+    // Video note
+    if (report.videos && report.videos.length > 0) {
+      doc.moveDown();
+      doc.fontSize(10).font('Helvetica')
+        .text(`Vídeo anexado: ${report.videos[0].storageUrl}`);
+    }
+
+    // Signature
+    doc.moveDown();
+    if (report.signatureUrl) {
+      doc.fontSize(13).font('Helvetica-Bold').text('Assinatura');
+      // Note: embedding remote image URLs in pdfkit requires fetching first
+      // For now, include the URL as a reference
+      doc.font('Helvetica').fontSize(9).fillColor('#888')
+        .text(`(Assinatura registrada em: ${report.signatureUrl})`)
+        .fillColor('black');
+    }
+
+    // Footer
+    doc.moveDown(2);
+    doc.fontSize(8).fillColor('#aaa')
+      .text(`Gerado em ${new Date().toLocaleString('pt-BR')} — ID: ${report.id}`, { align: 'center' });
+
+    doc.end();
+  } catch (err) {
+    console.error('[staff-portal] vistoria PDF error:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Erro ao gerar PDF' });
   }
 });
 
