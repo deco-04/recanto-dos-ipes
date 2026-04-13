@@ -155,6 +155,22 @@ router.post('/verify-sms', async (req, res) => {
   return res.json({ ...serializeStaff(staff), staffToken: signStaffToken(staff) });
 });
 
+// POST /api/staff/auth/google-verify — internal: exchange a verified Google email for a staffToken
+// Called server-side by the Next.js frontend jwt callback; requires x-internal-secret header.
+router.post('/google-verify', async (req, res) => {
+  const secret = req.headers['x-internal-secret'];
+  if (!secret || secret !== process.env.STAFF_INTERNAL_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+
+  const staff = await findStaffWithProperties({ email });
+  if (!staff || !staff.active) return res.status(404).json({ error: 'Staff member not found' });
+
+  return res.json({ ...serializeStaff(staff), staffToken: signStaffToken(staff) });
+});
+
 // GET /api/staff/auth/me — dados do staff autenticado (JWT via Authorization header)
 router.get('/me', async (req, res) => {
   const auth = req.headers['authorization'];
