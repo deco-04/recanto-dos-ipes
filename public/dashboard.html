@@ -989,7 +989,7 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       const modal = document.getElementById('install-modal');
-      if (modal && !modal.classList.contains('hidden')) closeInstallModal();
+      if (modal && !modal.classList.contains('hidden')) window.closeInstallModal();
     }
   });
 })();
