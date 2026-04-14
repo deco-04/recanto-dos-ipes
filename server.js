@@ -324,9 +324,10 @@ app.get('/politica-cancelamento', (_req, res) => res.sendFile(path.join(ROOT, 'p
 app.get('/politica-privacidade',  (_req, res) => res.sendFile(path.join(ROOT, 'politica-privacidade.html')));
 app.get('/termos-de-servico',     (_req, res) => res.sendFile(path.join(ROOT, 'termos-de-servico.html')));
 // Public app pages (in /public/ — not at ROOT, so need explicit routes)
-app.get('/booking',   (_req, res) => res.sendFile(path.join(ROOT, 'public', 'booking.html')));
-app.get('/login',     (_req, res) => res.sendFile(path.join(ROOT, 'public', 'login.html')));
-app.get('/dashboard', (_req, res) => res.sendFile(path.join(ROOT, 'public', 'dashboard.html')));
+app.get('/booking',            (_req, res) => res.sendFile(path.join(ROOT, 'public', 'booking.html')));
+app.get('/login',              (_req, res) => res.sendFile(path.join(ROOT, 'public', 'login.html')));
+app.get('/dashboard',          (_req, res) => res.sendFile(path.join(ROOT, 'public', 'dashboard.html')));
+app.get('/reserva-solicitada', (_req, res) => res.sendFile(path.join(ROOT, 'public', 'reserva-solicitada.html')));
 
 // ── Fallback → index.html (SPA-safe, but not for /api routes) ────────────────
 app.use((req, res, next) => {

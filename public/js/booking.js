@@ -240,7 +240,7 @@ async function submitBooking() {
     const bookingData = confirmData.booking || { id: bookingId, invoiceNumber: bookingId, checkIn, checkOut, guestCount: guests, guestEmail: email };
     try {
       sessionStorage.setItem('rdi_booking_confirmation', JSON.stringify(bookingData));
-      window.location.href = '/reserva-confirmada';
+      window.location.href = '/reserva-solicitada';
     } catch {
       // sessionStorage unavailable (e.g. private mode blocking) — fall back to modal
       showSuccessModal(bookingData);
