@@ -242,6 +242,10 @@ router.post('/confirm', async (req, res) => {
     const pending = await prisma.booking.findUnique({ where: { id: bookingId } });
     if (!pending) return res.status(404).json({ error: 'Reserva não encontrada' });
 
+    if (pending.stripePaymentIntentId !== paymentIntentId) {
+      return res.status(400).json({ error: 'Dados de reserva inconsistentes' });
+    }
+
     // Idempotent: already requested or confirmed (e.g. webhook beat the client)
     if (pending.status === 'REQUESTED' || pending.status === 'CONFIRMED') {
       return res.json({ success: true, booking: sanitizeBooking(pending) });
@@ -279,29 +283,35 @@ router.post('/confirm', async (req, res) => {
       await prisma.booking.update({
         where: { id: bookingId },
         data:  { status: 'CANCELLED' },
-      }).catch(() => {});
+      }).catch(e => console.error('[bookings] booking cancel update failed:', e.message));
       return res.status(409).json({
         error: 'Infelizmente as datas foram reservadas por outra pessoa durante o seu checkout. A pré-autorização do seu cartão foi cancelada.',
       });
     }
 
-    // 5. Fire request-received messages + GHL (non-blocking)
-    const { sendBookingRequestReceived } = require('../lib/mailer');
-    const { notifyBookingRequested }     = require('../lib/ghl-webhook');
-    const { sendPushToRole }             = require('../lib/push');
+    // 5. Fire request-received messages + GHL (non-blocking, best-effort)
+    try {
+      const { sendBookingRequestReceived } = require('../lib/mailer');
+      const { notifyBookingRequested }     = require('../lib/ghl-webhook');
+      const { sendPushToRole }             = require('../lib/push');
 
-    sendBookingRequestReceived({ booking: result.requested })
-      .catch(e => console.error('[mailer] requestReceived error:', e.message));
-
-    notifyBookingRequested(result.requested)
-      .catch(e => console.error('[ghl] notifyRequested error:', e.message));
-
-    sendPushToRole('ADMIN', {
-      title: 'Nova solicitação de reserva',
-      body:  `${result.requested.guestName} · ${result.requested.checkIn.toISOString().split('T')[0]} → ${result.requested.checkOut.toISOString().split('T')[0]}`,
-      type:  'BOOKING_REQUESTED',
-      data:  { bookingId: result.requested.id },
-    }).catch(() => {});
+      if (typeof sendBookingRequestReceived === 'function') {
+        sendBookingRequestReceived({ booking: result.requested })
+          .catch(e => console.error('[mailer] requestReceived error:', e.message));
+      }
+      if (typeof notifyBookingRequested === 'function') {
+        notifyBookingRequested(result.requested)
+          .catch(e => console.error('[ghl] notifyRequested error:', e.message));
+      }
+      sendPushToRole('ADMIN', {
+        title: 'Nova solicitação de reserva',
+        body:  `${result.requested.guestName} · ${result.requested.checkIn.toISOString().split('T')[0]} → ${result.requested.checkOut.toISOString().split('T')[0]}`,
+        type:  'BOOKING_REQUESTED',
+        data:  { bookingId: result.requested.id },
+      }).catch(() => {});
+    } catch (notifyErr) {
+      console.error('[bookings] notify setup error:', notifyErr.message);
+    }
 
     res.json({ success: true, booking: sanitizeBooking(result.requested) });
   } catch (err) {
