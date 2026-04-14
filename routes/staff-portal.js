@@ -1184,6 +1184,114 @@ router.post('/reservas/:id/enviar-porteiro', requireRole('ADMIN'), async (req, r
   }
 });
 
+// ── POST /reservas/:id/confirmar — admin confirms a REQUESTED booking ──────────
+router.post('/reservas/:id/confirmar', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+    if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
+    if (booking.status !== 'REQUESTED') {
+      return res.status(400).json({ error: `Reserva está em status ${booking.status}, não pode ser confirmada` });
+    }
+    if (!booking.stripePaymentIntentId) {
+      return res.status(400).json({ error: 'Reserva sem PaymentIntent Stripe' });
+    }
+
+    const stripe = require('../lib/stripe');
+
+    // Final availability check before capturing payment
+    const conflict = await prisma.$transaction(async tx => {
+      const blockedCount = await tx.blockedDate.count({
+        where: { date: { gte: booking.checkIn, lt: booking.checkOut } },
+      });
+      if (blockedCount > 0) return true;
+
+      const bookingConflict = await tx.booking.count({
+        where: {
+          id:       { not: booking.id },
+          status:   'CONFIRMED',
+          checkIn:  { lt: booking.checkOut },
+          checkOut: { gt: booking.checkIn },
+        },
+      });
+      return bookingConflict > 0;
+    });
+
+    if (conflict) {
+      // Cancel pre-auth and decline
+      await stripe.paymentIntents.cancel(booking.stripePaymentIntentId)
+        .catch(e => console.error('[staff] PI cancel on conflict:', e.message));
+      const cancelled = await prisma.booking.update({
+        where: { id: booking.id },
+        data:  { status: 'CANCELLED', adminDeclineNote: 'Datas indisponíveis no momento da confirmação' },
+      });
+      const { sendBookingDeclined }  = require('../lib/mailer');
+      const { notifyBookingDeclined } = require('../lib/ghl-webhook');
+      sendBookingDeclined({ booking: cancelled, declineReason: cancelled.adminDeclineNote }).catch(() => {});
+      notifyBookingDeclined(cancelled).catch(() => {});
+      return res.status(409).json({ error: 'Datas ficaram indisponíveis. Reserva cancelada e hóspede notificado.' });
+    }
+
+    // Capture the pre-authorized payment
+    await stripe.paymentIntents.capture(booking.stripePaymentIntentId);
+
+    const confirmed = await prisma.booking.update({
+      where: { id: booking.id },
+      data:  { status: 'CONFIRMED' },
+    });
+
+    // Fire confirmation messages (non-blocking)
+    const { sendBookingConfirmation }  = require('../lib/mailer');
+    const { notifyBookingConfirmed }   = require('../lib/ghl-webhook');
+    sendBookingConfirmation({ booking: confirmed }).catch(e => console.error('[mailer] confirm email error:', e.message));
+    notifyBookingConfirmed(confirmed).catch(e => console.error('[ghl] confirm webhook error:', e.message));
+
+    res.json({ ok: true, booking: confirmed });
+  } catch (err) {
+    console.error('[staff] confirmar error:', err);
+    res.status(500).json({ error: err.message || 'Erro ao confirmar reserva' });
+  }
+});
+
+// ── POST /reservas/:id/recusar — admin declines a REQUESTED booking ───────────
+router.post('/reservas/:id/recusar', requireRole('ADMIN'), async (req, res) => {
+  const { message } = req.body;
+  if (!message?.trim()) return res.status(400).json({ error: 'message é obrigatório' });
+
+  try {
+    const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+    if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
+    if (booking.status !== 'REQUESTED') {
+      return res.status(400).json({ error: `Reserva está em status ${booking.status}, não pode ser recusada` });
+    }
+    if (!booking.stripePaymentIntentId) {
+      return res.status(400).json({ error: 'Reserva sem PaymentIntent Stripe' });
+    }
+
+    const stripe = require('../lib/stripe');
+
+    // Cancel the pre-authorization (no charge)
+    await stripe.paymentIntents.cancel(booking.stripePaymentIntentId);
+
+    const declined = await prisma.booking.update({
+      where: { id: booking.id },
+      data:  { status: 'CANCELLED', adminDeclineNote: message.trim() },
+    });
+
+    // Fire decline messages (non-blocking)
+    const { sendBookingDeclined }   = require('../lib/mailer');
+    const { notifyBookingDeclined } = require('../lib/ghl-webhook');
+    sendBookingDeclined({ booking: declined, declineReason: message.trim() })
+      .catch(e => console.error('[mailer] decline email error:', e.message));
+    notifyBookingDeclined(declined)
+      .catch(e => console.error('[ghl] decline webhook error:', e.message));
+
+    res.json({ ok: true, booking: declined });
+  } catch (err) {
+    console.error('[staff] recusar error:', err);
+    res.status(500).json({ error: err.message || 'Erro ao recusar reserva' });
+  }
+});
+
 // ── GET /api/staff/push/vapid-key ─────────────────────────────────────────────
 // Returns the VAPID public key so the PWA can create a PushSubscription.
 router.get('/push/vapid-key', (_req, res) => {

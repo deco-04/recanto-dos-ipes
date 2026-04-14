@@ -1,5 +1,6 @@
 # Claude internal
 .claude/
+.superpowers/
 
 # Node
 node_modules/
@@ -27,3 +28,6 @@ desktop.ini
 
 # Binary / design assets (keep out of repo)
 *.pdf
+
+# User uploads — never version actual files here
+uploads/
