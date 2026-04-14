@@ -10,12 +10,16 @@ const path  = require('path');
 const fs    = require('fs');
 
 const ROOT      = path.join(__dirname, '..');
-// Color brand mark — best contrast on light beige background
+// Symbol mark — used for small favicons (16, 32, 72)
 const MARK_PATH = path.join(ROOT, 'public', 'brand', 'sri-mark-color.svg');
+// Full logo (mark + name) — used for app icons (180, 192, 512, maskable)
+const LOGO_PATH = path.join(ROOT, 'brand', 'logo-color.svg');
 const ICON_DIR  = path.join(ROOT, 'public', 'icons');
 
-// Mark aspect ratio: 3779 ÷ 2645 = 1.4286 (landscape)
-const MARK_RATIO = 3779 / 2645;
+// Logo aspect ratio: 3779 ÷ 2645 = 1.4286 (landscape)
+const LOGO_RATIO = 3779 / 2645;
+// Mark is square-ish (1:1)
+const MARK_RATIO = 1;
 
 // Ensure output directory exists
 if (!fs.existsSync(ICON_DIR)) {
@@ -25,14 +29,14 @@ if (!fs.existsSync(ICON_DIR)) {
 
 // ── Icons to generate ─────────────────────────────────────────────────────────
 const ICONS = [
-  { size: 512, name: 'icon-512.png'          },
-  { size: 192, name: 'icon-192.png'          },
-  { size: 180, name: 'apple-touch-icon.png'  },
-  { size: 32,  name: 'favicon-32.png'        },
-  { size: 16,  name: 'favicon-16.png'        },
-  { size: 512, name: 'icon-maskable-512.png' },
-  { size: 192, name: 'icon-maskable-192.png' },
-  { size: 72,  name: 'badge-72.png'          },
+  { size: 512, name: 'icon-512.png',          logo: true  },
+  { size: 192, name: 'icon-192.png',          logo: true  },
+  { size: 180, name: 'apple-touch-icon.png',  logo: true  },
+  { size: 32,  name: 'favicon-32.png',        logo: false },
+  { size: 16,  name: 'favicon-16.png',        logo: false },
+  { size: 512, name: 'icon-maskable-512.png', logo: true  },
+  { size: 192, name: 'icon-maskable-192.png', logo: true  },
+  { size: 72,  name: 'badge-72.png',          logo: false },
 ];
 
 // ── Background SVG (self-contained — no external refs, sharp-safe) ────────────
@@ -46,7 +50,7 @@ function makeBgSvg(size) {
 }
 
 // ── Generate a single icon ────────────────────────────────────────────────────
-async function generateIcon({ size, name }) {
+async function generateIcon({ size, name, logo }) {
   const outPath = path.join(ICON_DIR, name);
 
   // Skip if file exists locally (not in Railway CI) to speed up dev re-runs
@@ -62,38 +66,45 @@ async function generateIcon({ size, name }) {
       .png()
       .toBuffer();
 
-    // Step 2 — Render brand mark at 86% of icon width (maintains landscape ratio)
-    // At all sizes this keeps the mark proportionally prominent while avoiding crop.
-    const markW = Math.round(size * 0.86);
-    const markH = Math.round(markW / MARK_RATIO);
+    // Step 2 — Render asset:
+    //   app icons  → full logo at 80% fill (landscape ratio)
+    //   favicons   → symbol mark at 70% fill (square)
+    const srcPath = logo ? LOGO_PATH : MARK_PATH;
+    const ratio   = logo ? LOGO_RATIO : MARK_RATIO;
+    const fill    = logo ? 0.80 : 0.70;
+    const assetW  = Math.round(size * fill);
+    const assetH  = logo ? Math.round(assetW / ratio) : assetW;
 
-    const markBuf = await sharp(MARK_PATH)
-      .resize(markW, markH, {
+    const assetBuf = await sharp(srcPath)
+      .resize(assetW, assetH, {
         fit:        'contain',
-        background: { r: 0, g: 0, b: 0, alpha: 0 },  // transparent padding
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
       })
       .png()
       .toBuffer();
 
-    // Step 3 — Composite mark centred on background
+    // Step 3 — Composite centred on background
     await sharp(bgBuf)
-      .composite([{ input: markBuf, gravity: 'center' }])
+      .composite([{ input: assetBuf, gravity: 'center' }])
       .png()
       .toFile(outPath);
 
-    console.log(`[icons] ✓ ${name} (${size}×${size})`);
+    console.log(`[icons] ✓ ${name} (${size}×${size}) [${logo ? 'logo' : 'mark'}]`);
   } catch (err) {
     console.error(`[icons] ✗ Failed to generate ${name}:`, err.message);
-    // Non-fatal — browser falls back to letter avatar
   }
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 async function main() {
-  console.log('[icons] Generating PWA icons from sri-mark-color.svg…');
+  console.log('[icons] Generating PWA icons (logo @ 80% for app, mark for favicon)…');
 
   if (!fs.existsSync(MARK_PATH)) {
-    console.warn(`[icons] Brand mark not found at ${MARK_PATH} — skipping`);
+    console.warn(`[icons] Mark not found at ${MARK_PATH} — skipping`);
+    process.exit(0);
+  }
+  if (!fs.existsSync(LOGO_PATH)) {
+    console.warn(`[icons] Logo not found at ${LOGO_PATH} — skipping`);
     process.exit(0);
   }
 
