@@ -72,6 +72,23 @@ function serializePost(p) {
   };
 }
 
+// ── GET /conteudo/pending-count — count of posts in GERADO or EM_REVISAO ────────
+router.get('/pending-count', requireStaff, async (req, res) => {
+  try {
+    const property = await prisma.property.findFirst({ where: { active: true } });
+    if (!property) return res.json({ count: 0 });
+    const count = await prisma.contentPost.count({
+      where: {
+        propertyId: property.id,
+        stage: { in: ['GERADO', 'EM_REVISAO'] },
+      },
+    });
+    res.json({ count });
+  } catch {
+    res.json({ count: 0 }); // fail silently — it's just a badge
+  }
+});
+
 // ── GET /conteudo — posts grouped by stage ─────────────────────────────────────
 router.get('/', requireStaff, async (req, res) => {
   try {
