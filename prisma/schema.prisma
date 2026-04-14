@@ -75,6 +75,8 @@ model Booking {
   stripePaymentIntentId String?       @unique
   invoiceNumber         String        @unique @default(cuid())
   notes                 String?
+  petDescription        String?   // free-text pet description, e.g. "1 cachorro pequeno"
+  adminDeclineNote      String?   // admin's typed reason, stored for audit trail
   source                BookingSource @default(DIRECT)
   externalId            String?       @unique  // iCal UID for OTA bookings (dedup)
   otaTaskId             String?       // auto-created StaffTask ID for incomplete OTA bookings
@@ -102,6 +104,7 @@ model Booking {
 
 enum BookingStatus {
   PENDING
+  REQUESTED
   CONFIRMED
   CANCELLED
   REFUNDED
@@ -175,6 +178,8 @@ model Property {
   icalAirbnb     String?
   icalBookingCom String?
   porteiroPhone  String?      // WhatsApp number for the porteiro (gate guard)
+  phone          String?   // e.g. "+55 31 2391-6688"
+  websiteUrl     String?   // e.g. "sitiorecantodosipes.com"
   active         Boolean      @default(true)
   createdAt      DateTime     @default(now())
 
