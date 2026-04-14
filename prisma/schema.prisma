@@ -77,6 +77,8 @@ model Booking {
   notes                 String?
   source                BookingSource @default(DIRECT)
   externalId            String?       @unique  // iCal UID for OTA bookings (dedup)
+  otaTaskId             String?       // auto-created StaffTask ID for incomplete OTA bookings
+  porteirSentAt         DateTime?     // when the guest list was sent to the porteiro
   propertyId            String?
   cabinId               String?
   surveyStatus          SurveyStatus  @default(NAO_ENVIADO)
@@ -91,6 +93,7 @@ model Booking {
   maintenanceLogs MaintenanceLog[]
   coGuests        BookingGuest[]
   messages        GuestMessage[]
+  guestList       GuestListEntry[]
 
   @@index([checkIn, checkOut])
   @@index([guestEmail])
@@ -171,6 +174,7 @@ model Property {
   hasPool        Boolean      @default(false)
   icalAirbnb     String?
   icalBookingCom String?
+  porteiroPhone  String?      // WhatsApp number for the porteiro (gate guard)
   active         Boolean      @default(true)
   createdAt      DateTime     @default(now())
 
@@ -450,6 +454,7 @@ enum ExpenseCategory {
   MANUTENCAO_PISCINA
   PRODUTOS_LIMPEZA_PISCINA
   ENERGIA_ELETRICA
+  GAS_COMBUSTIVEL          // botijão gás sauna/fogão (histórico — convertido p/ elétrico)
   INTERNET
   CONDOMINIO
   IMPOSTOS
@@ -508,6 +513,20 @@ model StaffTask {
 enum TaskStatus {
   PENDENTE
   FEITO
+}
+
+// ── Guest List (SP3 pre-stay automation) ──────────────────────────────────────
+model GuestListEntry {
+  id        String  @id @default(cuid())
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id])
+  name      String
+  vehicle   String?
+  plate     String?
+  isMain    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([bookingId])
 }
 
 // ── Survey ────────────────────────────────────────────────────────────────────

@@ -75,10 +75,14 @@ const SKIP_PAYEES = ['STHEFANE LOURDES','WISE BRASIL','ANDRE LUIZ DE SOUZA','JOA
 
 function categorize(payee, amount = 0) {
   const n = normalize(payee);
-  // Jack Souza (Jacqueline Paula) — cleaning range R$150–R$350 → SERVICOS_LIMPEZA
-  // Outside that range (small errands < R$150, or large non-cleaning > R$350) → OUTROS
+  // Jack Souza (Jacqueline Paula) — categorize by amount range:
+  //   R$130–R$139 → GAS_COMBUSTIVEL (botijão gás sauna/fogão; histórico — agora elétrico)
+  //   R$150–R$350 → SERVICOS_LIMPEZA (limpeza regular)
+  //   Resto       → OUTROS (outros serviços/compras menores)
   if (n.includes('JACQUELINE PAULA')) {
-    return (amount >= 150 && amount <= 350) ? 'SERVICOS_LIMPEZA' : 'OUTROS';
+    if (amount >= 130 && amount <= 139) return 'GAS_COMBUSTIVEL';
+    if (amount >= 150 && amount <= 350) return 'SERVICOS_LIMPEZA';
+    return 'OUTROS';
   }
   for (const rule of RULES) {
     if (rule.kw.some(k => n.includes(normalize(k)))) return rule.cat;
@@ -309,7 +313,10 @@ async function main() {
   let jackFixed = 0, jackSame = 0;
   for (const exp of jackRows) {
     const amt = parseFloat(String(exp.amount));
-    const correct = (amt >= 150 && amt <= 350) ? 'SERVICOS_LIMPEZA' : 'OUTROS';
+    let correct;
+    if (amt >= 130 && amt <= 139) correct = 'GAS_COMBUSTIVEL';       // botijão gás sauna/fogão
+    else if (amt >= 150 && amt <= 350) correct = 'SERVICOS_LIMPEZA'; // limpeza regular
+    else correct = 'OUTROS';                                           // outros serviços
     if (exp.category !== correct) {
       await prisma.expense.update({ where: { id: exp.id }, data: { category: correct } });
       jackFixed++;

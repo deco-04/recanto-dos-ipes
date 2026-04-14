@@ -10,6 +10,8 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const { z } = require('zod');
 const prisma = require('../lib/db');
+const { maybeCompleteOtaTask } = require('../lib/tasks');
+const { sendPorteiroMessage }  = require('../lib/ghl-webhook');
 
 const router = express.Router();
 
@@ -90,6 +92,7 @@ function serializeBooking(b) {
     source: sourceMap[b.source] || 'DIRECT',
     notes: b.notes || null,
     hasPet: b.hasPet || false,
+    otaTaskId: b.otaTaskId || null,
     createdAt: b.createdAt?.toISOString() || null,
   };
 }
@@ -1000,6 +1003,187 @@ router.post('/reservas/:id/mensagens', requireRole('ADMIN', 'GUARDIA'), async (r
   }
 });
 
+// ── PATCH /api/staff/reservas/:id/dados ─────────────────────────────────────
+// Completes missing OTA booking data. Auto-completes the linked StaffTask when
+// required fields (guestPhone + guestCount) are present.
+router.patch('/reservas/:id/dados', requireRole('ADMIN'), async (req, res) => {
+  const schema = z.object({
+    guestName:  z.string().min(1).optional(),
+    guestEmail: z.string().email().optional(),
+    guestPhone: z.string().min(1).optional(),
+    guestCpf:   z.string().optional(),
+    guestCount: z.number().int().min(1).optional(),
+    hasPet:     z.boolean().optional(),
+    totalAmount: z.number().min(0).optional(),
+    notes:      z.string().optional(),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.errors });
+
+  const updates = {};
+  for (const [key, val] of Object.entries(parsed.data)) {
+    if (val !== undefined) updates[key] = val;
+  }
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+  }
+  if (updates.totalAmount !== undefined) updates.totalAmount = updates.totalAmount.toString();
+
+  try {
+    const booking = await prisma.booking.update({
+      where: { id: req.params.id },
+      data:  updates,
+      include: { user: { select: { name: true } } },
+    });
+
+    // Auto-complete OTA task if required fields are now filled
+    await maybeCompleteOtaTask(req.params.id);
+
+    res.json(serializeBooking(booking));
+  } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Reserva não encontrada' });
+    console.error('[staff-portal] PATCH reservas/:id/dados error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar dados da reserva' });
+  }
+});
+
+// ── POST /api/staff/reservas/:id/extrair-lista ────────────────────────────────
+// Receives raw pasted text, uses Claude to extract a structured guest list.
+// Returns: { guests: [{ name, vehicle?, plate? }], hasPet?: boolean }
+router.post('/reservas/:id/extrair-lista', requireRole('ADMIN'), async (req, res) => {
+  const { rawText } = req.body;
+  if (!rawText?.trim()) return res.status(400).json({ error: 'Texto não pode ser vazio' });
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(503).json({ error: 'API de IA não configurada' });
+  }
+
+  try {
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: `Extraia a lista de hóspedes do texto abaixo. Retorne APENAS um JSON válido (sem markdown) no formato:
+{"guests":[{"name":"Nome Completo","vehicle":"Tipo Veículo","plate":"ABC-1234"}],"hasPet":false}
+
+Regras:
+- name: nome completo de cada pessoa
+- vehicle: tipo do veículo se mencionado (carro, moto, etc), null se não
+- plate: placa do veículo no formato brasileiro, null se não mencionado
+- hasPet: true se houver menção a pet/animal, false caso contrário
+- Inclua todas as pessoas mencionadas, inclusive criança e bebê
+- Se um veículo não tiver placa, coloque plate como null
+
+Texto: ${rawText}`,
+      }],
+    });
+
+    const rawJson = message.content[0].text.trim();
+    const parsed = JSON.parse(rawJson);
+    if (!Array.isArray(parsed.guests)) throw new Error('Formato inválido');
+
+    res.json(parsed);
+  } catch (err) {
+    console.error('[staff-portal] extrair-lista error:', err.message);
+    res.status(500).json({ error: 'Erro ao processar lista com IA' });
+  }
+});
+
+// ── POST /api/staff/reservas/:id/lista ────────────────────────────────────────
+// Saves the confirmed guest list to GuestListEntry records (replaces previous).
+router.post('/reservas/:id/lista', requireRole('ADMIN'), async (req, res) => {
+  const schema = z.object({
+    guests: z.array(z.object({
+      name:    z.string().min(1),
+      vehicle: z.string().nullable().optional(),
+      plate:   z.string().nullable().optional(),
+      isMain:  z.boolean().optional(),
+    })).min(1),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
+
+  try {
+    // Replace existing entries
+    await prisma.guestListEntry.deleteMany({ where: { bookingId: req.params.id } });
+    await prisma.guestListEntry.createMany({
+      data: parsed.data.guests.map((g, i) => ({
+        bookingId: req.params.id,
+        name:      g.name,
+        vehicle:   g.vehicle || null,
+        plate:     g.plate   || null,
+        isMain:    i === 0,
+      })),
+    });
+
+    const entries = await prisma.guestListEntry.findMany({
+      where:   { bookingId: req.params.id },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    res.json(entries);
+  } catch (err) {
+    console.error('[staff-portal] POST lista error:', err);
+    res.status(500).json({ error: 'Erro ao salvar lista' });
+  }
+});
+
+// ── GET /api/staff/reservas/:id/lista ─────────────────────────────────────────
+router.get('/reservas/:id/lista', requireRole('ADMIN', 'GUARDIA'), async (req, res) => {
+  try {
+    const entries = await prisma.guestListEntry.findMany({
+      where:   { bookingId: req.params.id },
+      orderBy: { createdAt: 'asc' },
+    });
+    const sentAt = await prisma.booking.findUnique({
+      where:  { id: req.params.id },
+      select: { porteirSentAt: true },
+    });
+    res.json({ entries, porteirSentAt: sentAt?.porteirSentAt || null });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar lista' });
+  }
+});
+
+// ── POST /api/staff/reservas/:id/enviar-porteiro ──────────────────────────────
+// Sends the guest list to the porteiro via GHL WhatsApp webhook.
+router.post('/reservas/:id/enviar-porteiro', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where:   { id: req.params.id },
+      include: { property: { select: { porteiroPhone: true } }, user: { select: { name: true } } },
+    });
+    if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    const porteiroPhone = booking.property?.porteiroPhone || process.env.PORTEIRO_DEFAULT_PHONE;
+    if (!porteiroPhone) return res.status(400).json({ error: 'Número do porteiro não configurado. Configure em Configurações → Porteiro.' });
+
+    const entries = await prisma.guestListEntry.findMany({
+      where:   { bookingId: req.params.id },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (entries.length === 0) return res.status(400).json({ error: 'Lista de hóspedes vazia. Adicione os hóspedes primeiro.' });
+
+    await sendPorteiroMessage(serializeBooking(booking), entries, porteiroPhone);
+
+    await prisma.booking.update({
+      where: { id: req.params.id },
+      data:  { porteirSentAt: new Date() },
+    });
+
+    res.json({ ok: true, sentAt: new Date().toISOString() });
+  } catch (err) {
+    console.error('[staff-portal] enviar-porteiro error:', err);
+    res.status(500).json({ error: 'Erro ao enviar para o porteiro' });
+  }
+});
+
 // ── GET /api/staff/push/vapid-key ─────────────────────────────────────────────
 // Returns the VAPID public key so the PWA can create a PushSubscription.
 router.get('/push/vapid-key', (_req, res) => {
@@ -1697,6 +1881,15 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
     }
 
     const now = new Date();
+
+    // Historical average cleaning cost = total SERVICOS_LIMPEZA ÷ past confirmed bookings
+    // Used as fallback when no actual expense can be matched (and always for future bookings)
+    const totalCleaningAmount = cleaningExps.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+    const pastBookingCount    = bookings.filter(b => new Date(b.checkOut).getTime() < now.getTime()).length;
+    const avgCleaningCost     = pastBookingCount > 0
+      ? Math.round((totalCleaningAmount / pastBookingCount) * 100) / 100
+      : 270;
+
     const results = [];
 
     for (const b of bookings) {
@@ -1705,13 +1898,15 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
       const feeRate        = PLATFORM_FEES[source] ?? 0;
       const taxaPlataforma = Math.round(totalAmount * feeRate * 100) / 100;
 
-      // Nearest cleaning expense: checkout window -1 day to +4 days
+      // Try to match actual cleaning expense: checkout window -1 day to +4 days
       const coMs = new Date(b.checkOut).getTime();
       const cleaningMatch = cleaningExps.find(e => {
         const diff = new Date(e.date).getTime() - coMs;
         return diff >= -86400000 && diff <= 4 * 86400000;
       });
-      const custoLimpeza = cleaningMatch ? parseFloat(cleaningMatch.amount || 0) : 0;
+      // Use actual if found; otherwise use historical average (more accurate than 0)
+      const custoLimpeza      = cleaningMatch ? parseFloat(cleaningMatch.amount || 0) : avgCleaningCost;
+      const custoLimpezaFonte = cleaningMatch ? 'REAL' : 'ESTIMADO';
 
       // Fixed cost allocation by check-in month
       const ci = new Date(b.checkIn);
@@ -1738,13 +1933,15 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
         guests:           b.guestCount || 0,
         source,
         status,
-        totalReceita:     totalAmount,
+        totalReceita:        totalAmount,
         taxaPlataforma,
         custoLimpeza,
-        custoFixoAlocado: custoFixo,
+        custoLimpezaFonte,
+        custoFixoAlocado:    custoFixo,
         custoTotal,
         resultadoLiquido,
         margem,
+        avgCleaningCost,     // expose so frontend can display the basis
       });
     }
 
@@ -1752,6 +1949,40 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
   } catch (err) {
     console.error('[staff-portal] financeiro/reservas-lucratividade error:', err);
     res.status(500).json({ error: 'Erro ao calcular lucratividade por reserva' });
+  }
+});
+
+// ── GET /api/staff/configuracoes/porteiro ─────────────────────────────────────
+router.get('/configuracoes/porteiro', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const property = await prisma.property.findFirst({
+      where:  { active: true },
+      select: { id: true, name: true, porteiroPhone: true },
+    });
+    res.json({ porteiroPhone: property?.porteiroPhone || null, propertyName: property?.name || null });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar configurações' });
+  }
+});
+
+// ── PATCH /api/staff/configuracoes/porteiro ───────────────────────────────────
+router.patch('/configuracoes/porteiro', requireRole('ADMIN'), async (req, res) => {
+  const { porteiroPhone } = req.body;
+  if (porteiroPhone !== null && typeof porteiroPhone !== 'string') {
+    return res.status(400).json({ error: 'Número inválido' });
+  }
+  try {
+    const property = await prisma.property.findFirst({ where: { active: true }, select: { id: true } });
+    if (!property) return res.status(404).json({ error: 'Propriedade não encontrada' });
+
+    await prisma.property.update({
+      where: { id: property.id },
+      data:  { porteiroPhone: porteiroPhone || null },
+    });
+    res.json({ ok: true, porteiroPhone: porteiroPhone || null });
+  } catch (err) {
+    console.error('[staff-portal] PATCH porteiro error:', err);
+    res.status(500).json({ error: 'Erro ao salvar' });
   }
 });
 
