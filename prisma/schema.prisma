@@ -184,6 +184,7 @@ model Property {
   pricing     SeasonalPricing[]         @relation("PropertyPricing")
   suggestions PricingSuggestion[]
   inventory   AmenitiesItem[]
+  expenses    Expense[]
 }
 
 enum PropertyType {
@@ -439,6 +440,52 @@ model Fornecedor {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  expenses  Expense[]
+}
+
+// ── Expenses ──────────────────────────────────────────────────────────────────
+enum ExpenseCategory {
+  SERVICOS_LIMPEZA
+  MANUTENCAO_PISCINA
+  PRODUTOS_LIMPEZA_PISCINA
+  ENERGIA_ELETRICA
+  INTERNET
+  CONDOMINIO
+  IMPOSTOS
+  CARTAO_CREDITO
+  MATERIAIS_MELHORIAS
+  MANUTENCAO_SOLAR_BOMBA
+  DESIGN_ARQUITETURA
+  COMPRAS_ONLINE
+  OUTROS
+  A_CLASSIFICAR
+}
+
+enum ExpenseSource {
+  BANK_IMPORT
+  MANUAL
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  propertyId  String
+  date        DateTime        @db.Date
+  amount      Decimal         @db.Decimal(10, 2)
+  category    ExpenseCategory @default(A_CLASSIFICAR)
+  description String
+  payee       String
+  source      ExpenseSource   @default(MANUAL)
+  bankRef     String?         @unique  // dedup key: "DD/MM/YYYY|payee|amount"
+  supplierId  String?
+  notes       String?
+  createdAt   DateTime        @default(now())
+
+  property   Property    @relation(fields: [propertyId], references: [id])
+  supplier   Fornecedor? @relation(fields: [supplierId], references: [id])
+
+  @@index([propertyId, date])
+  @@index([category])
 }
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────

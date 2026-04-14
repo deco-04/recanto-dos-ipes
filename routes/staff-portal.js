@@ -1275,4 +1275,266 @@ Escreva um briefing operacional diário em português. 3 a 4 parágrafos curtos.
   }
 });
 
+// ── FINANCIAL INTELLIGENCE ───────────────────────────────────────────────────
+//
+// GET  /api/staff/financeiro/dre      — P&L dashboard (KPIs + historico + canais + despesas)
+// GET  /api/staff/financeiro/despesas — list expenses with filters
+// POST /api/staff/financeiro/despesas — create manual expense
+// GET  /api/staff/financeiro/cds      — CDS investment tracker
+
+/** Build start/end Date from a period string + optional propertyId */
+function buildPeriod(period) {
+  const now = new Date();
+  let start, end;
+  switch (period) {
+    case 'quarter': // last 3 months
+      start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      end   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      break;
+    case 'semester': // last 6 months
+      start = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      end   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      break;
+    case 'year': // this year Jan–now
+      start = new Date(now.getFullYear(), 0, 1);
+      end   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      break;
+    default: // 'month' — current month
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  }
+  return { start, end };
+}
+
+function buildComparePeriod(period, compare) {
+  const { start, end } = buildPeriod(period);
+  const diffMs = end - start;
+  if (compare === 'same2024') {
+    const yearDiff = start.getFullYear() - 2024;
+    return {
+      start: new Date(start.getFullYear() - yearDiff, start.getMonth(), start.getDate()),
+      end:   new Date(end.getFullYear()   - yearDiff, end.getMonth(),   end.getDate(), 23, 59, 59),
+    };
+  }
+  // default: previous equivalent period
+  return { start: new Date(start - diffMs - 86400000), end: new Date(start - 86400000) };
+}
+
+async function getKPIs(propertyId, start, end) {
+  const [bookings, expenses] = await Promise.all([
+    prisma.booking.findMany({
+      where: { propertyId, status: 'CONFIRMED', checkIn: { gte: start, lte: end } },
+      select: { totalAmount: true, source: true, nights: true },
+    }),
+    prisma.expense.findMany({
+      where: { propertyId, date: { gte: start, lte: end } },
+      select: { amount: true, category: true },
+    }),
+  ]);
+
+  const receita = bookings.reduce((s, b) => s + parseFloat(b.totalAmount || 0), 0);
+  const despesas = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+  const resultado = receita - despesas;
+  const margem = receita > 0 ? resultado / receita : 0;
+  const qtd = bookings.length;
+
+  const canais = { AIRBNB: { receita: 0, qtd: 0 }, BOOKING_COM: { receita: 0, qtd: 0 }, DIRECT: { receita: 0, qtd: 0 } };
+  for (const b of bookings) {
+    const src = b.source || 'DIRECT';
+    if (!canais[src]) canais[src] = { receita: 0, qtd: 0 };
+    canais[src].receita += parseFloat(b.totalAmount || 0);
+    canais[src].qtd += 1;
+  }
+
+  const catMap = {};
+  for (const e of expenses) {
+    catMap[e.category] = (catMap[e.category] || 0) + parseFloat(e.amount || 0);
+  }
+
+  return {
+    receita, despesas, resultado, margem,
+    reservasCount: qtd,
+    ticketMedio: qtd > 0 ? receita / qtd : 0,
+    custoPorReserva: qtd > 0 ? despesas / qtd : 0,
+    canais,
+    despesasCategorias: catMap,
+  };
+}
+
+router.get('/financeiro/dre', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const period  = req.query.period  || 'month';
+    const compare = req.query.compare || 'previous';
+
+    const prop = await prisma.property.findFirst({
+      where: { slug: { not: 'cabanas' }, active: true },
+    });
+    if (!prop) return res.status(404).json({ error: 'Propriedade não encontrada' });
+
+    const { start, end }         = buildPeriod(period);
+    const { start: cs, end: ce } = buildComparePeriod(period, compare);
+
+    const [current, previous] = await Promise.all([
+      getKPIs(prop.id, start, end),
+      getKPIs(prop.id, cs, ce),
+    ]);
+
+    // 12-month historical
+    const now = new Date();
+    const historico = [];
+    for (let i = 11; i >= 0; i--) {
+      const ms = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const me = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+      const [bks, exps] = await Promise.all([
+        prisma.booking.aggregate({
+          where: { propertyId: prop.id, status: 'CONFIRMED', checkIn: { gte: ms, lte: me } },
+          _sum: { totalAmount: true },
+        }),
+        prisma.expense.aggregate({
+          where: { propertyId: prop.id, date: { gte: ms, lte: me } },
+          _sum: { amount: true },
+        }),
+      ]);
+      const rec = parseFloat(bks._sum.totalAmount || 0);
+      const des = parseFloat(exps._sum.amount || 0);
+      historico.push({
+        mes:       ms.toISOString().slice(0, 7),
+        label:     ms.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
+        receita:   rec,
+        despesas:  des,
+        resultado: rec - des,
+      });
+    }
+
+    // Despesas por categoria (current period, for chart)
+    const despesasCategorias = Object.entries(current.despesasCategorias).map(([cat, valor]) => ({
+      categoria: cat,
+      valor,
+      valorAnterior: previous.despesasCategorias[cat] || 0,
+    })).sort((a, b) => b.valor - a.valor);
+
+    res.json({
+      periodo:   { label: period, start: start.toISOString(), end: end.toISOString() },
+      comparativo: { label: compare, start: cs.toISOString(), end: ce.toISOString() },
+      kpis: {
+        receitaBruta:           current.receita,
+        receitaBrutaAnterior:   previous.receita,
+        despesasTotal:          current.despesas,
+        despesasTotalAnterior:  previous.despesas,
+        resultadoLiquido:       current.resultado,
+        resultadoLiquidoAnterior: previous.resultado,
+        margemLiquida:          current.margem,
+        margemLiquidaAnterior:  previous.margem,
+        reservasCount:          current.reservasCount,
+        custoPorReserva:        current.custoPorReserva,
+        ticketMedio:            current.ticketMedio,
+      },
+      canais: {
+        airbnb:  { receita: current.canais.AIRBNB?.receita || 0,      reservas: current.canais.AIRBNB?.qtd || 0,      fee: 0.03  },
+        booking: { receita: current.canais.BOOKING_COM?.receita || 0,  reservas: current.canais.BOOKING_COM?.qtd || 0,  fee: 0.13  },
+        direta:  { receita: current.canais.DIRECT?.receita || 0,       reservas: current.canais.DIRECT?.qtd || 0,       fee: 0.00  },
+      },
+      historico,
+      despesasCategorias,
+    });
+  } catch (err) {
+    console.error('[staff-portal] financeiro/dre error:', err);
+    res.status(500).json({ error: 'Erro ao calcular DRE' });
+  }
+});
+
+router.get('/financeiro/despesas', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const { category, startDate, endDate, propertySlug } = req.query;
+    const prop = await prisma.property.findFirst({
+      where: propertySlug
+        ? { slug: propertySlug }
+        : { slug: { not: 'cabanas' }, active: true },
+    });
+    if (!prop) return res.status(404).json({ error: 'Propriedade não encontrada' });
+
+    const where = { propertyId: prop.id };
+    if (category) where.category = category;
+    if (startDate || endDate) {
+      where.date = {};
+      if (startDate) where.date.gte = new Date(startDate);
+      if (endDate)   where.date.lte = new Date(endDate);
+    }
+
+    const expenses = await prisma.expense.findMany({
+      where,
+      orderBy: { date: 'desc' },
+      take: 200,
+    });
+
+    res.json({ expenses });
+  } catch (err) {
+    console.error('[staff-portal] financeiro/despesas error:', err);
+    res.status(500).json({ error: 'Erro ao listar despesas' });
+  }
+});
+
+router.post('/financeiro/despesas', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const { propertySlug, date, amount, category, description, payee, notes } = req.body;
+    const prop = await prisma.property.findFirst({
+      where: propertySlug
+        ? { slug: propertySlug }
+        : { slug: { not: 'cabanas' }, active: true },
+    });
+    if (!prop) return res.status(404).json({ error: 'Propriedade não encontrada' });
+
+    const expense = await prisma.expense.create({
+      data: {
+        propertyId: prop.id,
+        date:        new Date(date),
+        amount:      parseFloat(amount),
+        category:    category || 'A_CLASSIFICAR',
+        description: description || '',
+        payee:       payee || '',
+        source:      'MANUAL',
+        notes,
+      },
+    });
+
+    res.status(201).json({ expense });
+  } catch (err) {
+    console.error('[staff-portal] financeiro/despesas POST error:', err);
+    res.status(500).json({ error: 'Erro ao criar despesa' });
+  }
+});
+
+router.get('/financeiro/cds', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const cds = await prisma.property.findFirst({ where: { slug: 'cabanas' } });
+    if (!cds) return res.json({ totalInvestido: 0, pagamentos: [], acumulado: [] });
+
+    const pagamentos = await prisma.expense.findMany({
+      where: { propertyId: cds.id, category: 'DESIGN_ARQUITETURA' },
+      orderBy: { date: 'asc' },
+      select: { date: true, amount: true, description: true, payee: true },
+    });
+
+    let running = 0;
+    const acumulado = pagamentos.map(p => {
+      running += parseFloat(p.amount || 0);
+      return running;
+    });
+
+    res.json({
+      totalInvestido: running,
+      pagamentos: pagamentos.map((p, i) => ({
+        data:      p.date,
+        valor:     parseFloat(p.amount),
+        descricao: p.description || p.payee,
+        acumulado: acumulado[i],
+      })),
+      acumulado,
+    });
+  } catch (err) {
+    console.error('[staff-portal] financeiro/cds error:', err);
+    res.status(500).json({ error: 'Erro ao buscar CDS' });
+  }
+});
+
 module.exports = router;
