@@ -149,16 +149,41 @@ router.patch('/:id', requireStaff, async (req, res) => {
         where: { brand: post.brand, propertyId: property?.id },
       }) || {};
 
+      let ghlPostId = null;
+      let ghlFailed = false;
       try {
-        const ghlPostId = await schedulePost({ ...post, ...data }, config);
-        if (ghlPostId) {
-          data.ghlPostId = ghlPostId;
-          data.stage     = 'AGENDADO';
+        const id = await schedulePost({ ...post, ...data }, config);
+        if (id) {
+          ghlPostId = id;
+          data.stage = 'AGENDADO';
         }
       } catch (e) {
         console.error('[content] GHL schedule error:', e.message);
-        // Still mark as APROVADO even if GHL fails
+        ghlFailed = true;
+        // Still continue — post will be APROVADO without ghlPostId
       }
+
+      if (ghlPostId) data.ghlPostId = ghlPostId;
+
+      // Atomic update — only succeeds if another request hasn't already approved it
+      const result = await prisma.contentPost.updateMany({
+        where: { id: req.params.id, stage: { not: 'APROVADO' } },
+        data,
+      });
+
+      if (result.count === 0) {
+        return res.status(409).json({ error: 'Post já aprovado por outra requisição' });
+      }
+
+      // Fetch the updated post with comments for response
+      const updated = await prisma.contentPost.findUnique({
+        where:   { id: req.params.id },
+        include: { comments: { include: { staff: { select: { name: true } } } } },
+      });
+
+      const response = serializePost(updated);
+      if (ghlFailed) response.ghlError = true;
+      return res.json(response);
     }
 
     // Cancel GHL post if admin moves back from AGENDADO
