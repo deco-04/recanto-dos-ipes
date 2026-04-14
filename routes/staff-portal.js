@@ -131,7 +131,6 @@ router.get('/reservas/:id', requireRole('ADMIN', 'GUARDIA'), async (req, res) =>
 // Accepts: { source?, status?, notes? }
 router.patch('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
   const sourceReverseMap = { DIRECT: 'DIRECT', AIRBNB: 'AIRBNB', BOOKING: 'BOOKING_COM' };
-  const allowedStatuses = ['PENDING', 'CONFIRMED', 'CANCELLED', 'REFUNDED'];
 
   const schema = z.object({
     source: z.enum(['DIRECT', 'AIRBNB', 'BOOKING']).optional(),
@@ -145,7 +144,7 @@ router.patch('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
   const { source, status, notes } = parsed.data;
   const updates = {};
   if (source !== undefined) updates.source = sourceReverseMap[source];
-  if (status !== undefined && allowedStatuses.includes(status)) updates.status = status;
+  if (status !== undefined) updates.status = status;
   if (notes !== undefined) updates.notes = notes;
 
   if (Object.keys(updates).length === 0) {
