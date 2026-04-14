@@ -1198,26 +1198,45 @@ router.post('/reservas/:id/confirmar', requireRole('ADMIN'), async (req, res) =>
 
     const stripe = require('../lib/stripe');
 
-    // Final availability check before capturing payment
-    const conflict = await prisma.$transaction(async tx => {
+    // Atomic: re-check status + availability + confirm inside one transaction
+    let conflictData = null;
+    const confirmed = await prisma.$transaction(async tx => {
+      // Re-read status inside transaction to guard against concurrent confirms
+      const fresh = await tx.booking.findUnique({ where: { id: booking.id } });
+      if (!fresh || fresh.status !== 'REQUESTED') {
+        throw Object.assign(new Error('Reserva já foi processada'), { statusCode: 400 });
+      }
+
       const blockedCount = await tx.blockedDate.count({
         where: { date: { gte: booking.checkIn, lt: booking.checkOut } },
       });
-      if (blockedCount > 0) return true;
+      if (blockedCount > 0) {
+        conflictData = true;
+        return null;
+      }
 
       const bookingConflict = await tx.booking.count({
         where: {
           id:       { not: booking.id },
-          status:   'CONFIRMED',
+          status:   { in: ['CONFIRMED', 'REQUESTED'] },
           checkIn:  { lt: booking.checkOut },
           checkOut: { gt: booking.checkIn },
         },
       });
-      return bookingConflict > 0;
+      if (bookingConflict > 0) {
+        conflictData = true;
+        return null;
+      }
+
+      // Mark CONFIRMED inside transaction — prevents concurrent double-confirm
+      return tx.booking.update({
+        where: { id: booking.id },
+        data:  { status: 'CONFIRMED' },
+      });
     });
 
-    if (conflict) {
-      // Cancel pre-auth and decline
+    if (conflictData) {
+      // Cancel pre-auth and send decline
       await stripe.paymentIntents.cancel(booking.stripePaymentIntentId)
         .catch(e => console.error('[staff] PI cancel on conflict:', e.message));
       const cancelled = await prisma.booking.update({
@@ -1226,18 +1245,32 @@ router.post('/reservas/:id/confirmar', requireRole('ADMIN'), async (req, res) =>
       });
       const { sendBookingDeclined }  = require('../lib/mailer');
       const { notifyBookingDeclined } = require('../lib/ghl-webhook');
-      sendBookingDeclined({ booking: cancelled, declineReason: cancelled.adminDeclineNote }).catch(() => {});
-      notifyBookingDeclined(cancelled).catch(() => {});
+      sendBookingDeclined({ booking: cancelled, declineReason: cancelled.adminDeclineNote })
+        .catch(e => console.error('[mailer] conflict decline email error:', e.message));
+      notifyBookingDeclined(cancelled)
+        .catch(e => console.error('[ghl] conflict decline webhook error:', e.message));
       return res.status(409).json({ error: 'Datas ficaram indisponíveis. Reserva cancelada e hóspede notificado.' });
     }
 
-    // Capture the pre-authorized payment
-    await stripe.paymentIntents.capture(booking.stripePaymentIntentId);
-
-    const confirmed = await prisma.booking.update({
-      where: { id: booking.id },
-      data:  { status: 'CONFIRMED' },
-    });
+    // Capture Stripe pre-auth — booking is already CONFIRMED in DB
+    try {
+      await stripe.paymentIntents.capture(booking.stripePaymentIntentId);
+    } catch (stripeErr) {
+      if (stripeErr.code === 'payment_intent_unexpected_state' && stripeErr.message?.includes('already been captured')) {
+        // Idempotent: already captured (double-click) — proceed
+        console.warn('[staff] PI already captured, treating as success:', booking.stripePaymentIntentId);
+      } else {
+        // PI expired or other Stripe error — rollback to REQUESTED, let admin retry or handle manually
+        console.error('[staff] Stripe capture failed:', stripeErr.code, stripeErr.message);
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data:  { status: 'REQUESTED' },
+        }).catch(e => console.error('[staff] status rollback failed:', e.message));
+        return res.status(502).json({
+          error: `Falha ao capturar pagamento: ${stripeErr.message}. A reserva voltou ao status Solicitada.`,
+        });
+      }
+    }
 
     // Fire confirmation messages (non-blocking)
     const { sendBookingConfirmation }  = require('../lib/mailer');
@@ -1247,6 +1280,7 @@ router.post('/reservas/:id/confirmar', requireRole('ADMIN'), async (req, res) =>
 
     res.json({ ok: true, booking: confirmed });
   } catch (err) {
+    if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
     console.error('[staff] confirmar error:', err);
     res.status(500).json({ error: err.message || 'Erro ao confirmar reserva' });
   }
@@ -1270,7 +1304,13 @@ router.post('/reservas/:id/recusar', requireRole('ADMIN'), async (req, res) => {
     const stripe = require('../lib/stripe');
 
     // Cancel the pre-authorization (no charge)
-    await stripe.paymentIntents.cancel(booking.stripePaymentIntentId);
+    try {
+      await stripe.paymentIntents.cancel(booking.stripePaymentIntentId);
+    } catch (stripeErr) {
+      if (stripeErr.code !== 'payment_intent_unexpected_state') throw stripeErr;
+      // PI already cancelled — safe to proceed
+      console.warn('[staff] PI already cancelled, proceeding with recusar:', booking.stripePaymentIntentId);
+    }
 
     const declined = await prisma.booking.update({
       where: { id: booking.id },
