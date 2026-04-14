@@ -80,12 +80,17 @@ function serializeBooking(b) {
   return {
     id: b.id,
     guestName: b.user?.name || b.guestName || 'Hóspede',
+    guestEmail: b.guestEmail || null,
+    guestPhone: b.guestPhone || null,
     checkIn: b.checkIn.toISOString(),
     checkOut: b.checkOut.toISOString(),
     guests: b.guestCount,
     totalPrice: parseFloat(b.totalAmount?.toString() || '0'),
     status: b.status,
     source: sourceMap[b.source] || 'DIRECT',
+    notes: b.notes || null,
+    hasPet: b.hasPet || false,
+    createdAt: b.createdAt?.toISOString() || null,
   };
 }
 
@@ -116,6 +121,102 @@ router.get('/reservas/:id', requireRole('ADMIN', 'GUARDIA'), async (req, res) =>
   } catch (err) {
     console.error('[staff-portal] reserva/:id error:', err);
     res.status(500).json({ error: 'Erro ao buscar reserva' });
+  }
+});
+
+// ── PATCH /api/staff/reservas/:id ──────────────────────────────────────────
+// Accepts: { source?, status?, notes? }
+router.patch('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
+  const sourceReverseMap = { DIRECT: 'DIRECT', AIRBNB: 'AIRBNB', BOOKING: 'BOOKING_COM' };
+  const allowedStatuses = ['PENDING', 'CONFIRMED', 'CANCELLED', 'REFUNDED'];
+
+  const schema = z.object({
+    source: z.enum(['DIRECT', 'AIRBNB', 'BOOKING']).optional(),
+    status: z.enum(['PENDING', 'CONFIRMED', 'CANCELLED', 'REFUNDED']).optional(),
+    notes:  z.string().optional(),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.errors });
+
+  const { source, status, notes } = parsed.data;
+  const updates = {};
+  if (source !== undefined) updates.source = sourceReverseMap[source];
+  if (status !== undefined && allowedStatuses.includes(status)) updates.status = status;
+  if (notes !== undefined) updates.notes = notes;
+
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+  }
+
+  try {
+    const booking = await prisma.booking.update({
+      where: { id: req.params.id },
+      data: updates,
+      include: { user: { select: { name: true } } },
+    });
+    res.json(serializeBooking(booking));
+  } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Reserva não encontrada' });
+    console.error('[staff-portal] PATCH reservas/:id error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar reserva' });
+  }
+});
+
+// ── POST /api/staff/reservas ────────────────────────────────────────────────
+router.post('/reservas', requireRole('ADMIN'), async (req, res) => {
+  const schema = z.object({
+    guestName:   z.string().min(1),
+    guestEmail:  z.string().email(),
+    guestPhone:  z.string().min(1),
+    checkIn:     z.string(),
+    checkOut:    z.string(),
+    guestCount:  z.number().int().min(1),
+    totalAmount: z.number().min(0),
+    source:      z.enum(['DIRECT', 'AIRBNB', 'BOOKING']).default('DIRECT'),
+    notes:       z.string().optional(),
+    hasPet:      z.boolean().default(false),
+    propertyId:  z.string().optional(),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.errors });
+
+  const { guestName, guestEmail, guestPhone, checkIn, checkOut, guestCount, totalAmount, source, notes, hasPet, propertyId } = parsed.data;
+  const sourceMap = { DIRECT: 'DIRECT', AIRBNB: 'AIRBNB', BOOKING: 'BOOKING_COM' };
+
+  const checkInDate  = new Date(checkIn);
+  const checkOutDate = new Date(checkOut);
+  const nights = Math.round((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+
+  if (nights <= 0) return res.status(400).json({ error: 'Check-out deve ser após o check-in' });
+
+  try {
+    const booking = await prisma.booking.create({
+      data: {
+        guestName,
+        guestEmail,
+        guestPhone,
+        checkIn:          checkInDate,
+        checkOut:         checkOutDate,
+        nights,
+        guestCount,
+        totalAmount,
+        baseRatePerNight: 0,
+        extraGuestFee:    0,
+        petFee:           0,
+        source:           sourceMap[source],
+        status:           'CONFIRMED',
+        notes,
+        hasPet,
+        propertyId:       propertyId || null,
+      },
+      include: { user: { select: { name: true } } },
+    });
+    res.status(201).json(serializeBooking(booking));
+  } catch (err) {
+    console.error('[staff-portal] POST reservas error:', err);
+    res.status(500).json({ error: 'Erro ao criar reserva' });
   }
 });
 
@@ -1534,6 +1635,123 @@ router.get('/financeiro/cds', requireRole('ADMIN'), async (req, res) => {
   } catch (err) {
     console.error('[staff-portal] financeiro/cds error:', err);
     res.status(500).json({ error: 'Erro ao buscar CDS' });
+  }
+});
+
+// ── GET /api/staff/financeiro/reservas-lucratividade ─────────────────────────
+// Returns per-booking cost/profit breakdown for ALL confirmed bookings.
+// Cost allocation:
+//   - Platform fee: AIRBNB=3%, BOOKING_COM=13%, DIRECT=0%
+//   - Cleaning: nearest SERVICOS_LIMPEZA expense ±1–4 days around checkout
+//   - Fixed costs: (ENERGIA+INTERNET+CONDOMINIO+IMPOSTOS) for check-in month ÷ bookings that month
+router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const prop = await prisma.property.findFirst({
+      where: { slug: { not: 'cabanas' }, active: true },
+    });
+    if (!prop) return res.status(404).json({ error: 'Propriedade não encontrada' });
+
+    const PLATFORM_FEES = { AIRBNB: 0.03, BOOKING_COM: 0.13, DIRECT: 0 };
+    const FIXED_CATS = ['ENERGIA_ELETRICA', 'INTERNET', 'CONDOMINIO', 'IMPOSTOS'];
+
+    const [bookings, cleaningExps] = await Promise.all([
+      prisma.booking.findMany({
+        where:   { propertyId: prop.id, status: 'CONFIRMED' },
+        orderBy: { checkIn: 'desc' },
+        select:  { id: true, guestName: true, checkIn: true, checkOut: true,
+                   nights: true, guestCount: true, source: true, totalAmount: true },
+      }),
+      prisma.expense.findMany({
+        where:   { propertyId: prop.id, category: 'SERVICOS_LIMPEZA' },
+        select:  { date: true, amount: true },
+        orderBy: { date: 'asc' },
+      }),
+    ]);
+
+    // Cache monthly fixed costs and booking counts to avoid N+1 queries
+    const fixedCache = {};
+    const countCache = {};
+
+    async function monthlyFixed(year, month) {
+      const k = `${year}-${month}`;
+      if (fixedCache[k] !== undefined) return fixedCache[k];
+      const s = new Date(year, month - 1, 1);
+      const e = new Date(year, month, 0, 23, 59, 59);
+      const r = await prisma.expense.aggregate({
+        where: { propertyId: prop.id, category: { in: FIXED_CATS }, date: { gte: s, lte: e } },
+        _sum:  { amount: true },
+      });
+      fixedCache[k] = parseFloat(r._sum.amount || 0);
+      return fixedCache[k];
+    }
+
+    async function monthlyBookings(year, month) {
+      const k = `${year}-${month}`;
+      if (countCache[k] !== undefined) return countCache[k];
+      const s = new Date(year, month - 1, 1);
+      const e = new Date(year, month, 0, 23, 59, 59);
+      countCache[k] = await prisma.booking.count({
+        where: { propertyId: prop.id, status: 'CONFIRMED', checkIn: { gte: s, lte: e } },
+      });
+      return countCache[k];
+    }
+
+    const now = new Date();
+    const results = [];
+
+    for (const b of bookings) {
+      const totalAmount    = parseFloat(b.totalAmount || 0);
+      const source         = b.source || 'DIRECT';
+      const feeRate        = PLATFORM_FEES[source] ?? 0;
+      const taxaPlataforma = Math.round(totalAmount * feeRate * 100) / 100;
+
+      // Nearest cleaning expense: checkout window -1 day to +4 days
+      const coMs = new Date(b.checkOut).getTime();
+      const cleaningMatch = cleaningExps.find(e => {
+        const diff = new Date(e.date).getTime() - coMs;
+        return diff >= -86400000 && diff <= 4 * 86400000;
+      });
+      const custoLimpeza = cleaningMatch ? parseFloat(cleaningMatch.amount || 0) : 0;
+
+      // Fixed cost allocation by check-in month
+      const ci = new Date(b.checkIn);
+      const [fixed, count] = await Promise.all([
+        monthlyFixed(ci.getFullYear(), ci.getMonth() + 1),
+        monthlyBookings(ci.getFullYear(), ci.getMonth() + 1),
+      ]);
+      const custoFixo = count > 0 ? Math.round((fixed / count) * 100) / 100 : 0;
+
+      const custoTotal       = taxaPlataforma + custoLimpeza + custoFixo;
+      const resultadoLiquido = totalAmount - custoTotal;
+      const margem           = totalAmount > 0 ? resultadoLiquido / totalAmount : 0;
+
+      const ciTs = new Date(b.checkIn).getTime();
+      const coTs = new Date(b.checkOut).getTime();
+      const status = now < ciTs ? 'FUTURE' : now > coTs ? 'PAST' : 'CURRENT';
+
+      results.push({
+        id:               b.id,
+        guestName:        b.guestName,
+        checkIn:          b.checkIn,
+        checkOut:         b.checkOut,
+        nights:           b.nights || 0,
+        guests:           b.guestCount || 0,
+        source,
+        status,
+        totalReceita:     totalAmount,
+        taxaPlataforma,
+        custoLimpeza,
+        custoFixoAlocado: custoFixo,
+        custoTotal,
+        resultadoLiquido,
+        margem,
+      });
+    }
+
+    res.json({ reservas: results });
+  } catch (err) {
+    console.error('[staff-portal] financeiro/reservas-lucratividade error:', err);
+    res.status(500).json({ error: 'Erro ao calcular lucratividade por reserva' });
   }
 });
 

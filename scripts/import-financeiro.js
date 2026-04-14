@@ -57,7 +57,6 @@ function parseCSV(filePath, encoding = 'utf8') {
 
 // ── CATEGORIZATION ────────────────────────────────────────────────────────────
 const RULES = [
-  { kw: ['JACQUELINE PAULA'],                   cat: 'SERVICOS_LIMPEZA'        },
   { kw: ['JAIR JUNIO'],                         cat: 'MANUTENCAO_PISCINA'      },
   { kw: ['ANA MARIA SILVIA'],                   cat: 'PRODUTOS_LIMPEZA_PISCINA'},
   { kw: ['ALEX ANTONIO CORREIA'],               cat: 'MANUTENCAO_SOLAR_BOMBA'  },
@@ -74,8 +73,13 @@ const RULES = [
 // Payees to completely SKIP (owner transfers / washes)
 const SKIP_PAYEES = ['STHEFANE LOURDES','WISE BRASIL','ANDRE LUIZ DE SOUZA','JOAQUIM PAULO'];
 
-function categorize(payee) {
+function categorize(payee, amount = 0) {
   const n = normalize(payee);
+  // Jack Souza (Jacqueline Paula) — cleaning range R$150–R$350 → SERVICOS_LIMPEZA
+  // Outside that range (small errands < R$150, or large non-cleaning > R$350) → OUTROS
+  if (n.includes('JACQUELINE PAULA')) {
+    return (amount >= 150 && amount <= 350) ? 'SERVICOS_LIMPEZA' : 'OUTROS';
+  }
   for (const rule of RULES) {
     if (rule.kw.some(k => n.includes(normalize(k)))) return rule.cat;
   }
@@ -179,7 +183,7 @@ async function main() {
     const amount  = Math.abs(parseFloat(row['Valor'].replace(',', '.')));
     if (isNaN(amount) || amount === 0) continue;
 
-    const cat = categorize(payee);
+    const cat = categorize(payee, amount);
     const bankRef = `${dateStr}|${nPayee}|${amount}`;
 
     // Determine which property: CDS for Breno
@@ -295,6 +299,25 @@ async function main() {
   }
 
   console.log(`  Created: ${dirCreated} | Dupes skipped: ${dirSkipped}`);
+
+  // ── 4. Re-categorize existing Jack Souza expenses by amount ──────────────
+  console.log('\n[4] Fixing Jack Souza (Jacqueline) expense categories by amount...');
+  const jackRows = await prisma.expense.findMany({
+    where: { propertyId: rdi.id, payee: { contains: 'Jacqueline', mode: 'insensitive' } },
+    select: { id: true, amount: true, category: true },
+  });
+  let jackFixed = 0, jackSame = 0;
+  for (const exp of jackRows) {
+    const amt = parseFloat(String(exp.amount));
+    const correct = (amt >= 150 && amt <= 350) ? 'SERVICOS_LIMPEZA' : 'OUTROS';
+    if (exp.category !== correct) {
+      await prisma.expense.update({ where: { id: exp.id }, data: { category: correct } });
+      jackFixed++;
+    } else {
+      jackSame++;
+    }
+  }
+  console.log(`  Fixed: ${jackFixed} | Unchanged: ${jackSame} | Total Jack rows: ${jackRows.length}`);
 
   // ── Summary ───────────────────────────────────────────────────────────────
   const totalExp  = await prisma.expense.count({ where: { propertyId: rdi.id } });
