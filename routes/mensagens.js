@@ -14,7 +14,7 @@ const jwt      = require('jsonwebtoken');
 const prisma   = require('../lib/db');
 const { sendWhatsAppMessage, sendInstagramDM } = require('../lib/ghl-webhook');
 const { sendInboxEmail } = require('../lib/mailer');
-const { sendPushToRole } = require('../lib/push');
+// push imported inline in webhook handler (sendPushToStaff)
 
 const router = express.Router();
 
@@ -74,8 +74,8 @@ function serializeMessage(m) {
   };
 }
 
-// ── GET /conversas/unread-count — total unread across all conversations ────────
-router.get('/conversas/unread-count', requireStaff, async (req, res) => {
+// ── GET /unread-count — total unread across all conversations ────────
+router.get('/unread-count', requireStaff, async (req, res) => {
   try {
     const result = await prisma.conversation.aggregate({
       _sum: { unreadCount: true },
@@ -87,8 +87,8 @@ router.get('/conversas/unread-count', requireStaff, async (req, res) => {
   }
 });
 
-// ── GET /conversas — list conversations ───────────────────────────────────────
-router.get('/conversas', requireStaff, async (req, res) => {
+// ── GET / — list conversations ───────────────────────────────────────────────
+router.get('/', requireStaff, async (req, res) => {
   try {
     const { channel, page = '1', limit = '30' } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -124,8 +124,8 @@ router.get('/conversas', requireStaff, async (req, res) => {
   }
 });
 
-// ── GET /conversas/:id/mensagens — messages for a conversation ────────────────
-router.get('/conversas/:id/mensagens', requireStaff, async (req, res) => {
+// ── GET /:id/mensagens — messages for a conversation ─────────────────────────
+router.get('/:id/mensagens', requireStaff, async (req, res) => {
   try {
     const { page = '1', limit = '50' } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -154,8 +154,8 @@ router.get('/conversas/:id/mensagens', requireStaff, async (req, res) => {
   }
 });
 
-// ── POST /conversas/:id/mensagens — send a message ────────────────────────────
-router.post('/conversas/:id/mensagens', requireStaff, async (req, res) => {
+// ── POST /:id/mensagens — send a message ──────────────────────────────────────
+router.post('/:id/mensagens', requireStaff, async (req, res) => {
   const { channel, body, subject } = req.body;
   if (!body?.trim() || !channel) {
     return res.status(400).json({ error: 'body e channel são obrigatórios' });
@@ -227,8 +227,8 @@ router.post('/conversas/:id/mensagens', requireStaff, async (req, res) => {
   }
 });
 
-// ── PATCH /conversas/:id/lida — mark conversation as read ─────────────────────
-router.patch('/conversas/:id/lida', requireStaff, async (req, res) => {
+// ── PATCH /:id/lida — mark conversation as read ───────────────────────────────
+router.patch('/:id/lida', requireStaff, async (req, res) => {
   try {
     await prisma.inboxMessage.updateMany({
       where: {
@@ -263,7 +263,9 @@ router.post('/ghl-message', async (req, res) => {
       .createHmac('sha256', secret)
       .update(JSON.stringify(req.body))
       .digest('hex');
-    if (sig !== expected) {
+    const sigBuf = Buffer.from(sig);
+    const expBuf = Buffer.from(expected);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
       return res.status(401).json({ error: 'Invalid signature' });
     }
   }
@@ -326,12 +328,25 @@ router.post('/ghl-message', async (req, res) => {
       },
     });
 
-    // Push to ADMIN
-    sendPushToRole('ADMIN', {
-      title: `Nova mensagem — ${conversation.contactName}`,
-      body:  body.length > 80 ? body.slice(0, 80) + '…' : body,
-      type:  'INBOX_MESSAGE',
-      data:  { conversationId: conversation.id },
+    // Push to ADMIN (only staff with inboxPushEnabled)
+    prisma.staffMember.findMany({
+      where: {
+        role: 'ADMIN',
+        active: true,
+        inboxPushEnabled: true,
+        NOT: { pushSubscription: null },
+      },
+      select: { id: true },
+    }).then(admins => {
+      const { sendPushToStaff } = require('../lib/push');
+      return Promise.allSettled(
+        admins.map(a => sendPushToStaff(a.id, {
+          title: `Nova mensagem — ${conversation.contactName}`,
+          body:  body.length > 80 ? body.slice(0, 80) + '…' : body,
+          type:  'INBOX_MESSAGE',
+          data:  { conversationId: conversation.id },
+        }))
+      );
     }).catch(e => console.error('[push] inbox push error:', e.message));
 
     res.json({ ok: true, conversationId: conversation.id });
