@@ -470,7 +470,7 @@
         return `<span class="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium"
                       style="background:${c.badge};color:${c.badgeText}">
                   <span class="w-2 h-2 rounded-full inline-block" style="background:${c.dot}"></span>
-                  ${c.label} · ${PRICE_DISPLAY[t]}/noite
+                  ${c.label}
                 </span>`;
       }).join('') +
       `<span class="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500">
