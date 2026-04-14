@@ -1080,7 +1080,7 @@ Regras:
 
 Texto: ${rawText}`,
       }],
-    });
+    }, { signal: AbortSignal.timeout(30_000) });
 
     const rawJson = message.content[0].text.trim();
     const parsed = JSON.parse(rawJson);
@@ -1109,17 +1109,19 @@ router.post('/reservas/:id/lista', requireRole('ADMIN'), async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
 
   try {
-    // Replace existing entries
-    await prisma.guestListEntry.deleteMany({ where: { bookingId: req.params.id } });
-    await prisma.guestListEntry.createMany({
-      data: parsed.data.guests.map((g, i) => ({
-        bookingId: req.params.id,
-        name:      g.name,
-        vehicle:   g.vehicle || null,
-        plate:     g.plate   || null,
-        isMain:    i === 0,
-      })),
-    });
+    // Replace existing entries atomically
+    await prisma.$transaction([
+      prisma.guestListEntry.deleteMany({ where: { bookingId: req.params.id } }),
+      prisma.guestListEntry.createMany({
+        data: parsed.data.guests.map((g, i) => ({
+          bookingId: req.params.id,
+          name:      g.name,
+          vehicle:   g.vehicle || null,
+          plate:     g.plate   || null,
+          isMain:    i === 0,
+        })),
+      }),
+    ]);
 
     const entries = await prisma.guestListEntry.findMany({
       where:   { bookingId: req.params.id },
