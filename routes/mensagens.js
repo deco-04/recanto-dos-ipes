@@ -74,6 +74,19 @@ function serializeMessage(m) {
   };
 }
 
+// ── GET /conversas/unread-count — total unread across all conversations ────────
+router.get('/conversas/unread-count', requireStaff, async (req, res) => {
+  try {
+    const result = await prisma.conversation.aggregate({
+      _sum: { unreadCount: true },
+    });
+    res.json({ count: result._sum.unreadCount ?? 0 });
+  } catch (err) {
+    console.error('[mensagens] GET unread-count error:', err);
+    res.status(500).json({ error: 'Erro ao buscar contagem' });
+  }
+});
+
 // ── GET /conversas — list conversations ───────────────────────────────────────
 router.get('/conversas', requireStaff, async (req, res) => {
   try {
