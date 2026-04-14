@@ -178,8 +178,8 @@ model Property {
   icalAirbnb     String?
   icalBookingCom String?
   porteiroPhone  String?      // WhatsApp number for the porteiro (gate guard)
-  phone          String?   // e.g. "+55 31 2391-6688"
-  websiteUrl     String?   // e.g. "sitiorecantodosipes.com"
+  phone          String?      // e.g. "+55 31 2391-6688"
+  websiteUrl     String?      // e.g. "https://sitiorecantodosipes.com"
   active         Boolean      @default(true)
   createdAt      DateTime     @default(now())
 

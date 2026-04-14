@@ -2,7 +2,7 @@
 --            phone + websiteUrl to Property
 
 -- Step 1: Add REQUESTED value to BookingStatus enum
--- PostgreSQL requires renaming the old type, creating the new one, then casting columns
+-- ALTER TYPE ... ADD VALUE IF NOT EXISTS is supported since PostgreSQL 9.1
 ALTER TYPE "BookingStatus" ADD VALUE IF NOT EXISTS 'REQUESTED' BEFORE 'CONFIRMED';
 
 -- Step 2: Add petDescription and adminDeclineNote columns to Booking
