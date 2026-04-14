@@ -60,10 +60,10 @@ router.get('/availability', async (req, res) => {
       select: { date: true, source: true },
     });
 
-    // Dates blocked by confirmed direct bookings (PENDING excluded — only show real blocks)
+    // Dates blocked by confirmed/requested direct bookings (PENDING excluded — only show real blocks)
     const bookings = await prisma.booking.findMany({
       where: {
-        status:   'CONFIRMED',
+        status:   { in: ['CONFIRMED', 'REQUESTED'] },   // ← add REQUESTED
         checkIn:  { lte: end },
         checkOut: { gte: start },
       },
@@ -123,19 +123,21 @@ router.post('/intent', async (req, res) => {
 
   try {
     const schema = z.object({
-      checkIn:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      checkOut:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      guestCount: z.number().int().min(1).max(20),
-      petCount:   z.number().int().min(0).max(4).optional().default(0),
-      guestName:  z.string().min(2).max(120),
-      guestEmail: z.string().email(),
-      guestPhone: z.string().min(8).max(30),
-      guestCpf:   z.string().optional(),
-      notes:      z.string().max(500).optional(),
+      checkIn:        z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      checkOut:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      guestCount:     z.number().int().min(1).max(20),
+      petCount:       z.number().int().min(0).max(4).optional().default(0),
+      guestName:      z.string().min(2).max(120),
+      guestEmail:     z.string().email(),
+      guestPhone:     z.string().min(8).max(30),
+      guestCpf:       z.string().optional(),
+      petDescription: z.string().max(200).optional(),
+      notes:          z.string().max(500).optional(),
     });
 
     const data = schema.parse(req.body);
     const { checkIn, checkOut, guestCount, petCount, guestName, guestEmail, guestPhone, guestCpf, notes } = data;
+    // petDescription accessed via data.petDescription below
     const hasPet = petCount > 0;
 
     const inDate  = new Date(checkIn);
@@ -150,7 +152,7 @@ router.post('/intent', async (req, res) => {
 
       const bookingConflict = await tx.booking.count({
         where: {
-          status: { in: ['CONFIRMED', 'PENDING'] },
+          status: { in: ['CONFIRMED', 'PENDING', 'REQUESTED'] },  // ← add REQUESTED
           checkIn:  { lt: outDate },
           checkOut: { gt: inDate },
         },
@@ -167,8 +169,9 @@ router.post('/intent', async (req, res) => {
     // Create Stripe PaymentIntent
     const stripe = require('../lib/stripe');
     const paymentIntent = await stripe.paymentIntents.create({
-      amount:   Math.round(quote.totalAmount * 100), // cents
-      currency: 'brl',
+      amount:         Math.round(quote.totalAmount * 100), // cents
+      currency:       'brl',
+      capture_method: 'manual',          // ← hold card, don't charge yet
       metadata: {
         checkIn, checkOut,
         guestCount: String(guestCount),
@@ -182,23 +185,24 @@ router.post('/intent', async (req, res) => {
     // Create a PENDING booking record
     const booking = await prisma.booking.create({
       data: {
-        userId:               req.session?.userId ?? null,
+        userId:                req.session?.userId ?? null,
         guestName, guestEmail, guestPhone,
-        guestCpf:             guestCpf || null,
-        checkIn:              inDate,
-        checkOut:             outDate,
-        nights:               quote.nights,
+        guestCpf:              guestCpf || null,
+        checkIn:               inDate,
+        checkOut:              outDate,
+        nights:                quote.nights,
         guestCount,
-        extraGuests:          quote.extraGuests,
+        extraGuests:           quote.extraGuests,
         hasPet,
-        baseRatePerNight:     quote.baseRatePerNight,
-        extraGuestFee:        quote.extraGuestFee,
-        petFee:               quote.petFee,
-        totalAmount:          quote.totalAmount,
+        petDescription:        data.petDescription || null,   // ← new
+        baseRatePerNight:      quote.baseRatePerNight,
+        extraGuestFee:         quote.extraGuestFee,
+        petFee:                quote.petFee,
+        totalAmount:           quote.totalAmount,
         stripePaymentIntentId: paymentIntent.id,
-        notes:                notes || null,
-        status:               'PENDING',
-        source:               'DIRECT',
+        notes:                 data.notes || null,
+        status:                'PENDING',
+        source:                'DIRECT',
       },
     });
 
@@ -227,68 +231,79 @@ router.post('/confirm', async (req, res) => {
       return res.status(400).json({ error: 'paymentIntentId e bookingId são obrigatórios' });
     }
 
-    // 1. Verify with Stripe that payment actually succeeded
+    // 1. Verify with Stripe that card has been authorized (pre-auth captured)
     const stripe = require('../lib/stripe');
     const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
-    if (pi.status !== 'succeeded') {
-      return res.status(402).json({ error: 'Pagamento não confirmado' });
+    if (pi.status !== 'requires_capture') {
+      return res.status(402).json({ error: 'Pagamento não autorizado' });
     }
 
     // 2. Load the pending booking
     const pending = await prisma.booking.findUnique({ where: { id: bookingId } });
     if (!pending) return res.status(404).json({ error: 'Reserva não encontrada' });
 
-    // Idempotent: already confirmed (e.g. webhook beat the client)
-    if (pending.status === 'CONFIRMED') {
+    // Idempotent: already requested or confirmed (e.g. webhook beat the client)
+    if (pending.status === 'REQUESTED' || pending.status === 'CONFIRMED') {
       return res.json({ success: true, booking: sanitizeBooking(pending) });
     }
 
-    // 3. Atomic final availability check + status update in one transaction
+    // 3. Atomic final availability check + set REQUESTED
     const result = await prisma.$transaction(async tx => {
-      // Check iCal-blocked dates
       const blockedCount = await tx.blockedDate.count({
         where: { date: { gte: pending.checkIn, lt: pending.checkOut } },
       });
       if (blockedCount > 0) return { conflict: true };
 
-      // Check any OTHER booking that got confirmed for the same window
       const bookingConflict = await tx.booking.count({
         where: {
           id:       { not: bookingId },
-          status:   'CONFIRMED',
+          status:   { in: ['CONFIRMED', 'REQUESTED'] },
           checkIn:  { lt: pending.checkOut },
           checkOut: { gt: pending.checkIn },
         },
       });
       if (bookingConflict > 0) return { conflict: true };
 
-      // All clear — confirm atomically
-      const confirmed = await tx.booking.update({
+      const requested = await tx.booking.update({
         where: { id: bookingId },
-        data:  { status: 'CONFIRMED' },
+        data:  { status: 'REQUESTED' },
       });
-      return { confirmed };
+      return { requested };
     });
 
-    // 4. Handle conflict: auto-refund + cancel
+    // 4. Handle conflict: cancel pre-auth
     if (result.conflict) {
-      console.warn(`[bookings] confirm conflict on booking ${bookingId} — issuing refund`);
-      await stripe.refunds.create({ payment_intent: paymentIntentId })
-        .catch(e => console.error('[bookings] refund failed:', e.message));
+      console.warn(`[bookings] confirm conflict on booking ${bookingId} — cancelling pre-auth`);
+      await stripe.paymentIntents.cancel(paymentIntentId)
+        .catch(e => console.error('[bookings] PI cancel failed:', e.message));
       await prisma.booking.update({
         where: { id: bookingId },
         data:  { status: 'CANCELLED' },
       }).catch(() => {});
       return res.status(409).json({
-        error: 'Infelizmente as datas foram reservadas por outra pessoa durante o seu checkout. Seu pagamento será estornado em até 5 dias úteis.',
+        error: 'Infelizmente as datas foram reservadas por outra pessoa durante o seu checkout. A pré-autorização do seu cartão foi cancelada.',
       });
     }
 
-    // 5. Fire GHL webhook (non-blocking)
-    const { notifyBookingConfirmed } = require('../lib/ghl-webhook');
-    notifyBookingConfirmed(result.confirmed).catch(e => console.error('[ghl] webhook error:', e.message));
+    // 5. Fire request-received messages + GHL (non-blocking)
+    const { sendBookingRequestReceived } = require('../lib/mailer');
+    const { notifyBookingRequested }     = require('../lib/ghl-webhook');
+    const { sendPushToRole }             = require('../lib/push');
 
-    res.json({ success: true, booking: sanitizeBooking(result.confirmed) });
+    sendBookingRequestReceived({ booking: result.requested })
+      .catch(e => console.error('[mailer] requestReceived error:', e.message));
+
+    notifyBookingRequested(result.requested)
+      .catch(e => console.error('[ghl] notifyRequested error:', e.message));
+
+    sendPushToRole('ADMIN', {
+      title: 'Nova solicitação de reserva',
+      body:  `${result.requested.guestName} · ${result.requested.checkIn.toISOString().split('T')[0]} → ${result.requested.checkOut.toISOString().split('T')[0]}`,
+      type:  'BOOKING_REQUESTED',
+      data:  { bookingId: result.requested.id },
+    }).catch(() => {});
+
+    res.json({ success: true, booking: sanitizeBooking(result.requested) });
   } catch (err) {
     console.error('[bookings] confirm error:', err);
     res.status(500).json({ error: 'Erro ao confirmar reserva' });
