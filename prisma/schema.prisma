@@ -557,8 +557,16 @@ model InboxMessage {
   @@index([conversationId, sentAt])
 }
 
-enum MsgDirection { INBOUND OUTBOUND }
-enum MsgChannel   { WHATSAPP INSTAGRAM EMAIL }
+enum MsgDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MsgChannel {
+  WHATSAPP
+  INSTAGRAM
+  EMAIL
+}
 
 // ── Guest List (SP3 pre-stay automation) ──────────────────────────────────────
 model GuestListEntry {
@@ -758,10 +766,36 @@ model ContentComment {
   @@index([postId])
 }
 
-enum Brand          { RDI RDS CDS }
-enum ContentType    { INSTAGRAM_FEED INSTAGRAM_REELS INSTAGRAM_STORIES FACEBOOK BLOG }
-enum ContentPillar  { EXPERIENCIA DESTINO PROVA_SOCIAL DISPONIBILIDADE BASTIDORES BLOG_SEO }
-enum ContentStage   { GERADO EM_REVISAO APROVADO AGENDADO PUBLICADO }
+enum Brand {
+  RDI
+  RDS
+  CDS
+}
+
+enum ContentType {
+  INSTAGRAM_FEED
+  INSTAGRAM_REELS
+  INSTAGRAM_STORIES
+  FACEBOOK
+  BLOG
+}
+
+enum ContentPillar {
+  EXPERIENCIA
+  DESTINO
+  PROVA_SOCIAL
+  DISPONIBILIDADE
+  BASTIDORES
+  BLOG_SEO
+}
+
+enum ContentStage {
+  GERADO
+  EM_REVISAO
+  APROVADO
+  AGENDADO
+  PUBLICADO
+}
 
 // ── Push Notifications ────────────────────────────────────────────────────────
 model PushNotification {
