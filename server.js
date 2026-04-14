@@ -276,6 +276,15 @@ app.use('/api/uploads',     staffCors, require('./routes/uploads').router);
 app.use('/api/reviews',    require('./routes/reviews'));
 app.use('/api/ical',       require('./routes/ical-export'));
 
+// Unified inbox — staff conversations
+const mensagensRouter = require('./routes/mensagens');
+app.use('/api/staff/conversas', staffCors, mensagensRouter);
+// GHL inbound webhook (no auth, uses HMAC)
+app.use('/api/webhooks', mensagensRouter);
+
+// AI Content Agent
+app.use('/api/staff/conteudo', staffCors, require('./routes/content'));
+
 // Admin — manual iCal sync trigger
 app.post('/api/admin/sync-ical', async (req, res) => {
   if (req.headers['x-admin-secret'] !== process.env.ADMIN_SECRET) {

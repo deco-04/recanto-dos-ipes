@@ -178,17 +178,20 @@ model Property {
   active         Boolean      @default(true)
   createdAt      DateTime     @default(now())
 
-  cabins      Cabin[]
-  bookings    Booking[]                 @relation("PropertyBookings")
-  staff       StaffPropertyAssignment[]
-  inspections InspectionReport[]
-  maintenance MaintenanceLog[]
-  tickets     ServiceTicket[]
-  schedules   MaintenanceSchedule[]
-  pricing     SeasonalPricing[]         @relation("PropertyPricing")
-  suggestions PricingSuggestion[]
-  inventory   AmenitiesItem[]
-  expenses    Expense[]
+  cabins        Cabin[]
+  bookings      Booking[]                 @relation("PropertyBookings")
+  staff         StaffPropertyAssignment[]
+  inspections   InspectionReport[]
+  maintenance   MaintenanceLog[]
+  tickets       ServiceTicket[]
+  schedules     MaintenanceSchedule[]
+  pricing       SeasonalPricing[]         @relation("PropertyPricing")
+  suggestions   PricingSuggestion[]
+  inventory     AmenitiesItem[]
+  expenses      Expense[]
+  conversations Conversation[]
+  contentPosts       ContentPost[]
+  brandContentConfigs BrandContentConfig[]
 }
 
 enum PropertyType {
@@ -241,6 +244,10 @@ model StaffMember {
   pricingApprovals PricingSuggestion[]
   messages         GuestMessage[]
   webauthnCreds    WebAuthnCredential[]
+  inboxMessages    InboxMessage[]
+  emailSignature   String?
+  inboxPushEnabled Boolean             @default(true)
+  contentComments  ContentComment[]
 }
 
 enum StaffRole {
@@ -515,6 +522,44 @@ enum TaskStatus {
   FEITO
 }
 
+// ── Unified Inbox (SP4) ───────────────────────────────────────────────────────
+model Conversation {
+  id               String    @id @default(cuid())
+  propertyId       String
+  property         Property  @relation(fields: [propertyId], references: [id])
+  contactName      String
+  contactPhone     String?
+  contactEmail     String?
+  contactInstagram String?
+  avatarUrl        String?
+  lastMessageAt    DateTime?
+  unreadCount      Int       @default(0)
+  messages         InboxMessage[]
+  createdAt        DateTime  @default(now())
+
+  @@index([propertyId, lastMessageAt])
+}
+
+model InboxMessage {
+  id             String      @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  staffId        String?
+  staff          StaffMember? @relation(fields: [staffId], references: [id])
+  direction      MsgDirection
+  channel        MsgChannel
+  body           String
+  mediaUrl       String?
+  isAiAgent      Boolean     @default(false)
+  sentAt         DateTime    @default(now())
+  readAt         DateTime?
+
+  @@index([conversationId, sentAt])
+}
+
+enum MsgDirection { INBOUND OUTBOUND }
+enum MsgChannel   { WHATSAPP INSTAGRAM EMAIL }
+
 // ── Guest List (SP3 pre-stay automation) ──────────────────────────────────────
 model GuestListEntry {
   id        String  @id @default(cuid())
@@ -658,6 +703,65 @@ enum MessageDirection {
   INBOUND
   OUTBOUND
 }
+
+// ── AI Content Agent (SP5) ───────────────────────────────────────────────────
+
+model BrandContentConfig {
+  id              String   @id @default(cuid())
+  brand           Brand
+  propertyId      String
+  property        Property @relation(fields: [propertyId], references: [id])
+  voiceNotes      String?  @db.Text
+  upcomingThemes  String?  @db.Text
+  pillarMix       Json?    // { experiencia: 30, destino: 20, ... }
+  postsPerWeek    Int      @default(5)
+  postingSchedule Json?    // [{ day: "MON", time: "10:00", platform: "INSTAGRAM" }]
+  defaultHashtags String?
+  updatedAt       DateTime @updatedAt
+
+  @@unique([brand, propertyId])
+}
+
+model ContentPost {
+  id           String         @id @default(cuid())
+  brand        Brand
+  propertyId   String
+  property     Property       @relation(fields: [propertyId], references: [id])
+  title        String
+  body         String?        @db.Text
+  contentType  ContentType
+  pillar       ContentPillar?
+  stage        ContentStage   @default(GERADO)
+  aiGenerated  Boolean        @default(false)
+  ghlPostId    String?
+  scheduledFor DateTime?
+  publishedAt  DateTime?
+  mediaUrls    Json?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  comments ContentComment[]
+
+  @@index([brand, stage])
+  @@index([propertyId])
+}
+
+model ContentComment {
+  id        String      @id @default(cuid())
+  postId    String
+  post      ContentPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  staffId   String
+  staff     StaffMember @relation(fields: [staffId], references: [id])
+  body      String      @db.Text
+  createdAt DateTime    @default(now())
+
+  @@index([postId])
+}
+
+enum Brand          { RDI RDS CDS }
+enum ContentType    { INSTAGRAM_FEED INSTAGRAM_REELS INSTAGRAM_STORIES FACEBOOK BLOG }
+enum ContentPillar  { EXPERIENCIA DESTINO PROVA_SOCIAL DISPONIBILIDADE BASTIDORES BLOG_SEO }
+enum ContentStage   { GERADO EM_REVISAO APROVADO AGENDADO PUBLICADO }
 
 // ── Push Notifications ────────────────────────────────────────────────────────
 model PushNotification {

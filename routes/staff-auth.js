@@ -436,4 +436,59 @@ router.post('/request-access', async (req, res) => {
   return res.json({ ok: true });
 });
 
+// PATCH /api/staff/auth/inbox-settings — save email signature and push toggle
+router.patch('/inbox-settings', async (req, res) => {
+  const auth = req.headers['authorization'];
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Não autenticado' });
+
+  let payload;
+  try {
+    payload = jwt.verify(auth.slice(7), process.env.STAFF_JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: 'Token inválido ou expirado' });
+  }
+  const staffId = payload.sub;
+
+  const schema = z.object({
+    emailSignature:   z.string().max(500).nullable().optional(),
+    inboxPushEnabled: z.boolean().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
+
+  const data = {};
+  if (parsed.data.emailSignature !== undefined) data.emailSignature   = parsed.data.emailSignature;
+  if (parsed.data.inboxPushEnabled !== undefined) data.inboxPushEnabled = parsed.data.inboxPushEnabled;
+
+  const updated = await prisma.staffMember.update({
+    where:  { id: staffId },
+    data,
+    select: { emailSignature: true, inboxPushEnabled: true },
+  });
+
+  return res.json(updated);
+});
+
+// GET /api/staff/auth/inbox-settings — retrieve email signature and push toggle
+router.get('/inbox-settings', async (req, res) => {
+  const auth = req.headers['authorization'];
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Não autenticado' });
+
+  let payload;
+  try {
+    payload = jwt.verify(auth.slice(7), process.env.STAFF_JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: 'Token inválido ou expirado' });
+  }
+  const staffId = payload.sub;
+
+  const staff = await prisma.staffMember.findUnique({
+    where:  { id: staffId },
+    select: { emailSignature: true, inboxPushEnabled: true },
+  });
+
+  if (!staff) return res.status(404).json({ error: 'Não encontrado' });
+  return res.json(staff);
+});
+
 module.exports = router;
