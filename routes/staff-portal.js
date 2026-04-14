@@ -1864,9 +1864,12 @@ router.get('/financeiro/dre', requireRole('ADMIN'), async (req, res) => {
         ticketMedio:            current.ticketMedio,
       },
       canais: {
-        airbnb:  { receita: current.canais.AIRBNB?.receita || 0,      reservas: current.canais.AIRBNB?.qtd || 0,      fee: 0.03  },
-        booking: { receita: current.canais.BOOKING_COM?.receita || 0,  reservas: current.canais.BOOKING_COM?.qtd || 0,  fee: 0.13  },
-        direta:  { receita: current.canais.DIRECT?.receita || 0,       reservas: current.canais.DIRECT?.qtd || 0,       fee: 0.00  },
+        // fee = host commission rate (charged to us by OTA)
+        // guestFeeRate = service fee charged to the guest by the OTA (on top of nightly rate)
+        // Airbnb split model: 3% host + 14% guest. Booking.com agency model: 13% host + 0% guest.
+        airbnb:  { receita: current.canais.AIRBNB?.receita || 0,      reservas: current.canais.AIRBNB?.qtd || 0,      fee: 0.03, guestFeeRate: 0.14 },
+        booking: { receita: current.canais.BOOKING_COM?.receita || 0,  reservas: current.canais.BOOKING_COM?.qtd || 0,  fee: 0.13, guestFeeRate: 0.00 },
+        direta:  { receita: current.canais.DIRECT?.receita || 0,       reservas: current.canais.DIRECT?.qtd || 0,       fee: 0.00, guestFeeRate: 0.00 },
       },
       historico,
       despesasCategorias,
