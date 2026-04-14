@@ -10,8 +10,8 @@ const path  = require('path');
 const fs    = require('fs');
 
 const ROOT      = path.join(__dirname, '..');
-// Gold brand mark — best contrast on dark background
-const MARK_PATH = path.join(ROOT, 'public', 'brand', 'sri-mark-gold.svg');
+// Color brand mark — best contrast on light beige background
+const MARK_PATH = path.join(ROOT, 'public', 'brand', 'sri-mark-color.svg');
 const ICON_DIR  = path.join(ROOT, 'public', 'icons');
 
 // Mark aspect ratio: 3779 ÷ 2645 = 1.4286 (landscape)
@@ -37,40 +37,11 @@ const ICONS = [
 
 // ── Background SVG (self-contained — no external refs, sharp-safe) ────────────
 /**
- * Returns an inline SVG string for the forest-dark background at a given size.
- * Includes forest gradient, nature-green ambient, gold-warmth ambient, and vignette.
+ * Returns an inline SVG string for the light beige background at a given size.
  */
 function makeBgSvg(size) {
-  const cx    = size / 2;
-  const cy    = size / 2;
-  const gGlow = Math.round(size * 0.55);  // green ambient radius
-  const aGlow = Math.round(size * 0.49);  // gold ambient radius
-  const vRad  = Math.round(size * 0.56);  // vignette radius
-
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="${size}" y2="${size}" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#1F1409"/>
-      <stop offset="55%"  stop-color="#1C1208"/>
-      <stop offset="100%" stop-color="#110B03"/>
-    </linearGradient>
-    <radialGradient id="gg" cx="${cx * 0.27}" cy="${cy * 0.25}" r="${gGlow}" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#2B7929" stop-opacity="0.30"/>
-      <stop offset="100%" stop-color="#2B7929" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="ga" cx="${cx}" cy="${size * 0.94}" r="${aGlow}" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#C5D86D" stop-opacity="0.18"/>
-      <stop offset="100%" stop-color="#C5D86D" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="vg" cx="${cx}" cy="${cy}" r="${vRad}" gradientUnits="userSpaceOnUse">
-      <stop offset="55%"  stop-color="rgba(0,0,0,0)"/>
-      <stop offset="100%" stop-color="rgba(0,0,0,0.52)"/>
-    </radialGradient>
-  </defs>
-  <rect width="${size}" height="${size}" fill="url(#bg)"/>
-  <rect width="${size}" height="${size}" fill="url(#gg)"/>
-  <rect width="${size}" height="${size}" fill="url(#ga)"/>
-  <rect width="${size}" height="${size}" fill="url(#vg)"/>
+  <rect width="${size}" height="${size}" fill="#F7F7F2"/>
 </svg>`;
 }
 
@@ -119,7 +90,7 @@ async function generateIcon({ size, name }) {
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 async function main() {
-  console.log('[icons] Generating PWA icons from sri-mark-gold.svg…');
+  console.log('[icons] Generating PWA icons from sri-mark-color.svg…');
 
   if (!fs.existsSync(MARK_PATH)) {
     console.warn(`[icons] Brand mark not found at ${MARK_PATH} — skipping`);
