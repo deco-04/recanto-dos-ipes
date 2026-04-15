@@ -257,23 +257,22 @@ router.patch('/:id/lida', requireStaff, async (req, res) => {
 
 // ── POST /webhooks/ghl-message — inbound WA/Instagram from GHL ────────────────
 // Mounted at /api/webhooks/ghl-message (no /api/staff prefix, no auth)
-// Verified by HMAC header from GHL
+// Verified by static token in x-webhook-secret header (GHL workflow webhooks
+// cannot compute HMAC, so we use a shared static secret instead).
 router.post('/ghl-message', async (req, res) => {
-  // Mandatory HMAC verification — reject if secret not configured
   const secret = process.env.GHL_WEBHOOK_SECRET;
   if (!secret) {
     console.error('[mensagens] GHL_WEBHOOK_SECRET not set — rejecting webhook');
     return res.status(500).json({ error: 'Webhook not configured' });
   }
-  const sig = req.headers['x-ghl-signature'] || '';
-  const expected = crypto
-    .createHmac('sha256', secret)
-    .update(JSON.stringify(req.body))
-    .digest('hex');
-  const sigBuf = Buffer.from(sig);
-  const expBuf = Buffer.from(expected);
-  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
-    return res.status(401).json({ error: 'Invalid signature' });
+  const provided = req.headers['x-webhook-secret'] || '';
+  const secretBuf   = Buffer.from(secret);
+  const providedBuf = Buffer.from(provided);
+  if (
+    providedBuf.length !== secretBuf.length ||
+    !crypto.timingSafeEqual(providedBuf, secretBuf)
+  ) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   const { phone, instagramId, contactName, contactEmail, avatarUrl, body, channel, sentAt } = req.body;
