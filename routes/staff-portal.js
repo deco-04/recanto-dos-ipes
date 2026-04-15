@@ -128,24 +128,63 @@ router.get('/reservas/:id', requireRole('ADMIN', 'GUARDIA'), async (req, res) =>
 });
 
 // ── PATCH /api/staff/reservas/:id ──────────────────────────────────────────
-// Accepts: { source?, status?, notes? }
+// Accepts: { source?, status?, notes?, guestName?, guestEmail?, guestPhone?,
+//            checkIn?, checkOut?, guestCount?, totalAmount?, hasPet? }
 router.patch('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
   const sourceReverseMap = { DIRECT: 'DIRECT', AIRBNB: 'AIRBNB', BOOKING: 'BOOKING_COM' };
 
   const schema = z.object({
-    source: z.enum(['DIRECT', 'AIRBNB', 'BOOKING']).optional(),
-    status: z.enum(['PENDING', 'CONFIRMED', 'CANCELLED', 'REFUNDED']).optional(),
-    notes:  z.string().optional(),
+    source:      z.enum(['DIRECT', 'AIRBNB', 'BOOKING']).optional(),
+    status:      z.enum(['PENDING', 'CONFIRMED', 'CANCELLED', 'REFUNDED']).optional(),
+    notes:       z.string().optional(),
+    guestName:   z.string().min(1).optional(),
+    guestEmail:  z.string().email().optional().or(z.literal('')),
+    guestPhone:  z.string().optional(),
+    checkIn:     z.string().optional(),
+    checkOut:    z.string().optional(),
+    guestCount:  z.number().int().min(1).optional(),
+    totalAmount: z.number().min(0).optional(),
+    hasPet:      z.boolean().optional(),
   });
 
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.errors });
 
-  const { source, status, notes } = parsed.data;
+  const { source, status, notes, guestName, guestEmail, guestPhone,
+          checkIn, checkOut, guestCount, totalAmount, hasPet } = parsed.data;
+
   const updates = {};
-  if (source !== undefined) updates.source = sourceReverseMap[source];
-  if (status !== undefined) updates.status = status;
-  if (notes !== undefined) updates.notes = notes;
+  if (source      !== undefined) updates.source      = sourceReverseMap[source];
+  if (status      !== undefined) updates.status      = status;
+  if (notes       !== undefined) updates.notes       = notes;
+  if (guestName   !== undefined) updates.guestName   = guestName;
+  if (guestEmail  !== undefined) updates.guestEmail  = guestEmail || null;
+  if (guestPhone  !== undefined) updates.guestPhone  = guestPhone;
+  if (guestCount  !== undefined) updates.guestCount  = guestCount;
+  if (totalAmount !== undefined) updates.totalAmount = totalAmount;
+  if (hasPet      !== undefined) updates.hasPet      = hasPet;
+
+  if (checkIn !== undefined) {
+    const d = new Date(checkIn);
+    if (isNaN(d.getTime())) return res.status(400).json({ error: 'checkIn inválido' });
+    updates.checkIn = d;
+  }
+  if (checkOut !== undefined) {
+    const d = new Date(checkOut);
+    if (isNaN(d.getTime())) return res.status(400).json({ error: 'checkOut inválido' });
+    updates.checkOut = d;
+  }
+  if (updates.checkIn && updates.checkOut && updates.checkIn >= updates.checkOut) {
+    return res.status(400).json({ error: 'Check-out deve ser após check-in' });
+  }
+  if (updates.checkIn || updates.checkOut) {
+    // Recalculate nights
+    const booking = await prisma.booking.findUnique({ where: { id: req.params.id }, select: { checkIn: true, checkOut: true } });
+    if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
+    const ci = updates.checkIn  || booking.checkIn;
+    const co = updates.checkOut || booking.checkOut;
+    updates.nights = Math.round((co - ci) / (1000 * 60 * 60 * 24));
+  }
 
   if (Object.keys(updates).length === 0) {
     return res.status(400).json({ error: 'Nenhum campo para atualizar' });
@@ -938,6 +977,32 @@ router.get('/tarefas', async (req, res) => {
   }
 });
 
+// ── PATCH /api/staff/tarefas/:id ─────────────────────────────────────────────
+// Staff-scoped toggle: only the assigned staff member can update status.
+router.patch('/tarefas/:id', async (req, res) => {
+  const schema = z.object({ status: z.enum(['PENDENTE', 'FEITO']) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Status inválido' });
+
+  try {
+    const task = await prisma.staffTask.findUnique({ where: { id: req.params.id } });
+    if (!task) return res.status(404).json({ error: 'Tarefa não encontrada' });
+    if (task.assignedToId !== req.staff.id) return res.status(403).json({ error: 'Sem permissão' });
+
+    const updated = await prisma.staffTask.update({
+      where: { id: req.params.id },
+      data: {
+        status:      parsed.data.status,
+        completedAt: parsed.data.status === 'FEITO' ? new Date() : null,
+      },
+    });
+    res.json(updated);
+  } catch (err) {
+    console.error('[staff-portal] PATCH /tarefas/:id error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar tarefa' });
+  }
+});
+
 // ── Guest Messages ────────────────────────────────────────────────────────────
 
 // GET /api/staff/reservas/:id/mensagens — all messages for a booking (all roles)
@@ -1276,8 +1341,18 @@ router.post('/reservas/:id/confirmar', requireRole('ADMIN'), async (req, res) =>
     // Fire confirmation messages (non-blocking)
     const { sendBookingConfirmation }  = require('../lib/mailer');
     const { notifyBookingConfirmed }   = require('../lib/ghl-webhook');
+    const { sendPushToUser }           = require('../lib/push');
     sendBookingConfirmation({ booking: confirmed }).catch(e => console.error('[mailer] confirm email error:', e.message));
     notifyBookingConfirmed(confirmed).catch(e => console.error('[ghl] confirm webhook error:', e.message));
+    if (confirmed.userId) {
+      const checkInDate = confirmed.checkIn.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+      sendPushToUser(confirmed.userId, {
+        title: 'Reserva confirmada! 🏡',
+        body:  `Sua estadia em ${checkInDate} está confirmada. Prepare-se!`,
+        type:  'BOOKING_CONFIRMED_GUEST',
+        data:  { bookingId: confirmed.id },
+      }).catch(e => console.error('[push] confirm guest push error:', e.message));
+    }
 
     res.json({ ok: true, booking: confirmed });
   } catch (err) {
@@ -1321,10 +1396,19 @@ router.post('/reservas/:id/recusar', requireRole('ADMIN'), async (req, res) => {
     // Fire decline messages (non-blocking)
     const { sendBookingDeclined }   = require('../lib/mailer');
     const { notifyBookingDeclined } = require('../lib/ghl-webhook');
+    const { sendPushToUser }        = require('../lib/push');
     sendBookingDeclined({ booking: declined, declineReason: message.trim() })
       .catch(e => console.error('[mailer] decline email error:', e.message));
     notifyBookingDeclined(declined)
       .catch(e => console.error('[ghl] decline webhook error:', e.message));
+    if (declined.userId) {
+      sendPushToUser(declined.userId, {
+        title: 'Atualização sobre sua reserva',
+        body:  'Infelizmente sua solicitação não pôde ser confirmada. Verifique seu e-mail.',
+        type:  'BOOKING_DECLINED_GUEST',
+        data:  { bookingId: declined.id },
+      }).catch(e => console.error('[push] decline guest push error:', e.message));
+    }
 
     res.json({ ok: true, booking: declined });
   } catch (err) {

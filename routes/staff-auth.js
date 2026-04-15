@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { z } = require('zod');
 const prisma = require('../lib/db');
 const { sendAdminNotification, sendPasswordResetEmail } = require('../lib/mailer');
+const { sendPushToRole } = require('../lib/push');
 
 const router = express.Router();
 
@@ -394,6 +395,13 @@ router.post('/request-recovery', async (req, res) => {
         subject: `Solicitação de recuperação de senha — ${staff.name}`,
         text: `O membro ${staff.name} (${staff.email}) solicita redefinição de senha.\n\nAcesse /admin/equipe → Editar → Reenviar convite para gerar um novo link de acesso.`,
       }).catch(e => console.error('[staff-auth] recovery email error:', e.message));
+
+      sendPushToRole('ADMIN', {
+        title: 'Solicitação de recuperação de senha',
+        body:  `${staff.name} precisa redefinir o acesso`,
+        type:  'STAFF_RECOVERY_REQUEST',
+        data:  {},
+      }).catch(e => console.error('[staff-auth] recovery push error:', e.message));
     }
   } catch (e) {
     console.error('[staff-auth] request-recovery error:', e.message);
@@ -429,6 +437,13 @@ router.post('/request-access', async (req, res) => {
       subject: `Nova solicitação de acesso à Central da Equipe — ${name}`,
       text: lines,
     }).catch(e => console.error('[staff-auth] request-access email error:', e.message));
+
+    sendPushToRole('ADMIN', {
+      title: 'Nova solicitação de acesso',
+      body:  `${name} quer entrar na Central da Equipe`,
+      type:  'STAFF_ACCESS_REQUEST',
+      data:  { name, email },
+    }).catch(e => console.error('[staff-auth] request-access push error:', e.message));
   } catch (e) {
     console.error('[staff-auth] request-access error:', e.message);
   }
