@@ -7,6 +7,7 @@ const { z } = require('zod');
 const prisma = require('../lib/db');
 const { sendAdminNotification, sendPasswordResetEmail } = require('../lib/mailer');
 const { sendPushToRole } = require('../lib/push');
+const { sendWhatsAppMessage } = require('../lib/ghl-webhook');
 
 const router = express.Router();
 
@@ -31,13 +32,6 @@ function signStaffToken(staff) {
     process.env.STAFF_JWT_SECRET,
     { expiresIn: '30d' }
   );
-}
-
-// Lazy-load Twilio only if credentials are present
-function getTwilioClient() {
-  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return null;
-  const twilio = require('twilio');
-  return twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 }
 
 // Normalize phone to E.164 — strips all non-digits, prepends country code.
@@ -100,19 +94,13 @@ router.post('/login', authLimiter, async (req, res) => {
   return res.json({ ...serializeStaff(staff), staffToken: signStaffToken(staff) });
 });
 
-// POST /api/staff/auth/send-sms — solicita código via Twilio Verify
+// POST /api/staff/auth/send-sms — gera OTP e envia via WhatsApp (GHL)
 router.post('/send-sms', authLimiter, async (req, res) => {
   const schema = z.object({ phone: z.string().min(10) });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Telefone inválido' });
 
   const phone = toE164(parsed.data.phone);
-
-  const twilioClient = getTwilioClient();
-  if (!twilioClient || !process.env.TWILIO_VERIFY_SID) {
-    console.error('[staff-auth] Twilio not configured — set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SID');
-    return res.status(503).json({ error: 'WhatsApp não configurado. Use o login por e-mail.' });
-  }
 
   // Verificar se o staff existe (sem revelar ao cliente)
   const staff = await prisma.staffMember.findUnique({ where: { phone } });
@@ -121,15 +109,31 @@ router.post('/send-sms', authLimiter, async (req, res) => {
     return res.json({ sent: true }); // silent — don't reveal existence
   }
 
+  // Gerar código de 6 dígitos
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+
+  // Invalidar códigos anteriores não utilizados para este telefone
+  await prisma.verificationCode.updateMany({
+    where: { phone, purpose: 'STAFF_LOGIN', usedAt: null },
+    data: { usedAt: new Date() },
+  });
+
+  await prisma.verificationCode.create({
+    data: { phone, code, purpose: 'STAFF_LOGIN', expiresAt },
+  });
+
   try {
-    await twilioClient.verify.v2
-      .services(process.env.TWILIO_VERIFY_SID)
-      .verifications.create({ to: phone, channel: 'whatsapp' });
-    return res.json({ sent: true });
+    await sendWhatsAppMessage(
+      phone,
+      `🔐 Seu código de acesso à Central Recantos: *${code}*\n\nVálido por 15 minutos. Não compartilhe este código.`,
+    );
   } catch (err) {
-    console.error('[staff-auth] Twilio send-sms error:', err.message);
-    return res.status(500).json({ error: 'Erro ao enviar SMS. Tente novamente.' });
+    console.error('[staff-auth] GHL WhatsApp send error:', err.message);
+    return res.status(500).json({ error: 'Erro ao enviar código. Tente novamente.' });
   }
+
+  return res.json({ sent: true });
 });
 
 // POST /api/staff/auth/verify-sms — valida código e autentica
@@ -144,23 +148,26 @@ router.post('/verify-sms', authLimiter, async (req, res) => {
   const phone = toE164(parsed.data.phone);
   const { code } = parsed.data;
 
-  const twilioClient = getTwilioClient();
-  if (!twilioClient || !process.env.TWILIO_VERIFY_SID) {
-    return res.status(503).json({ error: 'SMS não configurado' });
+  const record = await prisma.verificationCode.findFirst({
+    where: {
+      phone,
+      code,
+      purpose: 'STAFF_LOGIN',
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!record) {
+    return res.status(401).json({ error: 'Código inválido ou expirado' });
   }
 
-  try {
-    const check = await twilioClient.verify.v2
-      .services(process.env.TWILIO_VERIFY_SID)
-      .verificationChecks.create({ to: phone, code });
-
-    if (check.status !== 'approved') {
-      return res.status(401).json({ error: 'Código inválido ou expirado' });
-    }
-  } catch (err) {
-    console.error('[staff-auth] Twilio verify-sms error:', err.message);
-    return res.status(500).json({ error: 'Erro ao verificar código. Tente novamente.' });
-  }
+  // Marcar como usado
+  await prisma.verificationCode.update({
+    where: { id: record.id },
+    data: { usedAt: new Date() },
+  });
 
   const staff = await findStaffWithProperties({ phone });
   if (!staff || !staff.active) return res.status(401).json({ error: 'Acesso não autorizado' });

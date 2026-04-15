@@ -60,6 +60,7 @@ function serializePost(p) {
     scheduledFor: p.scheduledFor,
     publishedAt:  p.publishedAt,
     mediaUrls:   p.mediaUrls,
+    imagePrompt: p.imagePrompt ?? null,
     createdAt:   p.createdAt,
     updatedAt:   p.updatedAt,
     comments:    p.comments?.map(c => ({
@@ -131,6 +132,7 @@ router.patch('/:id', requireStaff, async (req, res) => {
     stage:       z.enum(['GERADO', 'EM_REVISAO', 'APROVADO', 'AGENDADO', 'PUBLICADO']).optional(),
     scheduledFor: z.string().datetime().optional(),
     mediaUrls:   z.array(z.string()).optional(),
+    imagePrompt: z.string().optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
@@ -141,6 +143,11 @@ router.patch('/:id', requireStaff, async (req, res) => {
 
     const data = { ...parsed.data };
     if (data.scheduledFor) data.scheduledFor = new Date(data.scheduledFor);
+
+    // On PUBLICADO → set publishedAt if not already set
+    if (parsed.data.stage === 'PUBLICADO' && post.stage !== 'PUBLICADO' && !post.publishedAt) {
+      data.publishedAt = new Date();
+    }
 
     // On APROVADO → schedule to GHL Social Planner
     if (parsed.data.stage === 'APROVADO' && post.stage !== 'APROVADO') {
@@ -349,6 +356,60 @@ router.post('/gerar-agora/:brand', requireStaff, requireAdmin, async (req, res) 
   } catch (err) {
     console.error('[content] gerar-agora error:', err);
     res.status(500).json({ error: 'Erro ao gerar conteúdo' });
+  }
+});
+
+// ── Public blog API (no auth required) ────────────────────────────────────────
+function slugify(title) {
+  return title
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 80);
+}
+
+function serializePublicPost(p) {
+  return {
+    id:          p.id,
+    title:       p.title,
+    body:        p.body,
+    slug:        slugify(p.title),
+    publishedAt: p.publishedAt,
+    mediaUrls:   p.mediaUrls,
+    pillar:      p.pillar,
+  };
+}
+
+router.get('/blog/posts', async (req, res) => {
+  try {
+    const posts = await prisma.contentPost.findMany({
+      where: { contentType: 'BLOG', stage: 'PUBLICADO', brand: 'RDI' },
+      select: { id: true, title: true, body: true, publishedAt: true, mediaUrls: true, pillar: true },
+      orderBy: { publishedAt: 'desc' },
+    });
+    res.json(posts.map(serializePublicPost));
+  } catch (err) {
+    console.error('[blog] GET /posts error:', err);
+    res.status(500).json({ error: 'Erro ao carregar posts' });
+  }
+});
+
+router.get('/blog/posts/:id', async (req, res) => {
+  try {
+    const post = await prisma.contentPost.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, title: true, body: true, publishedAt: true, mediaUrls: true, pillar: true, stage: true, contentType: true, brand: true },
+    });
+    if (!post || post.stage !== 'PUBLICADO' || post.contentType !== 'BLOG' || post.brand !== 'RDI') {
+      return res.status(404).json({ error: 'Post não encontrado' });
+    }
+    res.json(serializePublicPost(post));
+  } catch (err) {
+    console.error('[blog] GET /posts/:id error:', err);
+    res.status(500).json({ error: 'Erro ao carregar post' });
   }
 });
 

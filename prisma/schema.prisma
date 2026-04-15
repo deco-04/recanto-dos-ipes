@@ -32,10 +32,11 @@ model User {
 // Sessions are managed by connect-pg-simple (its own "session" table, auto-created)
 // We do not model them in Prisma — userId is stored inside the session JSON.
 
-// ── Verification Codes (email OTP) ────────────────────────────────────────────
+// ── Verification Codes (email OTP + staff WhatsApp OTP) ──────────────────────
 model VerificationCode {
   id        String      @id @default(cuid())
-  email     String
+  email     String?
+  phone     String?
   code      String
   purpose   CodePurpose
   expiresAt DateTime
@@ -46,11 +47,13 @@ model VerificationCode {
   user   User?   @relation(fields: [userId], references: [id])
 
   @@index([email])
+  @@index([phone])
 }
 
 enum CodePurpose {
   LOGIN
   LINK_BOOKING
+  STAFF_LOGIN
 }
 
 // ── Bookings ──────────────────────────────────────────────────────────────────
@@ -750,6 +753,7 @@ model ContentPost {
   scheduledFor DateTime?
   publishedAt  DateTime?
   mediaUrls    Json?
+  imagePrompt  String?        @db.Text
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
@@ -783,6 +787,7 @@ enum ContentType {
   INSTAGRAM_STORIES
   FACEBOOK
   BLOG
+  GBP_POST
 }
 
 enum ContentPillar {

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Blog — Sítio Recanto dos Ipês</title>
+  <meta name="description" content="Dicas de viagem, natureza e experiências no Sítio Recanto dos Ipês em Jaboticatubas, MG.">
+  <link rel="canonical" href="https://sitiorecantodosipes.com/blog">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#261C15">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Blog — Sítio Recanto dos Ipês">
+  <meta property="og:description" content="Dicas de viagem, natureza e experiências no Sítio Recanto dos Ipês.">
+  <meta property="og:url" content="https://sitiorecantodosipes.com/blog">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="Sítio Recanto dos Ipês">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/sri-design.css">
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          forest: { DEFAULT:'#261C15', light:'#3D2B1F' },
+          gold:   { DEFAULT:'#C5D86D', dark:'#9BAB52' },
+          beige:  { DEFAULT:'#F7F7F2', dark:'#E4E6C3' },
+          stone:  { DEFAULT:'#6B6B6B', light:'#9A9A9A' },
+        },
+        fontFamily: { serif:['Merriweather','serif'], sans:['Lato','sans-serif'] },
+      }}
+    }
+  </script>
+  <style>
+    body { font-family:'Lato',sans-serif; }
+    .card-hover { transition: transform 0.2s, box-shadow 0.2s; }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(38,28,21,0.12); }
+  </style>
+</head>
+<body class="min-h-screen bg-beige">
+
+  <!-- Navbar -->
+  <nav class="bg-forest px-4 md:px-6 py-4 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-3">
+      <img src="/brand/sri-mark-white.svg" alt="Recanto dos Ipês" class="h-10 w-auto object-contain"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+      <span style="display:none" class="font-serif text-white font-bold text-lg">Recanto dos Ipês</span>
+      <span class="font-serif text-white font-bold text-lg hidden sm:block">Recanto dos Ipês</span>
+    </a>
+    <a href="/" class="text-white/70 hover:text-white text-sm transition-colors">← Início</a>
+  </nav>
+
+  <!-- Hero -->
+  <div class="bg-forest text-white px-4 md:px-6 py-12 md:py-16 text-center">
+    <p class="text-gold text-xs font-bold uppercase tracking-[0.2em] mb-3">Blog</p>
+    <h1 class="font-serif text-3xl md:text-4xl font-bold mb-4">Histórias do Recanto</h1>
+    <p class="text-white/70 text-base max-w-xl mx-auto">
+      Dicas de viagem, natureza da Mata Atlântica, gastronomia e experiências no coração de Jaboticatubas.
+    </p>
+  </div>
+
+  <!-- Content -->
+  <div class="max-w-4xl mx-auto px-4 py-10 md:py-16">
+
+    <!-- Loading -->
+    <div id="loading" class="flex items-center justify-center py-20 gap-3 text-stone">
+      <svg class="w-5 h-5 animate-spin text-gold-dark" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+      </svg>
+      <span class="text-sm">Carregando artigos…</span>
+    </div>
+
+    <!-- Empty state -->
+    <div id="empty" class="hidden text-center py-20">
+      <p class="text-4xl mb-4">🌿</p>
+      <p class="font-serif text-xl text-forest font-semibold mb-2">Em breve por aqui</p>
+      <p class="text-stone text-sm max-w-sm mx-auto">
+        Estamos preparando conteúdo especial sobre natureza, turismo e experiências no Sítio Recanto dos Ipês.
+      </p>
+    </div>
+
+    <!-- Post grid -->
+    <div id="posts" class="hidden grid gap-6 md:grid-cols-2 lg:grid-cols-3"></div>
+
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-forest text-white/60 text-xs text-center py-8 px-4 mt-10">
+    <p>© <span id="year"></span> Sítio Recanto dos Ipês · Jaboticatubas, MG</p>
+    <p class="mt-1">
+      <a href="https://wa.me/553123916688" class="text-gold hover:text-gold-dark transition-colors">WhatsApp</a>
+      · <a href="/" class="hover:text-white transition-colors">Início</a>
+      · <a href="/booking" class="hover:text-white transition-colors">Reservar</a>
+    </p>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    const PILLAR_LABELS = {
+      EXPERIENCIA: 'Experiência',
+      DESTINO: 'Destino',
+      PROVA_SOCIAL: 'Depoimentos',
+      DISPONIBILIDADE: 'Disponibilidade',
+      BASTIDORES: 'Bastidores',
+      BLOG_SEO: 'Artigo',
+    };
+
+    function formatDate(iso) {
+      if (!iso) return '';
+      return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+    }
+
+    function excerpt(body, len = 140) {
+      if (!body) return '';
+      const plain = body.replace(/#{1,6}\s?/g, '').replace(/\*\*/g, '').replace(/\*/g, '').replace(/\n+/g, ' ').trim();
+      return plain.length > len ? plain.slice(0, len).trimEnd() + '…' : plain;
+    }
+
+    function renderPost(post) {
+      const pillar = PILLAR_LABELS[post.pillar] || 'Artigo';
+      const img = Array.isArray(post.mediaUrls) && post.mediaUrls.length > 0 ? post.mediaUrls[0] : null;
+
+      return `
+        <a href="/blog-post.html?id=${post.id}"
+           class="card-hover bg-white rounded-2xl overflow-hidden border border-beige-dark flex flex-col">
+          ${img
+            ? `<img src="${img}" alt="${post.title}" class="w-full h-44 object-cover"/>`
+            : `<div class="w-full h-44 bg-forest/10 flex items-center justify-center">
+                <span class="text-4xl">🌿</span>
+               </div>`
+          }
+          <div class="p-5 flex flex-col flex-1">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-gold-dark bg-gold/20 px-2 py-0.5 rounded-full">
+                ${pillar}
+              </span>
+            </div>
+            <h2 class="font-serif text-forest font-bold text-base leading-snug mb-2 flex-1">${post.title}</h2>
+            <p class="text-stone text-sm leading-relaxed mb-4">${excerpt(post.body)}</p>
+            <p class="text-xs text-stone-light">${formatDate(post.publishedAt)}</p>
+          </div>
+        </a>
+      `;
+    }
+
+    async function loadPosts() {
+      try {
+        const res = await fetch('/api/blog/posts');
+        if (!res.ok) throw new Error('API error');
+        const posts = await res.json();
+
+        document.getElementById('loading').classList.add('hidden');
+
+        if (!posts.length) {
+          document.getElementById('empty').classList.remove('hidden');
+          return;
+        }
+
+        const grid = document.getElementById('posts');
+        grid.innerHTML = posts.map(renderPost).join('');
+        grid.classList.remove('hidden');
+      } catch (e) {
+        document.getElementById('loading').innerHTML =
+          '<p class="text-sm text-stone py-20 text-center">Erro ao carregar artigos. Tente novamente.</p>';
+      }
+    }
+
+    loadPosts();
+  </script>
+</body>
+</html>

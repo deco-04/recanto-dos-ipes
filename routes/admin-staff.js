@@ -625,17 +625,23 @@ router.get('/calendario', async (req, res) => {
 // AI PRICING SUGGESTIONS (Sugestões de precificação)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// GET /api/admin/staff/ia/precos
-router.get('/ia/precos', async (_req, res) => {
+// GET /api/admin/staff/ia/precos — optional ?propertyId= filter
+router.get('/ia/precos', async (req, res) => {
+  const { propertyId } = req.query;
+  const where = propertyId && propertyId !== 'all' ? { propertyId } : {};
   const suggestions = await prisma.pricingSuggestion.findMany({
+    where,
     include: {
       acceptedBy: { select: { id: true, name: true } },
+      property:   { select: { id: true, name: true } },
     },
     orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
   });
 
   return res.json(suggestions.map(s => ({
     id: s.id,
+    propertyId: s.propertyId,
+    propertyName: s.property?.name ?? null,
     periodStart: s.periodStart,
     periodEnd: s.periodEnd,
     currentPrice: parseFloat(s.currentPrice?.toString() || '0'),
