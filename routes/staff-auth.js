@@ -15,13 +15,14 @@ if (!process.env.STAFF_JWT_SECRET) {
 }
 
 // Rate limiter for auth endpoints — 10 attempts per 15 minutes per IP
+// express-rate-limit v8 handles IPv6 + X-Forwarded-For natively when
+// Express has trust proxy set (see server.js: app.set('trust proxy', 1))
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Muitas tentativas. Aguarde 15 minutos.' },
-  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0].trim() || req.ip || 'unknown',
 });
 
 function signStaffToken(staff) {
