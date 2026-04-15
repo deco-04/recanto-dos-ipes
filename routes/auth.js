@@ -59,6 +59,14 @@ function clearVerifyFailures(email) {
   verifyFailures.delete(email);
 }
 
+// Prune expired entries every 15 minutes to prevent unbounded Map growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of otpRateLimit)   if (v.resetAt    < now) otpRateLimit.delete(k);
+  for (const [k, v] of verifyFailures) if (v.lockedUntil < now) verifyFailures.delete(k);
+}, 15 * 60 * 1000).unref();
+}
+
 // ── Google OAuth strategy (only when credentials are configured) ───────────────
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 passport.use(new GoogleStrategy({

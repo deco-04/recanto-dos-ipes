@@ -38,6 +38,13 @@ function checkReceiptRateLimit(ip) {
   return true;
 }
 
+// Prune expired entries hourly to prevent unbounded Map growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of intentRateLimit)  if (v.resetAt < now) intentRateLimit.delete(k);
+  for (const [k, v] of receiptRateLimit) if (v.resetAt < now) receiptRateLimit.delete(k);
+}, 60 * 60 * 1000).unref();
+
 // Best-effort IP: honour X-Forwarded-For set by Railway's proxy
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
