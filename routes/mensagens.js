@@ -275,40 +275,48 @@ router.post('/ghl-message', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { phone, instagramId, contactName, contactEmail, avatarUrl, body, channel, sentAt } = req.body;
+  const { phone, contactName, contactEmail, avatarUrl, body, channel, sentAt } = req.body;
   if (!body || !channel) {
     return res.status(400).json({ error: 'body and channel required' });
   }
 
-  const validChannels = ['WHATSAPP', 'INSTAGRAM'];
-  if (!validChannels.includes(channel)) {
-    return res.status(400).json({ error: 'Invalid channel' });
+  // Only WHATSAPP and INSTAGRAM are stored in the inbox.
+  // EMAIL, CHAT WIDGET, OTHER are valid GHL channels but not handled here — ack and skip.
+  const inboxChannels = ['WHATSAPP', 'INSTAGRAM'];
+  if (!inboxChannels.includes(channel)) {
+    return res.json({ ok: true, skipped: true, reason: `channel ${channel} not handled by inbox` });
+  }
+
+  // GHL workflow webhooks don't provide an instagramId — use phone as the universal
+  // contact identifier (GHL contacts always have phone even for Instagram DMs).
+  // Fall back to email if phone is absent.
+  const contactKey = phone || contactEmail;
+  if (!contactKey) {
+    return res.status(400).json({ error: 'phone or email required to identify contact' });
   }
 
   try {
     const property = await prisma.property.findFirst({ where: { active: true } });
     if (!property) return res.status(500).json({ error: 'No active property' });
 
-    // Find or create conversation
+    // Find or create conversation — keyed by phone (preferred) or email
     let conversation = await prisma.conversation.findFirst({
       where: {
         propertyId: property.id,
-        ...(channel === 'WHATSAPP'  ? { contactPhone: phone } :
-            channel === 'INSTAGRAM' ? { contactInstagram: instagramId } : {}),
+        ...(phone ? { contactPhone: phone } : { contactEmail }),
       },
     });
 
     if (!conversation) {
       conversation = await prisma.conversation.create({
         data: {
-          propertyId:       property.id,
-          contactName:      contactName || phone || instagramId || 'Contato',
-          contactPhone:     channel === 'WHATSAPP'  ? phone       : null,
-          contactInstagram: channel === 'INSTAGRAM' ? instagramId : null,
-          contactEmail:     contactEmail || null,
-          avatarUrl:        avatarUrl    || null,
-          lastMessageAt:    new Date(),
-          unreadCount:      1,
+          propertyId:    property.id,
+          contactName:   contactName || phone || contactEmail || 'Contato',
+          contactPhone:  phone        || null,
+          contactEmail:  contactEmail || null,
+          avatarUrl:     avatarUrl    || null,
+          lastMessageAt: new Date(),
+          unreadCount:   1,
         },
       });
     } else {
