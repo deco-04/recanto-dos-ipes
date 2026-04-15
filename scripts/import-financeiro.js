@@ -232,6 +232,10 @@ async function main() {
     const exists = await prisma.booking.findUnique({ where: { externalId: code } });
     if (exists) { abSkipped++; continue; }
 
+    // Amount = actual payout deposited to bank (bank-verified for every booking)
+    // Gross earnings is pre-fee (~4.578% higher) — do NOT use for revenue
+    const amountStr = r['Amount'];
+    const amount = amountStr ? parseFloat(amountStr) : 0;
     const grossStr = r['Gross earnings'];
     const gross = grossStr ? parseFloat(grossStr) : 0;
     const feeStr = r['Service fee'];
@@ -239,7 +243,8 @@ async function main() {
     const cleaningStr = r['Cleaning fee'];
     const cleaning = cleaningStr ? parseFloat(cleaningStr) : 0;
     const nights = parseInt(r['Nights']) || 1;
-    const baseRate = nights > 0 ? parseFloat(((gross - cleaning - fee) / nights).toFixed(2)) : 0;
+    // baseRate = (amount already net of host fee, subtract cleaning to get room rate)
+    const baseRate = nights > 0 ? parseFloat(((amount - cleaning) / nights).toFixed(2)) : 0;
 
     await prisma.booking.create({
       data: {
@@ -254,17 +259,105 @@ async function main() {
         baseRatePerNight: baseRate,
         extraGuestFee:    0,
         petFee:           0,
-        totalAmount:      gross,
+        totalAmount:      amount,
         status:           'CONFIRMED',
         source:           'AIRBNB',
         externalId:       code,
-        notes:            fee > 0 ? `Taxa Airbnb: R$${fee.toFixed(2)}` : null,
+        notes:            `Gross: R$${gross.toFixed(2)}${fee ? `. Taxa host: R$${fee.toFixed(2)}` : ''}`,
       }
     });
     abCreated++;
   }
 
   console.log(`  Created: ${abCreated} | Dupes skipped: ${abSkipped}`);
+
+  // ── 2b. Booking.com invoices → Booking records ───────────────────────────
+  // Each invoice = 1 aggregate Booking record (net payout as totalAmount, consistent with Airbnb)
+  // Invoice data verified against bank CRÉDITO entries. Commission = exactly 13% on all invoices.
+  // Apr 2025 and May 2025 have no matching bank entry (possibly deferred/combined payout) but
+  // room sales documented in invoices are real.
+  console.log('\n[2b] Importing Booking.com invoices...');
+
+  // Monthly aggregate invoices (totalAmount = net after 13% commission = actual bank payout)
+  const BCOM_INVOICES = [
+    { invoiceId: '19218253', period: '2024-08', checkIn: '2024-08-01', checkOut: '2024-08-31', roomSales: 1377.00, commission: 179.01, net: 1197.99 },
+    { invoiceId: '19265543', period: '2024-09', checkIn: '2024-09-01', checkOut: '2024-09-30', roomSales: 1591.20, commission: 206.86, net: 1384.34 },
+    { invoiceId: '19418698', period: '2024-11', checkIn: '2024-11-01', checkOut: '2024-11-30', roomSales: 1407.60, commission: 182.99, net: 1224.61 },
+    { invoiceId: '19579121', period: '2025-01', checkIn: '2025-01-01', checkOut: '2025-01-31', roomSales: 2845.80, commission: 369.95, net: 2475.85 },
+    { invoiceId: '19663917', period: '2025-02', checkIn: '2025-02-01', checkOut: '2025-02-28', roomSales: 1354.06, commission: 176.03, net: 1178.03 },
+    { invoiceId: '19750621', period: '2025-03', checkIn: '2025-03-01', checkOut: '2025-03-31', roomSales: 1089.36, commission: 141.62, net:  947.74 },
+    { invoiceId: '19835038', period: '2025-04', checkIn: '2025-04-01', checkOut: '2025-04-30', roomSales: 2946.78, commission: 383.08, net: 2563.70 },
+    { invoiceId: '19911676', period: '2025-05', checkIn: '2025-05-01', checkOut: '2025-05-31', roomSales: 3832.66, commission: 498.25, net: 3334.41 },
+    { invoiceId: '19983589', period: '2025-06', checkIn: '2025-06-01', checkOut: '2025-06-30', roomSales: 2269.50, commission: 295.04, net: 1974.46 },
+    { invoiceId: '20128683', period: '2025-08', checkIn: '2025-08-01', checkOut: '2025-08-31', roomSales: 1211.76, commission: 157.53, net: 1054.23 },
+    { invoiceId: '20230644', period: '2025-09', checkIn: '2025-09-01', checkOut: '2025-09-30', roomSales: 3326.40, commission: 432.43, net: 2893.97 },
+    { invoiceId: '20285055', period: '2025-10', checkIn: '2025-10-01', checkOut: '2025-10-31', roomSales: 1888.12, commission: 245.46, net: 1642.66 },
+    { invoiceId: '20367297', period: '2025-11', checkIn: '2025-11-01', checkOut: '2025-11-30', roomSales: 1300.50, commission: 169.07, net: 1131.43 },
+  ];
+
+  // Individual booking from Mar 2026 payout summary (Rodrigo Castro Vilela)
+  const BCOM_INDIVIDUAL = [
+    { externalId: 'bcom-6413085515', guestName: 'Rodrigo Castro Vilela', checkIn: '2026-01-30', checkOut: '2026-02-01', nights: 2, roomSales: 1501.50, commission: 195.20, net: 1306.30 },
+  ];
+
+  let bcomCreated = 0, bcomSkipped = 0;
+
+  for (const inv of BCOM_INVOICES) {
+    const extId = `bcom-inv-${inv.invoiceId}`;
+    const exists = await prisma.booking.findUnique({ where: { externalId: extId } });
+    if (exists) { bcomSkipped++; continue; }
+
+    await prisma.booking.create({
+      data: {
+        propertyId:       rdi.id,
+        guestName:        `Hóspedes Booking.com - ${inv.period}`,
+        guestEmail:       `${extId}@booking.import`,
+        guestPhone:       extId,
+        checkIn:          new Date(`${inv.checkIn}T00:00:00Z`),
+        checkOut:         new Date(`${inv.checkOut}T23:59:59Z`),
+        nights:           0, // aggregate — multiple bookings within the month
+        guestCount:       1,
+        baseRatePerNight: 0,
+        extraGuestFee:    0,
+        petFee:           0,
+        totalAmount:      inv.net,
+        status:           'CONFIRMED',
+        source:           'BOOKING_COM',
+        externalId:       extId,
+        notes:            `Fatura Booking.com ${inv.period}. Vendas: R$${inv.roomSales.toFixed(2)}. Comissão 13%: R$${inv.commission.toFixed(2)}. Líquido: R$${inv.net.toFixed(2)}.`,
+      }
+    });
+    bcomCreated++;
+  }
+
+  for (const b of BCOM_INDIVIDUAL) {
+    const exists = await prisma.booking.findUnique({ where: { externalId: b.externalId } });
+    if (exists) { bcomSkipped++; continue; }
+
+    await prisma.booking.create({
+      data: {
+        propertyId:       rdi.id,
+        guestName:        b.guestName,
+        guestEmail:       `${b.externalId}@booking.import`,
+        guestPhone:       b.externalId,
+        checkIn:          new Date(`${b.checkIn}T00:00:00Z`),
+        checkOut:         new Date(`${b.checkOut}T23:59:59Z`),
+        nights:           b.nights,
+        guestCount:       1,
+        baseRatePerNight: parseFloat((b.net / b.nights).toFixed(2)),
+        extraGuestFee:    0,
+        petFee:           0,
+        totalAmount:      b.net,
+        status:           'CONFIRMED',
+        source:           'BOOKING_COM',
+        externalId:       b.externalId,
+        notes:            `Booking.com ref#${b.externalId.replace('bcom-','')}. Vendas: R$${b.roomSales.toFixed(2)}. Comissão 13%: R$${b.commission.toFixed(2)}.`,
+      }
+    });
+    bcomCreated++;
+  }
+
+  console.log(`  Created: ${bcomCreated} | Dupes skipped: ${bcomSkipped}`);
 
   // ── 3. Direct bookings (WhatsApp history) ────────────────────────────────
   console.log('\n[3] Importing direct bookings (WhatsApp history)...');
@@ -326,15 +419,99 @@ async function main() {
   }
   console.log(`  Fixed: ${jackFixed} | Unchanged: ${jackSame} | Total Jack rows: ${jackRows.length}`);
 
+  // ── 5. Fix existing Airbnb bookings: update totalAmount to CSV Amount ────
+  // Previously imported using Gross earnings (~4.578% inflated vs actual payout).
+  // Now correct to Amount = exact bank deposit (verified for all 57 reservations).
+  console.log('\n[5] Correcting Airbnb booking amounts to bank-verified CSV Amount...');
+
+  // Build map: confirmationCode → Amount from CSV
+  const airbnbAmountMap = {};
+  for (const r of reservations) {
+    const code = r['Confirmation code'];
+    if (code && r['Amount']) {
+      airbnbAmountMap[code] = parseFloat(r['Amount']);
+    }
+  }
+
+  const existingAirbnb = await prisma.booking.findMany({
+    where: { propertyId: rdi.id, source: 'AIRBNB' },
+    select: { id: true, externalId: true, totalAmount: true },
+  });
+
+  let airFixedCount = 0, airAlreadyOk = 0, airNotInCsv = 0;
+  for (const b of existingAirbnb) {
+    const correct = airbnbAmountMap[b.externalId];
+    if (correct === undefined) { airNotInCsv++; continue; }
+    const current = parseFloat(String(b.totalAmount));
+    if (Math.abs(current - correct) < 0.01) { airAlreadyOk++; continue; }
+    await prisma.booking.update({
+      where: { id: b.id },
+      data: { totalAmount: correct },
+    });
+    airFixedCount++;
+    console.log(`    Updated ${b.externalId}: ${current.toFixed(2)} → ${correct.toFixed(2)}`);
+  }
+
+  console.log(`  Fixed: ${airFixedCount} | Already correct: ${airAlreadyOk} | Not in CSV: ${airNotInCsv}`);
+
+  // ── 6. Cleanup test / duplicate data ─────────────────────────────────────
+  console.log('\n[6] Removing test bookings and duplicate property data...');
+
+  // Delete bookings where guestName contains "teste" (case-insensitive)
+  const testByName = await prisma.booking.findMany({
+    where: { guestName: { contains: 'teste', mode: 'insensitive' } },
+    select: { id: true, guestName: true, totalAmount: true },
+  });
+  for (const b of testByName) {
+    console.log(`    Deleting test booking: "${b.guestName}" R$${parseFloat(String(b.totalAmount)).toFixed(2)}`);
+    // Must delete FK-dependent BookingGuest records first
+    await prisma.bookingGuest.deleteMany({ where: { bookingId: b.id } });
+    await prisma.booking.delete({ where: { id: b.id } });
+  }
+
+  // Delete all bookings on the duplicate "sitio" property (test/stale data)
+  const dupeProp = await prisma.property.findFirst({
+    where: { slug: 'sitio' },
+    select: { id: true, name: true },
+  });
+  if (dupeProp) {
+    const dupeBookings = await prisma.booking.findMany({
+      where: { propertyId: dupeProp.id },
+      select: { id: true, guestName: true, totalAmount: true },
+    });
+    for (const b of dupeBookings) {
+      console.log(`    Deleting dupe-property booking: "${b.guestName}" R$${parseFloat(String(b.totalAmount)).toFixed(2)}`);
+      await prisma.bookingGuest.deleteMany({ where: { bookingId: b.id } });
+      await prisma.booking.delete({ where: { id: b.id } });
+    }
+    if (dupeBookings.length === 0) console.log('    No bookings on dupe "sitio" property.');
+  } else {
+    console.log('    No "sitio" duplicate property found — skipping.');
+  }
+
+  console.log(`  Test bookings removed: ${testByName.length}`);
+
   // ── Summary ───────────────────────────────────────────────────────────────
   const totalExp  = await prisma.expense.count({ where: { propertyId: rdi.id } });
   const totalCDS  = await prisma.expense.count({ where: { propertyId: cds.id } });
   const totalBook = await prisma.booking.count({ where: { propertyId: rdi.id } });
 
+  const bySource = await prisma.booking.groupBy({
+    by: ['source'],
+    where: { propertyId: rdi.id },
+    _count: { id: true },
+    _sum: { totalAmount: true },
+  });
+
   console.log('\n=== FINAL COUNTS ===');
   console.log(`RDI Expenses: ${totalExp}`);
   console.log(`CDS Expenses: ${totalCDS}`);
   console.log(`RDI Bookings: ${totalBook}`);
+  console.log('By source:');
+  for (const s of bySource) {
+    const total = parseFloat(String(s._sum.totalAmount || 0));
+    console.log(`  ${s.source}: ${s._count.id} bookings, R$${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+  }
   console.log('\nDone.');
 }
 

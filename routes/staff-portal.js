@@ -1922,8 +1922,11 @@ function buildPeriod(period) {
 function buildComparePeriod(period, compare) {
   const { start, end } = buildPeriod(period);
   const diffMs = end - start;
-  if (compare === 'same2024') {
-    const yearDiff = start.getFullYear() - 2024;
+  // same<YYYY> — shift dates to that year (e.g. same2024, same2025)
+  const yearMatch = compare.match(/^same(\d{4})$/);
+  if (yearMatch) {
+    const targetYear = parseInt(yearMatch[1], 10);
+    const yearDiff = start.getFullYear() - targetYear;
     return {
       start: new Date(start.getFullYear() - yearDiff, start.getMonth(), start.getDate()),
       end:   new Date(end.getFullYear()   - yearDiff, end.getMonth(),   end.getDate(), 23, 59, 59),
@@ -1981,6 +1984,7 @@ router.get('/financeiro/dre', requireRole('ADMIN'), async (req, res) => {
 
     const prop = await prisma.property.findFirst({
       where: { slug: { not: 'cabanas' }, active: true },
+      orderBy: { createdAt: 'asc' }, // ensures 'recanto-dos-ipes' (oldest/primary) is always selected
     });
     if (!prop) return res.status(404).json({ error: 'Propriedade não encontrada' });
 
@@ -2043,10 +2047,11 @@ router.get('/financeiro/dre', requireRole('ADMIN'), async (req, res) => {
         ticketMedio:            current.ticketMedio,
       },
       canais: {
-        // fee = host commission rate (charged to us by OTA)
+        // fee = host commission rate (charged to us by OTA, already deducted from totalAmount)
         // guestFeeRate = service fee charged to the guest by the OTA (on top of nightly rate)
-        // Airbnb split model: 3% host + 14% guest. Booking.com agency model: 13% host + 0% guest.
-        airbnb:  { receita: current.canais.AIRBNB?.receita || 0,      reservas: current.canais.AIRBNB?.qtd || 0,      fee: 0.03, guestFeeRate: 0.14 },
+        // Airbnb: 4.578% host fee (verified from CSV: service_fee/gross_earnings across all bookings)
+        // Booking.com: 13.0% host commission (exact across all 14 invoices)
+        airbnb:  { receita: current.canais.AIRBNB?.receita || 0,      reservas: current.canais.AIRBNB?.qtd || 0,      fee: 0.0458, guestFeeRate: 0.14 },
         booking: { receita: current.canais.BOOKING_COM?.receita || 0,  reservas: current.canais.BOOKING_COM?.qtd || 0,  fee: 0.13, guestFeeRate: 0.00 },
         direta:  { receita: current.canais.DIRECT?.receita || 0,       reservas: current.canais.DIRECT?.qtd || 0,       fee: 0.00, guestFeeRate: 0.00 },
       },
