@@ -2248,4 +2248,48 @@ router.patch('/configuracoes/porteiro', requireRole('ADMIN'), async (req, res) =
   }
 });
 
+// ── POST /api/staff/admin/notify-incomplete-guests — one-shot push to all ADMINs ──
+// Sends a push notification about bookings with missing guest names.
+// Protected by requireRole('ADMIN') via router.use(requireStaff) above.
+router.post('/admin/notify-incomplete-guests', requireRole('ADMIN'), async (req, res) => {
+  const { sendPushToRole } = require('../lib/push');
+  const PLACEHOLDER_NAMES = ['Hóspede Airbnb', 'Hóspede Booking.com', ''];
+
+  try {
+    const incomplete = await prisma.booking.findMany({
+      where: {
+        status: { in: ['CONFIRMED', 'REQUESTED', 'PENDING'] },
+        OR: [
+          { guestName: null },
+          { guestName: '' },
+          { guestName: { in: PLACEHOLDER_NAMES } },
+        ],
+      },
+      select: { id: true, guestName: true, checkIn: true, source: true },
+      orderBy: { checkIn: 'asc' },
+    });
+
+    if (incomplete.length === 0) {
+      return res.json({ ok: true, sent: 0, message: 'Todas as reservas já têm dados completos' });
+    }
+
+    const title = `${incomplete.length} reserva${incomplete.length > 1 ? 's' : ''} sem dados completos`;
+    const body = incomplete.length === 1
+      ? `Check-in em ${new Date(incomplete[0].checkIn).toLocaleDateString('pt-BR')} — adicione os dados do hóspede`
+      : `${incomplete.length} reservas precisam de nome e dados do hóspede`;
+
+    const sent = await sendPushToRole('ADMIN', {
+      title,
+      body,
+      type: 'INCOMPLETE_GUEST_DATA',
+      data: { count: incomplete.length, bookingIds: incomplete.map(b => b.id) },
+    });
+
+    res.json({ ok: true, found: incomplete.length, sent, bookings: incomplete });
+  } catch (err) {
+    console.error('[staff-portal] notify-incomplete-guests error:', err);
+    res.status(500).json({ error: 'Erro ao enviar notificação' });
+  }
+});
+
 module.exports = router;
