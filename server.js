@@ -302,8 +302,11 @@ app.use('/api/staff/conversas', staffCors, mensagensRouter);
 // GHL inbound webhook (no auth, uses HMAC)
 app.use('/api/webhooks', mensagensRouter);
 
-// AI Content Agent
+// AI Content Agent (staff)
 app.use('/api/staff/conteudo', staffCors, require('./routes/content'));
+
+// Public blog API (no auth)
+app.use('/api/blog', require('./routes/content'));
 
 // Admin — manual iCal sync trigger
 app.post('/api/admin/sync-ical', async (req, res) => {
@@ -356,6 +359,24 @@ app.post('/api/admin/notify-incomplete-guests', async (req, res) => {
     console.error('[admin] notify-incomplete-guests error:', err);
     res.status(500).json({ error: 'Erro ao enviar notificação' });
   }
+});
+
+// Admin — check push subscription state across all staff
+app.get('/api/admin/push-debug', async (req, res) => {
+  if (req.headers['x-admin-secret'] !== process.env.ADMIN_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const staff = await prisma.staffMember.findMany({
+    where:  { active: true },
+    select: { id: true, name: true, email: true, role: true, pushSubscription: true },
+  });
+  res.json(staff.map(s => ({
+    id:              s.id,
+    name:            s.name,
+    email:           s.email,
+    role:            s.role,
+    hasSubscription: !!s.pushSubscription,
+  })));
 });
 
 // Admin — fire every push notification type to all ADMIN staff (test mode)
