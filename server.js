@@ -301,6 +301,52 @@ app.post('/api/admin/sync-ical', async (req, res) => {
   res.json({ results });
 });
 
+// Admin — push notification for bookings with missing guest info
+app.post('/api/admin/notify-incomplete-guests', async (req, res) => {
+  if (req.headers['x-admin-secret'] !== process.env.ADMIN_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    const prisma = require('./lib/db');
+    const { sendPushToRole } = require('./lib/push');
+    const PLACEHOLDER_NAMES = ['Hóspede Airbnb', 'Hóspede Booking.com', ''];
+
+    const incomplete = await prisma.booking.findMany({
+      where: {
+        status: { in: ['CONFIRMED', 'REQUESTED', 'PENDING'] },
+        OR: [
+          { guestName: null },
+          { guestName: '' },
+          { guestName: { in: PLACEHOLDER_NAMES } },
+        ],
+      },
+      select: { id: true, guestName: true, checkIn: true, source: true },
+      orderBy: { checkIn: 'asc' },
+    });
+
+    if (incomplete.length === 0) {
+      return res.json({ ok: true, sent: 0, message: 'Todas as reservas já têm dados completos' });
+    }
+
+    const title = `${incomplete.length} reserva${incomplete.length > 1 ? 's' : ''} sem dados completos`;
+    const body = incomplete.length === 1
+      ? `Check-in ${new Date(incomplete[0].checkIn).toLocaleDateString('pt-BR')} — adicione os dados do hóspede`
+      : `${incomplete.length} reservas precisam de nome e dados do hóspede`;
+
+    const sent = await sendPushToRole('ADMIN', {
+      title,
+      body,
+      type: 'INCOMPLETE_GUEST_DATA',
+      data: { count: incomplete.length, bookingIds: incomplete.map(b => b.id) },
+    });
+
+    res.json({ ok: true, found: incomplete.length, sent, bookings: incomplete });
+  } catch (err) {
+    console.error('[admin] notify-incomplete-guests error:', err);
+    res.status(500).json({ error: 'Erro ao enviar notificação' });
+  }
+});
+
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
