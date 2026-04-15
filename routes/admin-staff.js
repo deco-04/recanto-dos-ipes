@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const { z } = require('zod');
 const prisma = require('../lib/db');
 const { sendStaffInvite } = require('../lib/mailer');
+const { sendPushToRole, sendPushToStaff } = require('../lib/push');
 
 const router = express.Router();
 
@@ -146,6 +147,16 @@ router.post('/', async (req, res) => {
   }
 
   const full = await fetchStaffWithProperties({ id: staff.id });
+
+  // Push to other admins so they know a new team member was added
+  const roleLabel = role === 'GUARDIA' ? 'Guardião' : role === 'PISCINEIRO' ? 'Piscineiro' : 'Admin';
+  sendPushToRole('ADMIN', {
+    title: 'Novo membro da equipe adicionado 👤',
+    body:  `${name} (${roleLabel}) foi adicionado(a) à equipe`,
+    type:  'STAFF_MEMBER_ADDED',
+    data:  { staffId: staff.id },
+  }).catch(e => console.error('[push] staff created push failed:', e.message));
+
   return res.status(201).json(serializeStaffMember(full));
 });
 
@@ -348,6 +359,19 @@ router.post('/tarefas', async (req, res) => {
     },
   });
 
+  // Notify the assigned staff member about their new task
+  if (assignedToId) {
+    const dueDateLabel = dueDate
+      ? ` · Prazo: ${new Date(dueDate).toLocaleDateString('pt-BR')}`
+      : '';
+    sendPushToStaff(assignedToId, {
+      title: 'Nova tarefa atribuída a você 📋',
+      body:  `${title}${dueDateLabel}`,
+      type:  'TASK_ASSIGNED',
+      data:  { taskId: task.id },
+    }).catch(e => console.error('[push] task assigned push failed:', e.message));
+  }
+
   return res.status(201).json(task);
 });
 
@@ -383,6 +407,27 @@ router.patch('/tarefas/:id', async (req, res) => {
       assignedBy: { select: { id: true, name: true } },
     },
   });
+
+  // Notify new assignee when task is reassigned
+  if (assignedToId && assignedToId !== task.assignedToId) {
+    sendPushToStaff(assignedToId, {
+      title: 'Tarefa atribuída a você 📋',
+      body:  updated.title,
+      type:  'TASK_ASSIGNED',
+      data:  { taskId: updated.id },
+    }).catch(e => console.error('[push] task reassigned push failed:', e.message));
+  }
+
+  // Notify ADMIN when task is marked done (non-blocking)
+  if (status === 'FEITO') {
+    const completedByName = updated.assignedTo?.name || 'Equipe';
+    sendPushToRole('ADMIN', {
+      title: 'Tarefa concluída ✅',
+      body:  `${updated.title} — concluída por ${completedByName}`,
+      type:  'TASK_COMPLETED',
+      data:  { taskId: updated.id },
+    }).catch(e => console.error('[push] task completed push failed:', e.message));
+  }
 
   return res.json(updated);
 });

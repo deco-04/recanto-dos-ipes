@@ -138,11 +138,25 @@ app.post('/api/webhooks/stripe',
     if (event.type === 'payment_intent.payment_failed') {
       const pi = event.data.object;
       try {
-        const prisma = require('./lib/db');
-        await prisma.booking.updateMany({
+        const prisma  = require('./lib/db');
+        const booking = await prisma.booking.findFirst({
           where: { stripePaymentIntentId: pi.id, status: 'PENDING' },
-          data:  { status: 'CANCELLED' },
+          select: { id: true, guestName: true, checkIn: true },
         });
+        if (booking) {
+          await prisma.booking.update({
+            where: { id: booking.id },
+            data:  { status: 'CANCELLED' },
+          });
+          const { sendPushToRole } = require('./lib/push');
+          const checkInDate = new Date(booking.checkIn).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+          sendPushToRole('ADMIN', {
+            title: '💳 Pagamento recusado — reserva cancelada',
+            body:  `${booking.guestName} · Check-in ${checkInDate} · Tente entrar em contato`,
+            type:  'PAYMENT_FAILED',
+            data:  { bookingId: booking.id },
+          }).catch(e => console.error('[push] payment failed push failed:', e.message));
+        }
         console.log(`[stripe] PaymentIntent ${pi.id} failed — booking cancelled`);
       } catch (err) {
         console.error('[stripe] webhook payment_failed DB error:', err);
@@ -342,6 +356,198 @@ app.post('/api/admin/notify-incomplete-guests', async (req, res) => {
     console.error('[admin] notify-incomplete-guests error:', err);
     res.status(500).json({ error: 'Erro ao enviar notificação' });
   }
+});
+
+// Admin — fire every push notification type to all ADMIN staff (test mode)
+app.post('/api/admin/test-push-all', async (req, res) => {
+  if (req.headers['x-admin-secret'] !== process.env.ADMIN_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const { sendPushToRole } = require('./lib/push');
+
+  // All notification types with realistic payloads
+  const notifications = [
+    // ── Booking events ────────────────────────────────────────────────────────
+    {
+      title: 'Nova Reserva Confirmada 🏡',
+      body:  'Maria Silva · 20/05 → 23/05',
+      type:  'BOOKING_CONFIRMED',
+      data:  { bookingId: 'test-001' },
+    },
+    {
+      title: 'Nova solicitação de reserva',
+      body:  'João Pereira · 01/06 → 04/06',
+      type:  'BOOKING_REQUESTED',
+      data:  { bookingId: 'test-002' },
+    },
+    {
+      title: 'Nova reserva Airbnb — dados incompletos',
+      body:  'Hóspede Airbnb · 15/06 · Toque para completar',
+      type:  'OTA_BOOKING_INCOMPLETE',
+      data:  { bookingId: 'test-003' },
+    },
+    {
+      title: 'Reserva cancelada — Airbnb',
+      body:  'Hóspede Airbnb · 20/06 → 22/06 · Datas agora disponíveis',
+      type:  'OTA_BOOKING_CANCELLED',
+      data:  { bookingId: 'test-004' },
+    },
+    {
+      title: '💳 Pagamento recusado — reserva cancelada',
+      body:  'Carlos Mendes · Check-in 10 jul · Tente entrar em contato',
+      type:  'PAYMENT_FAILED',
+      data:  { bookingId: 'test-005' },
+    },
+    {
+      title: '2 reservas sem dados completos',
+      body:  '2 reservas precisam de nome e dados do hóspede',
+      type:  'INCOMPLETE_GUEST_DATA',
+      data:  { count: 2 },
+    },
+    // ── Check-in / stay events ────────────────────────────────────────────────
+    {
+      title: '🏡 Check-in hoje — 1 reserva',
+      body:  'Família Souza · 6 hóspedes · com pet',
+      type:  'CHECKIN_TODAY_ADMIN',
+      data:  { bookingIds: ['test-006'] },
+    },
+    {
+      title: 'Lembrete D-7 enviado — Ana Costa',
+      body:  'Check-in em 7 dias. Aguardando lista de hóspedes.',
+      type:  'PRESTAY_REMINDER_SENT',
+      data:  { bookingId: 'test-007' },
+    },
+    // ── Inspections ──────────────────────────────────────────────────────────
+    {
+      title: 'Vistoria Pré Check-in concluída ✓',
+      body:  'Família Souza · Check-in 25 mai · Tudo OK',
+      type:  'INSPECTION_SUBMITTED',
+      data:  { reportId: 'test-r01' },
+    },
+    {
+      title: '⚠️ 2 problemas na vistoria de Checkout',
+      body:  'Carlos Mendes · Check-in 15 mai · Torneira, Chuveiro',
+      type:  'INSPECTION_ISSUES',
+      data:  { reportId: 'test-r02' },
+    },
+    {
+      title: '⚠️ Vistoria pré check-in pendente',
+      body:  'Família Souza, Ana Costa chegam amanhã sem vistoria registrada',
+      type:  'INSPECTION_OVERDUE',
+      data:  { bookingIds: ['test-006', 'test-007'] },
+    },
+    // ── Pool / maintenance ────────────────────────────────────────────────────
+    {
+      title: 'Manutenção da piscina registrada 🏊',
+      body:  'Pré Check-in · por Pedro (Piscineiro)',
+      type:  'POOL_MAINTENANCE_LOGGED',
+      data:  { logId: 'test-l01' },
+    },
+    // ── Service tickets (Chamados) ────────────────────────────────────────────
+    {
+      title: 'Novo chamado aberto',
+      body:  'Vazamento no banheiro da suíte · Prioridade ALTA',
+      type:  'SERVICE_TICKET_OPENED',
+      data:  { ticketId: 'test-t01' },
+    },
+    {
+      title: '🚨 Chamado URGENTE aberto',
+      body:  'Falta de energia elétrica · Prioridade URGENTE',
+      type:  'SERVICE_TICKET_URGENTE',
+      data:  { ticketId: 'test-t02' },
+    },
+    {
+      title: 'Chamado resolvido ✅',
+      body:  'Vazamento no banheiro da suíte · resolvido por Lucas (Guardião)',
+      type:  'SERVICE_TICKET_RESOLVED',
+      data:  { ticketId: 'test-t01' },
+    },
+    // ── Tasks ────────────────────────────────────────────────────────────────
+    {
+      title: 'Nova tarefa atribuída a você 📋',
+      body:  'Verificar estoque de lenha · Prazo: 25/05/2026',
+      type:  'TASK_ASSIGNED',
+      data:  { taskId: 'test-tk01' },
+    },
+    {
+      title: '⏰ Tarefa vence amanhã',
+      body:  'Verificar estoque de lenha',
+      type:  'TASK_DUE_TOMORROW',
+      data:  { taskId: 'test-tk01' },
+    },
+    {
+      title: '🔴 2 tarefas em atraso',
+      body:  'Verificar estoque de lenha · Limpeza do deck',
+      type:  'TASK_OVERDUE',
+      data:  { count: 2 },
+    },
+    {
+      title: 'Tarefa concluída ✅',
+      body:  'Verificar estoque de lenha — concluída por Lucas (Guardião)',
+      type:  'TASK_COMPLETED',
+      data:  { taskId: 'test-tk01' },
+    },
+    // ── Staff events ──────────────────────────────────────────────────────────
+    {
+      title: 'Novo membro da equipe adicionado 👤',
+      body:  'Lucas Ferreira (Guardião) foi adicionado(a) à equipe',
+      type:  'STAFF_MEMBER_ADDED',
+      data:  { staffId: 'test-s01' },
+    },
+    {
+      title: 'Solicitação de recuperação de senha',
+      body:  'Lucas Ferreira precisa redefinir o acesso',
+      type:  'STAFF_RECOVERY_REQUEST',
+      data:  { staffId: 'test-s01' },
+    },
+    // ── Messages ──────────────────────────────────────────────────────────────
+    {
+      title: 'Nova mensagem — Maria Silva',
+      body:  'Olá, qual o horário de check-in?',
+      type:  'INBOX_MESSAGE',
+      data:  { conversationId: 'test-c01' },
+    },
+    // ── Surveys ──────────────────────────────────────────────────────────────
+    {
+      title: 'Nova avaliação — 5★ de Maria Silva',
+      body:  '★★★★★ · "Lugar incrível, voltaremos com certeza!"',
+      type:  'SURVEY_HIGH_SCORE',
+      data:  { score: 5 },
+    },
+    {
+      title: '⚠️ Avaliação baixa — 2★ de Carlos Mendes',
+      body:  '★★☆☆☆ · "Houve problemas com o banheiro"',
+      type:  'SURVEY_LOW_SCORE',
+      data:  { score: 2 },
+    },
+    // ── Operational alerts ────────────────────────────────────────────────────
+    {
+      title: '⚠️ 1 alerta urgente — Sítio Recanto dos Ipês',
+      body:  'Sem check-in confirmado para amanhã',
+      type:  'IA_ALERTA_URGENTE',
+      data:  { url: '/admin/ia-operacoes' },
+    },
+    {
+      title: 'Pacote de conteúdo gerado ✨',
+      body:  'Pacote de conteúdo gerado — RECANTO_DOS_IPES · 5 posts aguardando revisão',
+      type:  'CONTENT_PACKAGE_READY',
+      data:  { brand: 'RECANTO_DOS_IPES' },
+    },
+  ];
+
+  const results = [];
+  for (const notification of notifications) {
+    const sent = await sendPushToRole('ADMIN', notification)
+      .catch(err => { console.error(`[test-push] ${notification.type} failed:`, err.message); return 0; });
+    results.push({ type: notification.type, sent });
+    // Small delay to avoid overwhelming the push service
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  const totalSent = results.reduce((sum, r) => sum + r.sent, 0);
+  console.log(`[admin] test-push-all: sent ${totalSent} push(es) across ${notifications.length} types`);
+  res.json({ ok: true, total: notifications.length, results });
 });
 
 // ── Health check ──────────────────────────────────────────────────────────────

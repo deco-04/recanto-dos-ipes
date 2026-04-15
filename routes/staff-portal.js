@@ -12,6 +12,7 @@ const { z } = require('zod');
 const prisma = require('../lib/db');
 const { maybeCompleteOtaTask } = require('../lib/tasks');
 const { sendPorteiroMessage }  = require('../lib/ghl-webhook');
+const { sendPushToRole, sendPushToStaff } = require('../lib/push');
 
 const router = express.Router();
 
@@ -569,6 +570,27 @@ router.post('/vistorias', async (req, res) => {
       }
     }
 
+    // Push to ADMIN: inspection submitted
+    const tipoLabel   = tipo === 'PRE_CHECKIN' ? 'Pré Check-in' : 'Checkout';
+    const checkInDate = new Date(booking.checkIn).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+
+    if (problemas.length > 0) {
+      // Separate urgent push for issues found
+      sendPushToRole('ADMIN', {
+        title: `⚠️ ${problemas.length} problema${problemas.length > 1 ? 's' : ''} na vistoria de ${tipoLabel}`,
+        body:  `${booking.guestName} · Check-in ${checkInDate} · ${problemas.map(p => p.label).join(', ')}`,
+        type:  'INSPECTION_ISSUES',
+        data:  { reportId: report.id, bookingId },
+      }).catch(e => console.error('[push] inspection issues push failed:', e.message));
+    } else {
+      sendPushToRole('ADMIN', {
+        title: `Vistoria ${tipoLabel} concluída ✓`,
+        body:  `${booking.guestName} · Check-in ${checkInDate} · Tudo OK`,
+        type:  'INSPECTION_SUBMITTED',
+        data:  { reportId: report.id, bookingId },
+      }).catch(e => console.error('[push] inspection submitted push failed:', e.message));
+    }
+
     res.json({ id: report.id, ok: true });
   } catch (err) {
     console.error('[staff-portal] vistorias POST error:', err);
@@ -900,6 +922,18 @@ router.post('/piscina/manutencao', async (req, res) => {
       },
     });
 
+    // Push to ADMIN: pool maintenance logged
+    const logTypeLabel = bookingId ? 'Pré Check-in' : 'Rotina';
+    const staffName    = (await prisma.staffMember.findUnique({
+      where: { id: req.staff.id }, select: { name: true },
+    }))?.name || 'Equipe';
+    sendPushToRole('ADMIN', {
+      title: `Manutenção da piscina registrada 🏊`,
+      body:  `${logTypeLabel} · por ${staffName}${observacoes ? ` · "${observacoes.slice(0, 60)}"` : ''}`,
+      type:  'POOL_MAINTENANCE_LOGGED',
+      data:  { logId: log.id },
+    }).catch(e => console.error('[push] pool maintenance push failed:', e.message));
+
     res.json({ id: log.id, ok: true });
   } catch (err) {
     console.error('[staff-portal] piscina/manutencao error:', err);
@@ -936,6 +970,15 @@ router.post('/chamados', async (req, res) => {
         createdAt: new Date(timestamp),
       },
     });
+
+    // Push to ADMIN: service ticket opened
+    const isUrgente = prioridade === 'URGENTE';
+    sendPushToRole('ADMIN', {
+      title: isUrgente ? `🚨 Chamado URGENTE aberto` : `Novo chamado aberto`,
+      body:  `${titulo} · Prioridade ${prioridade}`,
+      type:  isUrgente ? 'SERVICE_TICKET_URGENTE' : 'SERVICE_TICKET_OPENED',
+      data:  { ticketId: ticket.id },
+    }).catch(e => console.error('[push] service ticket push failed:', e.message));
 
     res.json({ id: ticket.id, ok: true });
   } catch (err) {
@@ -980,8 +1023,20 @@ router.patch('/chamados/:id', requireRole('ADMIN', 'GUARDIA'), async (req, res) 
   try {
     const ticket = await prisma.serviceTicket.update({
       where: { id: req.params.id },
-      data: { status },
+      data: { status, ...(status === 'RESOLVIDO' && { resolvedAt: new Date() }) },
+      include: { openedBy: { select: { id: true, name: true } } },
     });
+
+    // Push to ADMIN when ticket is resolved (if resolved by non-admin GUARDIA, alert admin)
+    if (status === 'RESOLVIDO') {
+      sendPushToRole('ADMIN', {
+        title: 'Chamado resolvido ✅',
+        body:  `${ticket.title} · resolvido por ${ticket.openedBy?.name || 'Equipe'}`,
+        type:  'SERVICE_TICKET_RESOLVED',
+        data:  { ticketId: ticket.id },
+      }).catch(e => console.error('[push] ticket resolved push failed:', e.message));
+    }
+
     res.json(ticket);
   } catch {
     res.status(500).json({ error: 'Erro ao atualizar chamado' });
@@ -1022,6 +1077,20 @@ router.patch('/tarefas/:id', async (req, res) => {
         completedAt: parsed.data.status === 'FEITO' ? new Date() : null,
       },
     });
+
+    // Push to ADMIN when staff marks task done
+    if (parsed.data.status === 'FEITO') {
+      const staffMember = await prisma.staffMember.findUnique({
+        where: { id: req.staff.id }, select: { name: true },
+      });
+      sendPushToRole('ADMIN', {
+        title: 'Tarefa concluída ✅',
+        body:  `${updated.title} — concluída por ${staffMember?.name || 'Equipe'}`,
+        type:  'TASK_COMPLETED',
+        data:  { taskId: updated.id },
+      }).catch(e => console.error('[push] task completed push failed:', e.message));
+    }
+
     res.json(updated);
   } catch (err) {
     console.error('[staff-portal] PATCH /tarefas/:id error:', err);
