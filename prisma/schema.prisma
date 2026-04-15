@@ -476,6 +476,8 @@ enum ExpenseCategory {
   CARTAO_CREDITO
   MATERIAIS_MELHORIAS
   MANUTENCAO_SOLAR_BOMBA
+  JARDINAGEM_PAISAGISMO   // corte de grama, jardinagem, paisagismo (Osvaldinei)
+  OBRAS_CONSTRUCAO        // depósito/pagamentos de obras e construção (João Henrique)
   DESIGN_ARQUITETURA
   COMPRAS_ONLINE
   OUTROS
