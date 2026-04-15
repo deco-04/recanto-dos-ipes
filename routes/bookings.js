@@ -7,43 +7,7 @@ const prisma  = require('../lib/db');
 const { calculateQuote } = require('../lib/pricing');
 const { requireAuth }    = require('../lib/auth-middleware');
 
-// ── Per-IP rate limit: max 5 booking intents per hour ─────────────────────────
-// Prevents DoS via unlimited PaymentIntent creation and calendar pollution.
-const intentRateLimit = new Map(); // ip → { count, resetAt }
-
-function checkIntentRateLimit(ip) {
-  const now   = Date.now();
-  const entry = intentRateLimit.get(ip);
-  if (!entry || entry.resetAt < now) {
-    intentRateLimit.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
-    return true;
-  }
-  if (entry.count >= 5) return false;
-  entry.count++;
-  return true;
-}
-
-// ── Per-IP rate limit: max 10 receipt lookups per minute ──────────────────────
-const receiptRateLimit = new Map(); // ip → { count, resetAt }
-
-function checkReceiptRateLimit(ip) {
-  const now   = Date.now();
-  const entry = receiptRateLimit.get(ip);
-  if (!entry || entry.resetAt < now) {
-    receiptRateLimit.set(ip, { count: 1, resetAt: now + 60 * 1000 });
-    return true;
-  }
-  if (entry.count >= 10) return false;
-  entry.count++;
-  return true;
-}
-
-// Prune expired entries hourly to prevent unbounded Map growth
-setInterval(() => {
-  const now = Date.now();
-  for (const [k, v] of intentRateLimit)  if (v.resetAt < now) intentRateLimit.delete(k);
-  for (const [k, v] of receiptRateLimit) if (v.resetAt < now) receiptRateLimit.delete(k);
-}, 60 * 60 * 1000).unref();
+const { checkLimit } = require('../lib/redis-rate-limit');
 
 // Best-effort IP: honour X-Forwarded-For set by Railway's proxy
 function getClientIp(req) {
@@ -124,7 +88,7 @@ router.get('/quote', async (req, res) => {
 // Creates a Stripe PaymentIntent. Validates availability first.
 router.post('/intent', async (req, res) => {
   // Rate-limit before any DB or Stripe work
-  if (!checkIntentRateLimit(getClientIp(req))) {
+  if (!(await checkLimit('intent:' + getClientIp(req), 5, 60 * 60 * 1000)).ok) {
     return res.status(429).json({ error: 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.' });
   }
 
@@ -384,7 +348,7 @@ router.post('/:id/link-account', requireAuth, async (req, res) => {
 // Public, no-auth endpoint for post-payment confirmation page.
 // Only returns CONFIRMED bookings — prevents leaking PENDING details.
 router.get('/receipt/:bookingId', async (req, res) => {
-  if (!checkReceiptRateLimit(getClientIp(req))) {
+  if (!(await checkLimit('receipt:' + getClientIp(req), 10, 60 * 1000)).ok) {
     return res.status(429).json({ error: 'Muitas tentativas. Aguarde um minuto.' });
   }
 

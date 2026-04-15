@@ -307,19 +307,7 @@ router.post('/change-password', async (req, res) => {
 });
 
 // ── Rate limit for password reset (3 per email per hour) ─────────────────────
-const resetRateLimit = new Map(); // email → { count, resetAt }
-
-function checkResetRateLimit(email) {
-  const now   = Date.now();
-  const entry = resetRateLimit.get(email);
-  if (!entry || entry.resetAt < now) {
-    resetRateLimit.set(email, { count: 1, resetAt: now + 60 * 60 * 1000 });
-    return true;
-  }
-  if (entry.count >= 3) return false;
-  entry.count++;
-  return true;
-}
+const { checkLimit: checkResetLimit } = require('../lib/redis-rate-limit');
 
 // POST /api/staff/auth/forgot-password — staff requests a self-service reset link
 router.post('/forgot-password', async (req, res) => {
@@ -328,7 +316,7 @@ router.post('/forgot-password', async (req, res) => {
 
   const { email } = parsed.data;
 
-  if (!checkResetRateLimit(email)) {
+  if (!(await checkResetLimit('reset:' + email, 3, 60 * 60 * 1000)).ok) {
     // Return ok to prevent enumeration — client shows success regardless
     return res.json({ ok: true });
   }

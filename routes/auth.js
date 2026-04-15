@@ -13,59 +13,7 @@ const { CookieStateStore } = require('../lib/oauth-state-store');
 
 const router = express.Router();
 
-// ── In-memory rate limiting ───────────────────────────────────────────────────
-// send-code: max 6 OTPs per email per hour (generous for older users)
-const otpRateLimit = new Map(); // email → { count, resetAt }
-
-function checkOtpRateLimit(email) {
-  const now   = Date.now();
-  const entry = otpRateLimit.get(email);
-
-  if (!entry || entry.resetAt < now) {
-    otpRateLimit.set(email, { count: 1, resetAt: now + 60 * 60 * 1000 });
-    return { ok: true };
-  }
-
-  if (entry.count >= 6) {
-    const minutesLeft = Math.ceil((entry.resetAt - now) / 60000);
-    return { ok: false, minutesLeft };
-  }
-
-  entry.count++;
-  return { ok: true };
-}
-
-// verify-code: max 5 failed attempts per email → 15-min lockout (prevents OTP brute-force)
-const verifyFailures = new Map(); // email → { failures, lockedUntil }
-
-function isVerifyLocked(email) {
-  const entry = verifyFailures.get(email);
-  if (!entry) return false;
-  return entry.lockedUntil > Date.now();
-}
-
-function recordVerifyFailure(email) {
-  const now   = Date.now();
-  const entry = verifyFailures.get(email) || { failures: 0, lockedUntil: 0 };
-  entry.failures += 1;
-  if (entry.failures >= 5) {
-    entry.lockedUntil = now + 15 * 60 * 1000; // 15-min lockout
-    entry.failures    = 0;                     // reset counter after lockout
-  }
-  verifyFailures.set(email, entry);
-}
-
-function clearVerifyFailures(email) {
-  verifyFailures.delete(email);
-}
-
-// Prune expired entries every 15 minutes to prevent unbounded Map growth
-setInterval(() => {
-  const now = Date.now();
-  for (const [k, v] of otpRateLimit)   if (v.resetAt    < now) otpRateLimit.delete(k);
-  for (const [k, v] of verifyFailures) if (v.lockedUntil < now) verifyFailures.delete(k);
-}, 15 * 60 * 1000).unref();
-}
+const { checkLimit, isLocked, clearLock, recordFailure } = require('../lib/redis-rate-limit');
 
 // ── Google OAuth strategy (only when credentials are configured) ───────────────
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
@@ -134,7 +82,7 @@ router.post('/send-code', async (req, res) => {
       purpose: z.enum(['LOGIN', 'LINK_BOOKING']).optional().default('LOGIN'),
     }).parse(req.body);
 
-    const rateCheck = checkOtpRateLimit(email);
+    const rateCheck = await checkLimit('otp:' + email, 6, 60 * 60 * 1000);
     if (!rateCheck.ok) {
       return res.status(429).json({
         error: `Código enviado muitas vezes. Aguarde ${rateCheck.minutesLeft} min antes de tentar novamente.`,
@@ -177,7 +125,7 @@ router.post('/verify-code', async (req, res) => {
     }).parse(req.body);
 
     // Brute-force guard: 5 failed attempts → 15-min lockout
-    if (isVerifyLocked(email)) {
+    if (await isLocked('verify:' + email)) {
       return res.status(429).json({ error: 'Muitas tentativas incorretas. Aguarde 15 minutos e solicite um novo código.' });
     }
 
@@ -193,12 +141,12 @@ router.post('/verify-code', async (req, res) => {
     });
 
     if (!record) {
-      recordVerifyFailure(email);
+      await recordFailure('verify:' + email + ':fails', 'verify:' + email, 5, 15 * 60 * 1000);
       return res.status(401).json({ error: 'Código inválido ou expirado.' });
     }
 
     // Successful verification — clear failure counter
-    clearVerifyFailures(email);
+    await clearLock('verify:' + email);
 
     // Mark used
     await prisma.verificationCode.update({
@@ -424,14 +372,13 @@ router.patch('/profile', async (req, res) => {
 
 // ── POST /api/auth/login-password ────────────────────────────────────────────
 // Email + password login (for users who have set a password)
-router.post('/login-password', (req, res, next) => {
-  // Rate limit: max 10 attempts per email per 15 minutes
-  const email = (req.body?.email || '').toLowerCase();
-  const check = checkOtpRateLimit(email + ':pwd');
-  if (!check.ok) return res.status(429).json({ error: `Muitas tentativas. Tente novamente em ${check.minutesLeft} minuto(s).` });
-  next();
-}, async (req, res) => {
+router.post('/login-password', async (req, res) => {
   try {
+    // Rate limit: max 10 attempts per email per 15 minutes
+    const rawEmail = (req.body?.email || '').toLowerCase();
+    const check = await checkLimit('pwd:' + rawEmail, 10, 15 * 60 * 1000);
+    if (!check.ok) return res.status(429).json({ error: `Muitas tentativas. Tente novamente em ${check.minutesLeft} minuto(s).` });
+
     const { email, password } = z.object({
       email:    z.string().email(),
       password: z.string().min(6).max(128),
