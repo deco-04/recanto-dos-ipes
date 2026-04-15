@@ -91,7 +91,9 @@ router.get('/unread-count', requireStaff, async (req, res) => {
 router.get('/', requireStaff, async (req, res) => {
   try {
     const { channel, page = '1', limit = '30' } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const parsedPage  = Math.max(1, parseInt(page) || 1);
+    const parsedLimit = Math.min(100, Math.max(1, parseInt(limit) || 30));
+    const skip = (parsedPage - 1) * parsedLimit;
 
     const where = {};
     if (channel && channel !== 'ALL') {
@@ -102,7 +104,7 @@ router.get('/', requireStaff, async (req, res) => {
       where,
       orderBy: { lastMessageAt: 'desc' },
       skip,
-      take: parseInt(limit),
+      take: parsedLimit,
       include: {
         messages: {
           orderBy: { sentAt: 'desc' },
@@ -116,7 +118,7 @@ router.get('/', requireStaff, async (req, res) => {
     res.json({
       conversations: conversations.map(serializeConversation),
       total,
-      page: parseInt(page),
+      page: parsedPage,
     });
   } catch (err) {
     console.error('[mensagens] GET /conversas error:', err);
@@ -128,7 +130,9 @@ router.get('/', requireStaff, async (req, res) => {
 router.get('/:id/mensagens', requireStaff, async (req, res) => {
   try {
     const { page = '1', limit = '50' } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const parsedPage  = Math.max(1, parseInt(page) || 1);
+    const parsedLimit = Math.min(100, Math.max(1, parseInt(limit) || 50));
+    const skip = (parsedPage - 1) * parsedLimit;
 
     const conversation = await prisma.conversation.findUnique({
       where: { id: req.params.id },
@@ -139,14 +143,14 @@ router.get('/:id/mensagens', requireStaff, async (req, res) => {
       where: { conversationId: req.params.id },
       orderBy: { sentAt: 'asc' },
       skip,
-      take: parseInt(limit),
+      take: parsedLimit,
       include: { staff: { select: { name: true } } },
     });
 
     res.json({
       conversation: serializeConversation({ ...conversation, messages: [] }),
       messages: messages.map(serializeMessage),
-      page: parseInt(page),
+      page: parsedPage,
     });
   } catch (err) {
     console.error('[mensagens] GET mensagens error:', err);
@@ -255,19 +259,21 @@ router.patch('/:id/lida', requireStaff, async (req, res) => {
 // Mounted at /api/webhooks/ghl-message (no /api/staff prefix, no auth)
 // Verified by HMAC header from GHL
 router.post('/ghl-message', async (req, res) => {
-  // Optional HMAC verification
+  // Mandatory HMAC verification — reject if secret not configured
   const secret = process.env.GHL_WEBHOOK_SECRET;
-  if (secret) {
-    const sig = req.headers['x-ghl-signature'] || '';
-    const expected = crypto
-      .createHmac('sha256', secret)
-      .update(JSON.stringify(req.body))
-      .digest('hex');
-    const sigBuf = Buffer.from(sig);
-    const expBuf = Buffer.from(expected);
-    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
-      return res.status(401).json({ error: 'Invalid signature' });
-    }
+  if (!secret) {
+    console.error('[mensagens] GHL_WEBHOOK_SECRET not set — rejecting webhook');
+    return res.status(500).json({ error: 'Webhook not configured' });
+  }
+  const sig = req.headers['x-ghl-signature'] || '';
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(JSON.stringify(req.body))
+    .digest('hex');
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return res.status(401).json({ error: 'Invalid signature' });
   }
 
   const { phone, instagramId, contactName, contactEmail, avatarUrl, body, channel, sentAt } = req.body;

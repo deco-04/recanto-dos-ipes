@@ -46,6 +46,15 @@ function requireRole(...roles) {
   };
 }
 
+// Returns true if the staff member belongs to the given property (ADMINs always pass)
+async function hasPropertyAccess(staffId, staffRole, propertyId) {
+  if (staffRole === 'ADMIN') return true;
+  const membership = await prisma.staffPropertyAssignment.findFirst({
+    where: { staffId, propertyId },
+  });
+  return membership !== null;
+}
+
 router.use(requireStaff);
 
 // GET /api/staff/me — returns full staff profile (used by WebAuthn + token exchange)
@@ -120,7 +129,14 @@ router.get('/reservas/:id', requireRole('ADMIN', 'GUARDIA'), async (req, res) =>
       include: { user: { select: { name: true } } },
     });
     if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
-    res.json(serializeBooking(booking));
+    const data = serializeBooking(booking);
+    // Strip PII for non-admin roles (GUARDIA needs check-in info but not contact/financial data)
+    if (req.staff.role !== 'ADMIN') {
+      delete data.guestEmail;
+      delete data.guestPhone;
+      delete data.totalPrice;
+    }
+    res.json(data);
   } catch (err) {
     console.error('[staff-portal] reserva/:id error:', err);
     res.status(500).json({ error: 'Erro ao buscar reserva' });
@@ -446,6 +462,11 @@ router.post('/vistorias', async (req, res) => {
 
     const property = await prisma.property.findFirst({ where: { active: true } });
     if (!property) return res.status(500).json({ error: 'Nenhuma propriedade ativa configurada' });
+
+    // Verify staff belongs to this property
+    if (!await hasPropertyAccess(req.staff.id, req.staff.role, property.id)) {
+      return res.status(403).json({ error: 'Sem acesso a esta propriedade' });
+    }
 
     // Save signature as a file instead of storing base64 in the DB
     let signatureUrl = null;
@@ -854,6 +875,11 @@ router.post('/piscina/manutencao', async (req, res) => {
   try {
     const property = await prisma.property.findFirst({ where: { active: true } });
     if (!property) return res.status(500).json({ error: 'Nenhuma propriedade ativa' });
+
+    // Verify staff belongs to this property
+    if (!await hasPropertyAccess(req.staff.id, req.staff.role, property.id)) {
+      return res.status(403).json({ error: 'Sem acesso a esta propriedade' });
+    }
 
     // Derive boolean fields from checklist for backward compatibility
     const getOk = (id) => checklist.find((i) => i.label.toLowerCase().includes(id))?.ok ?? false;

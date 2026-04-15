@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 const { z } = require('zod');
 const prisma = require('../lib/db');
 const { sendAdminNotification, sendPasswordResetEmail } = require('../lib/mailer');
@@ -12,6 +13,16 @@ const router = express.Router();
 if (!process.env.STAFF_JWT_SECRET) {
   throw new Error('[staff-auth] STAFF_JWT_SECRET env var not set');
 }
+
+// Rate limiter for auth endpoints — 10 attempts per 15 minutes per IP
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas tentativas. Aguarde 15 minutos.' },
+  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0].trim() || req.ip || 'unknown',
+});
 
 function signStaffToken(staff) {
   return jwt.sign(
@@ -67,7 +78,7 @@ async function findStaffWithProperties(where) {
 }
 
 // POST /api/staff/auth/login — email + senha
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   const schema = z.object({
     email: z.string().email(),
     password: z.string().min(6),
@@ -89,7 +100,7 @@ router.post('/login', async (req, res) => {
 });
 
 // POST /api/staff/auth/send-sms — solicita código via Twilio Verify
-router.post('/send-sms', async (req, res) => {
+router.post('/send-sms', authLimiter, async (req, res) => {
   const schema = z.object({ phone: z.string().min(10) });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Telefone inválido' });
@@ -121,7 +132,7 @@ router.post('/send-sms', async (req, res) => {
 });
 
 // POST /api/staff/auth/verify-sms — valida código e autentica
-router.post('/verify-sms', async (req, res) => {
+router.post('/verify-sms', authLimiter, async (req, res) => {
   const schema = z.object({
     phone: z.string().min(10),
     code: z.string().length(6),

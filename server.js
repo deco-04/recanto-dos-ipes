@@ -21,6 +21,10 @@ if (process.env.NODE_ENV === 'production') {
     'ADMIN_SECRET',
     'VAPID_PUBLIC_KEY',
     'VAPID_PRIVATE_KEY',
+    'STAFF_JWT_SECRET',
+    'STAFF_INTERNAL_SECRET',
+    'GHL_WEBHOOK_SECRET',
+    'NEXTAUTH_SECRET',
   ];
   const missing = REQUIRED_ENV.filter(k => !process.env[k]);
   if (missing.length > 0) {
@@ -250,8 +254,11 @@ app.use(express.static(path.join(ROOT, 'public'), {
 const STAFF_ORIGIN = process.env.STAFF_APP_ORIGIN || 'https://app.recantosdaserra.com';
 function staffCors(req, res, next) {
   const origin = req.headers.origin;
-  // Allow Railway preview URLs and the production domain
-  if (origin && (origin === STAFF_ORIGIN || origin.endsWith('.up.railway.app'))) {
+  // Allow the production domain and preview URLs scoped to this project only
+  const isProduction = origin === STAFF_ORIGIN;
+  const isOwnRailwayPreview = origin && origin.endsWith('.up.railway.app') &&
+    (origin.includes('recantos') || origin.includes('recanto'));
+  if (isProduction || isOwnRailwayPreview) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   } else if (process.env.NODE_ENV !== 'production') {
     res.setHeader('Access-Control-Allow-Origin', '*');
