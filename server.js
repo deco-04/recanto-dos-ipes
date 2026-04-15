@@ -309,16 +309,13 @@ app.post('/api/admin/notify-incomplete-guests', async (req, res) => {
   try {
     const prisma = require('./lib/db');
     const { sendPushToRole } = require('./lib/push');
-    const PLACEHOLDER_NAMES = ['Hóspede Airbnb', 'Hóspede Booking.com', ''];
+    // guestName is non-nullable (String in schema) — no null check needed
+    const PLACEHOLDER_NAMES = ['', 'Hóspede Airbnb', 'Hóspede Booking.com'];
 
     const incomplete = await prisma.booking.findMany({
       where: {
         status: { in: ['CONFIRMED', 'REQUESTED', 'PENDING'] },
-        OR: [
-          { guestName: null },
-          { guestName: '' },
-          { guestName: { in: PLACEHOLDER_NAMES } },
-        ],
+        guestName: { in: PLACEHOLDER_NAMES },
       },
       select: { id: true, guestName: true, checkIn: true, source: true },
       orderBy: { checkIn: 'asc' },
