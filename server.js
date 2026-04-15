@@ -24,7 +24,6 @@ if (process.env.NODE_ENV === 'production') {
     'STAFF_JWT_SECRET',
     'STAFF_INTERNAL_SECRET',
     'GHL_WEBHOOK_SECRET',
-    'NEXTAUTH_SECRET',
   ];
   const missing = REQUIRED_ENV.filter(k => !process.env[k]);
   if (missing.length > 0) {
