@@ -275,7 +275,14 @@ router.post('/ghl-message', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  // Reject stale webhooks (> 5 minutes old) to prevent replay attacks
   const { phone, contactName, contactEmail, avatarUrl, body, channel, sentAt } = req.body;
+  if (sentAt) {
+    const age = Date.now() - new Date(sentAt).getTime();
+    if (age > 5 * 60 * 1000) {
+      return res.status(400).json({ error: 'Webhook payload too old (replay prevention)' });
+    }
+  }
   if (!body || !channel) {
     return res.status(400).json({ error: 'body and channel required' });
   }

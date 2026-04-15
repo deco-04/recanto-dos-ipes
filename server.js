@@ -24,6 +24,7 @@ if (process.env.NODE_ENV === 'production') {
     'STAFF_JWT_SECRET',
     'STAFF_INTERNAL_SECRET',
     'GHL_WEBHOOK_SECRET',
+    'STRIPE_WEBHOOK_SECRET',
   ];
   const missing = REQUIRED_ENV.filter(k => !process.env[k]);
   if (missing.length > 0) {
@@ -270,7 +271,7 @@ function staffCors(req, res, next) {
   // Allow the production domain and preview URLs scoped to this project only
   const isProduction = origin === STAFF_ORIGIN;
   const isOwnRailwayPreview = origin && origin.endsWith('.up.railway.app') &&
-    (origin.includes('recantos') || origin.includes('recanto'));
+    (origin.startsWith('https://recantos-central-') || origin.startsWith('https://recantos-central.'));
   if (isProduction || isOwnRailwayPreview) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   } else if (process.env.NODE_ENV !== 'production') {
@@ -278,6 +279,7 @@ function staffCors(req, res, next) {
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 }
@@ -296,11 +298,13 @@ app.use('/api/uploads',     staffCors, require('./routes/uploads').router);
 app.use('/api/reviews',    require('./routes/reviews'));
 app.use('/api/ical',       require('./routes/ical-export'));
 
-// Unified inbox — staff conversations
+// Unified inbox — staff conversations (staffCors enforces allowed origins)
 const mensagensRouter = require('./routes/mensagens');
 app.use('/api/staff/conversas', staffCors, mensagensRouter);
-// GHL inbound webhook (no auth, uses HMAC)
-app.use('/api/webhooks', mensagensRouter);
+// GHL inbound webhook — staffCors applied so browser cross-origin requests
+// cannot reach conversation routes via this path; GHL server-to-server calls
+// have no Origin header so staffCors is a no-op for them.
+app.use('/api/webhooks', staffCors, mensagensRouter);
 
 // AI Content Agent (staff)
 app.use('/api/staff/conteudo', staffCors, require('./routes/content'));
@@ -366,6 +370,7 @@ app.get('/api/admin/push-debug', async (req, res) => {
   if (req.headers['x-admin-secret'] !== process.env.ADMIN_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
+  const prisma = require('./lib/db');
   const staff = await prisma.staffMember.findMany({
     where:  { active: true },
     select: { id: true, name: true, email: true, role: true, pushSubscription: true },

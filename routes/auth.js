@@ -416,7 +416,13 @@ router.patch('/profile', async (req, res) => {
 
 // ── POST /api/auth/login-password ────────────────────────────────────────────
 // Email + password login (for users who have set a password)
-router.post('/login-password', async (req, res) => {
+router.post('/login-password', (req, res, next) => {
+  // Rate limit: max 10 attempts per email per 15 minutes
+  const email = (req.body?.email || '').toLowerCase();
+  const check = checkOtpRateLimit(email + ':pwd');
+  if (!check.ok) return res.status(429).json({ error: `Muitas tentativas. Tente novamente em ${check.minutesLeft} minuto(s).` });
+  next();
+}, async (req, res) => {
   try {
     const { email, password } = z.object({
       email:    z.string().email(),

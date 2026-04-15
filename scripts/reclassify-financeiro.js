@@ -131,9 +131,8 @@ async function main() {
     }
     if (!target || target === exp.category) { unchanged++; continue; }
     // Use raw SQL — Prisma client enum may not include new values added via ALTER TYPE
-    await prisma.$executeRawUnsafe(
-      `UPDATE "Expense" SET "category" = '${target}'::"ExpenseCategory" WHERE id = '${exp.id}'`
-    );
+    // Tagged template prevents SQL injection (parameterized by pg driver)
+    await prisma.$executeRaw`UPDATE "Expense" SET "category" = ${target}::"ExpenseCategory" WHERE id = ${exp.id}`;
     updated++;
     console.log(`  ${exp.category} → ${target}: ${exp.payee.slice(0, 50)}`);
   }
