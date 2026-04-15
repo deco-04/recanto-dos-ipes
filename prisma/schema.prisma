@@ -260,7 +260,7 @@ model StaffMember {
 
 enum StaffRole {
   ADMIN
-  GUARDIA
+  GOVERNANTA
   PISCINEIRO
 }
 

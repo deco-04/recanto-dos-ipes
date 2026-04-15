@@ -123,7 +123,7 @@ router.get('/reservas', requireRole('ADMIN'), async (req, res) => {
 });
 
 // ── GET /api/staff/reservas/:id ─────────────────────────────────────────────
-router.get('/reservas/:id', requireRole('ADMIN', 'GUARDIA'), async (req, res) => {
+router.get('/reservas/:id', requireRole('ADMIN', 'GOVERNANTA'), async (req, res) => {
   try {
     const booking = await prisma.booking.findUnique({
       where: { id: req.params.id },
@@ -131,7 +131,7 @@ router.get('/reservas/:id', requireRole('ADMIN', 'GUARDIA'), async (req, res) =>
     });
     if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
     const data = serializeBooking(booking);
-    // Strip PII for non-admin roles (GUARDIA needs check-in info but not contact/financial data)
+    // Strip PII for non-admin roles (GOVERNANTA needs check-in info but not contact/financial data)
     if (req.staff.role !== 'ADMIN') {
       delete data.guestEmail;
       delete data.guestPhone;
@@ -1013,8 +1013,8 @@ router.get('/chamados', async (req, res) => {
 });
 
 // ── PATCH /api/staff/chamados/:id ─────────────────────────────────────────────
-// Updates ticket status. ADMIN and GUARDIA only.
-router.patch('/chamados/:id', requireRole('ADMIN', 'GUARDIA'), async (req, res) => {
+// Updates ticket status. ADMIN and GOVERNANTA only.
+router.patch('/chamados/:id', requireRole('ADMIN', 'GOVERNANTA'), async (req, res) => {
   const { status } = req.body;
   const valid = ['ABERTO', 'EM_ANDAMENTO', 'RESOLVIDO', 'FECHADO'];
   if (!status || !valid.includes(status)) {
@@ -1027,7 +1027,7 @@ router.patch('/chamados/:id', requireRole('ADMIN', 'GUARDIA'), async (req, res) 
       include: { openedBy: { select: { id: true, name: true } } },
     });
 
-    // Push to ADMIN when ticket is resolved (if resolved by non-admin GUARDIA, alert admin)
+    // Push to ADMIN when ticket is resolved (if resolved by non-admin GOVERNANTA, alert admin)
     if (status === 'RESOLVIDO') {
       sendPushToRole('ADMIN', {
         title: 'Chamado resolvido ✅',
@@ -1118,8 +1118,8 @@ router.get('/reservas/:id/mensagens', async (req, res) => {
   }
 });
 
-// POST /api/staff/reservas/:id/mensagens — send a message (ADMIN + GUARDIA only)
-router.post('/reservas/:id/mensagens', requireRole('ADMIN', 'GUARDIA'), async (req, res) => {
+// POST /api/staff/reservas/:id/mensagens — send a message (ADMIN + GOVERNANTA only)
+router.post('/reservas/:id/mensagens', requireRole('ADMIN', 'GOVERNANTA'), async (req, res) => {
   try {
     const { body, channel = 'MANUAL', direction = 'OUTBOUND' } = req.body;
     if (!body?.trim()) return res.status(400).json({ error: 'Mensagem não pode ser vazia' });
@@ -1296,7 +1296,7 @@ router.post('/reservas/:id/lista', requireRole('ADMIN'), async (req, res) => {
 });
 
 // ── GET /api/staff/reservas/:id/lista ─────────────────────────────────────────
-router.get('/reservas/:id/lista', requireRole('ADMIN', 'GUARDIA'), async (req, res) => {
+router.get('/reservas/:id/lista', requireRole('ADMIN', 'GOVERNANTA'), async (req, res) => {
   try {
     const entries = await prisma.guestListEntry.findMany({
       where:   { bookingId: req.params.id },
@@ -1663,7 +1663,7 @@ router.post('/inventario', requireRole('ADMIN'), async (req, res) => {
   }
 });
 
-router.patch('/inventario/:id', requireRole('ADMIN', 'GUARDIA'), async (req, res) => {
+router.patch('/inventario/:id', requireRole('ADMIN', 'GOVERNANTA'), async (req, res) => {
   const schema = z.object({
     quantity:     z.number().int().min(0).optional(),
     minQuantity:  z.number().int().min(0).optional(),

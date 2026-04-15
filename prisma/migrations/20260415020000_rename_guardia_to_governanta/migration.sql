@@ -1,0 +1,2 @@
+-- Rename enum value GUARDIA → GOVERNANTA in StaffRole
+ALTER TYPE "StaffRole" RENAME VALUE 'GUARDIA' TO 'GOVERNANTA';

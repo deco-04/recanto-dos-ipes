@@ -99,7 +99,7 @@ router.post('/', async (req, res) => {
     name: z.string().min(2),
     email: z.string().email(),
     phone: z.string().optional(),
-    role: z.enum(['ADMIN', 'GUARDIA', 'PISCINEIRO']),
+    role: z.enum(['ADMIN', 'GOVERNANTA', 'PISCINEIRO']),
     propertyIds: z.array(z.string()).min(1),
   });
 
@@ -149,7 +149,7 @@ router.post('/', async (req, res) => {
   const full = await fetchStaffWithProperties({ id: staff.id });
 
   // Push to other admins so they know a new team member was added
-  const roleLabel = role === 'GUARDIA' ? 'Guardião' : role === 'PISCINEIRO' ? 'Piscineiro' : 'Admin';
+  const roleLabel = role === 'GOVERNANTA' ? 'Governanta' : role === 'PISCINEIRO' ? 'Piscineiro' : 'Admin';
   sendPushToRole('ADMIN', {
     title: 'Novo membro da equipe adicionado 👤',
     body:  `${name} (${roleLabel}) foi adicionado(a) à equipe`,
@@ -164,7 +164,7 @@ router.post('/', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   const schema = z.object({
     name: z.string().min(2).optional(),
-    role: z.enum(['ADMIN', 'GUARDIA', 'PISCINEIRO']).optional(),
+    role: z.enum(['ADMIN', 'GOVERNANTA', 'PISCINEIRO']).optional(),
     active: z.boolean().optional(),
     propertyIds: z.array(z.string()).optional(),
   });
