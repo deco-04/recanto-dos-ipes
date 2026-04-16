@@ -14,6 +14,7 @@ const { maybeCompleteOtaTask } = require('../lib/tasks');
 const { sendPorteiroMessage }  = require('../lib/ghl-webhook');
 const { sendPushToRole, sendPushToStaff } = require('../lib/push');
 const { requireStaff, requireRole } = require('../lib/staff-auth-middleware');
+const { toE164 } = require('../lib/phone');
 
 const router = express.Router();
 
@@ -92,18 +93,21 @@ router.patch('/me', async (req, res) => {
       }
     }
     if (phone) {
-      const existing = await prisma.staffMember.findUnique({ where: { phone } });
+      const normalizedPhone = toE164(phone);
+      const existing = await prisma.staffMember.findUnique({ where: { phone: normalizedPhone } });
       if (existing && existing.id !== req.staff.id) {
         return res.status(409).json({ error: 'Este telefone já está em uso' });
       }
     }
 
+    const normalizedPhone = phone ? toE164(phone) : undefined;
+
     const updated = await prisma.staffMember.update({
       where: { id: req.staff.id },
       data: {
-        ...(name  && { name }),
-        ...(email && { email }),
-        ...(phone && { phone }),
+        ...(name              && { name }),
+        ...(email             && { email }),
+        ...(normalizedPhone   && { phone: normalizedPhone }),
       },
       select: { id: true, name: true, email: true, phone: true, role: true },
     });
@@ -194,7 +198,7 @@ router.patch('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
 
   const schema = z.object({
     source:      z.enum(['DIRECT', 'AIRBNB', 'BOOKING']).optional(),
-    status:      z.enum(['PENDING', 'CONFIRMED', 'CANCELLED', 'REFUNDED']).optional(),
+    status:      z.enum(['PENDING', 'CONFIRMED', 'CANCELLED', 'REFUNDED', 'COMPLETED', 'REQUESTED']).optional(),
     notes:       z.string().optional(),
     guestName:   z.string().min(1).optional(),
     guestEmail:  z.string().email().optional().or(z.literal('')),

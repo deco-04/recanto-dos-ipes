@@ -340,15 +340,17 @@ router.patch('/:id/lida', requireStaff, async (req, res) => {
 
 // ── POST /webhooks/ghl-message — inbound WA/Instagram from GHL ────────────────
 // Mounted at /api/webhooks/ghl-message (no /api/staff prefix, no auth)
-// Verified by static token in x-webhook-secret header (GHL workflow webhooks
-// cannot compute HMAC, so we use a shared static secret instead).
+// Verified by static token — accepted via:
+//   1. x-webhook-secret header  (preferred)
+//   2. ?secret= query parameter (fallback for GHL workflows that can't add custom headers)
 router.post('/ghl-message', async (req, res) => {
   const secret = process.env.GHL_WEBHOOK_SECRET;
   if (!secret) {
     console.error('[mensagens] GHL_WEBHOOK_SECRET not set — rejecting webhook');
     return res.status(500).json({ error: 'Webhook not configured' });
   }
-  const provided = req.headers['x-webhook-secret'] || '';
+  // Accept the secret from either the header or the URL query string
+  const provided = req.headers['x-webhook-secret'] || req.query.secret || '';
   const secretBuf   = Buffer.from(secret);
   const providedBuf = Buffer.from(provided);
   if (

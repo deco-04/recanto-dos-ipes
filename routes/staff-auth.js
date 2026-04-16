@@ -8,6 +8,7 @@ const prisma = require('../lib/db');
 const { sendAdminNotification, sendPasswordResetEmail } = require('../lib/mailer');
 const { sendPushToRole } = require('../lib/push');
 const { sendWhatsAppMessage } = require('../lib/ghl-webhook');
+const { toE164 } = require('../lib/phone');
 
 const router = express.Router();
 
@@ -32,18 +33,6 @@ function signStaffToken(staff) {
     process.env.STAFF_JWT_SECRET,
     { expiresIn: '30d' }
   );
-}
-
-// Normalize phone to E.164 — strips all non-digits, prepends country code.
-// Brazilian numbers: 10 digits (DDD + 8) or 11 digits (DDD + 9) → +55
-// Numbers already with + prefix: use as-is
-function toE164(raw) {
-  const digits = raw.replace(/\D/g, '');
-  if (raw.trimStart().startsWith('+')) return '+' + digits;
-  // 10 or 11 digits without + → Brazilian number (DDD + number)
-  if (digits.length === 10 || digits.length === 11) return '+55' + digits;
-  // Otherwise assume full international digits provided
-  return '+' + digits;
 }
 
 // Helper: serialize staff member for response
@@ -102,9 +91,20 @@ router.post('/send-sms', authLimiter, async (req, res) => {
 
   const phone = toE164(parsed.data.phone);
 
-  // Verificar se o staff existe (sem revelar ao cliente)
-  const staff = await prisma.staffMember.findUnique({ where: { phone } });
-  if (!staff || !staff.active) {
+  // Verificar se o staff existe (sem revelar ao cliente).
+  // Try E.164 first; also try raw-digits variants to handle legacy records
+  // that were stored without normalization.
+  const rawDigits = phone.replace(/\D/g, '');
+  const phoneCandidates = [phone, rawDigits];
+  // US number without +1 (11 digits starting with 1 → also try 10 digits)
+  if (rawDigits.startsWith('1') && rawDigits.length === 11) phoneCandidates.push(rawDigits.slice(1));
+  // Brazilian number without +55 (13 digits starting with 55 → also try 11 digits)
+  if (rawDigits.startsWith('55') && rawDigits.length === 13) phoneCandidates.push(rawDigits.slice(2));
+
+  const staff = await prisma.staffMember.findFirst({
+    where: { phone: { in: phoneCandidates }, active: true },
+  });
+  if (!staff) {
     console.log(`[staff-auth] send-sms: ${phone} not found in staff DB`);
     return res.json({ sent: true }); // silent — don't reveal existence
   }
@@ -169,7 +169,19 @@ router.post('/verify-sms', authLimiter, async (req, res) => {
     data: { usedAt: new Date() },
   });
 
-  const staff = await findStaffWithProperties({ phone });
+  // Look up staff with tolerant phone matching (same logic as send-sms)
+  const rawDigitsV = phone.replace(/\D/g, '');
+  const candidatesV = [phone, rawDigitsV];
+  if (rawDigitsV.startsWith('1') && rawDigitsV.length === 11) candidatesV.push(rawDigitsV.slice(1));
+  if (rawDigitsV.startsWith('55') && rawDigitsV.length === 13) candidatesV.push(rawDigitsV.slice(2));
+
+  const staffBasic = await prisma.staffMember.findFirst({
+    where: { phone: { in: candidatesV }, active: true },
+    select: { id: true },
+  });
+  if (!staffBasic) return res.status(401).json({ error: 'Acesso não autorizado' });
+
+  const staff = await findStaffWithProperties({ id: staffBasic.id });
   if (!staff || !staff.active) return res.status(401).json({ error: 'Acesso não autorizado' });
 
   return res.json({ ...serializeStaff(staff), staffToken: signStaffToken(staff) });

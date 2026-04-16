@@ -14,6 +14,7 @@ const prisma = require('../lib/db');
 const { sendStaffInvite } = require('../lib/mailer');
 const { sendPushToRole, sendPushToStaff } = require('../lib/push');
 const { requireAdmin } = require('../lib/staff-auth-middleware');
+const { toE164 } = require('../lib/phone');
 
 const router = express.Router();
 
@@ -82,7 +83,8 @@ router.post('/', async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.issues });
 
-  const { name, email, phone, role, propertyIds } = parsed.data;
+  const { name, email, role, propertyIds } = parsed.data;
+  const phone = parsed.data.phone ? toE164(parsed.data.phone) : null;
 
   // Check email not already taken
   const existing = await prisma.staffMember.findUnique({ where: { email } });
@@ -98,7 +100,7 @@ router.post('/', async (req, res) => {
     data: {
       name,
       email,
-      phone: phone || null,
+      phone,
       role,
       active: true,
       firstLoginDone: false,
