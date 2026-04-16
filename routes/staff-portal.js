@@ -1977,6 +1977,174 @@ async function getKPIs(propertyId, start, end) {
   };
 }
 
+/**
+ * Generates smart financial observations for the dashboard.
+ * All strings in pt-BR. Severity: 'INFO' | 'ALERTA' | 'DESTAQUE'
+ *
+ * @param {object} current  - getKPIs result for selected period
+ * @param {object} previous - getKPIs result for comparison period
+ * @param {Array}  historico - 12-month [{mes, receita, despesas, resultado}]
+ * @param {object} allTime  - { upsellTotal, upsellCount, totalRevenue, avgNights }
+ */
+function computeInsights(current, previous, historico, allTime) {
+  const insights = [];
+
+  const fmt = v => `R$${Math.round(v).toLocaleString('pt-BR')}`;
+  const pct = (v, d) => d > 0 ? `${((v / d) * 100).toFixed(1)}%` : '—';
+
+  // ── 1. Margin health ────────────────────────────────────────────────────────
+  if (current.receita > 0) {
+    if (current.margem < 0.35) {
+      insights.push({
+        type:     'MARGEM',
+        severity: 'ALERTA',
+        titulo:   'Margem líquida abaixo de 35%',
+        corpo:    `Margem atual: ${(current.margem * 100).toFixed(1)}%. Despesas de ${fmt(current.despesas)} consumiram ${pct(current.despesas, current.receita)} da receita. Revise categorias com maior peso.`,
+      });
+    } else if (current.margem >= 0.55) {
+      insights.push({
+        type:     'MARGEM',
+        severity: 'DESTAQUE',
+        titulo:   'Margem líquida acima de 55% 🎯',
+        corpo:    `Margem de ${(current.margem * 100).toFixed(1)}% — excelente eficiência operacional neste período.`,
+      });
+    }
+  }
+
+  // ── 2. Revenue vs. previous period ─────────────────────────────────────────
+  if (previous.receita > 0 && current.receita > 0) {
+    const delta = current.receita - previous.receita;
+    const deltaPct = (delta / previous.receita) * 100;
+    if (deltaPct >= 25) {
+      insights.push({
+        type:     'RECEITA',
+        severity: 'DESTAQUE',
+        titulo:   `Receita +${deltaPct.toFixed(0)}% vs. período anterior`,
+        corpo:    `${fmt(current.receita)} este período vs. ${fmt(previous.receita)} — crescimento de ${fmt(delta)}.`,
+      });
+    } else if (deltaPct <= -20) {
+      insights.push({
+        type:     'RECEITA',
+        severity: 'ALERTA',
+        titulo:   `Receita ${deltaPct.toFixed(0)}% vs. período anterior`,
+        corpo:    `Queda de ${fmt(Math.abs(delta))} em relação ao período comparativo (${fmt(previous.receita)}). Verifique ocupação e sazonalidade.`,
+      });
+    }
+  }
+
+  // ── 3. Channel fee burden ────────────────────────────────────────────────────
+  const airbnbReceita  = current.canais.AIRBNB?.receita     || 0;
+  const bcomReceita    = current.canais.BOOKING_COM?.receita || 0;
+  const diretaReceita  = current.canais.DIRECT?.receita      || 0;
+  // Approximate gross (fee is already deducted from totalAmount)
+  const airbnbFeeBurden = Math.round(airbnbReceita * 0.0458 / (1 - 0.0458));
+  const bcomFeeBurden   = Math.round(bcomReceita   * 0.13   / (1 - 0.13));
+  const totalFeeBurden  = airbnbFeeBurden + bcomFeeBurden;
+
+  if (totalFeeBurden > 200 && current.receita > 0) {
+    insights.push({
+      type:     'CANAIS',
+      severity: 'INFO',
+      titulo:   `${fmt(totalFeeBurden)} pagos em comissões OTA este período`,
+      corpo:    `Airbnb: ~${fmt(airbnbFeeBurden)} (4.6% host fee) · Booking.com: ~${fmt(bcomFeeBurden)} (13%). Reservas diretas (${fmt(diretaReceita)}) não têm este custo.`,
+    });
+  }
+
+  // ── 4. Booking.com efficiency vs Airbnb ──────────────────────────────────────
+  const airbnbQtd = current.canais.AIRBNB?.qtd      || 0;
+  const bcomQtd   = current.canais.BOOKING_COM?.qtd  || 0;
+  if (airbnbQtd >= 1 && bcomQtd >= 1) {
+    const airbnbTicket = airbnbReceita / airbnbQtd;
+    const bcomTicket   = bcomReceita   / bcomQtd;
+    // Net-of-fee ticket
+    const airbnbNetTicket = airbnbTicket * (1 - 0.0458 / (1 - 0.0458));
+    const bcomNetTicket   = bcomTicket   * (1 - 0.13   / (1 - 0.13));
+    if (bcomNetTicket < airbnbNetTicket * 0.7) {
+      insights.push({
+        type:     'CANAIS',
+        severity: 'INFO',
+        titulo:   'Booking.com com ticket líquido menor que Airbnb',
+        corpo:    `Ticket médio líquido: Airbnb ${fmt(airbnbNetTicket)} vs. Booking.com ${fmt(bcomNetTicket)}. Considere priorizar diárias no Airbnb ou negociar comissão menor no Booking.`,
+      });
+    }
+  }
+
+  // ── 5. Upsell opportunity ─────────────────────────────────────────────────────
+  if (allTime.totalRevenue > 0 && allTime.upsellTotal > 0) {
+    const upsellPct = (allTime.upsellTotal / allTime.totalRevenue) * 100;
+    insights.push({
+      type:     'UPSELL',
+      severity: 'DESTAQUE',
+      titulo:   `PIX diretos representam ${upsellPct.toFixed(1)}% da receita total`,
+      corpo:    `${allTime.upsellCount} pagamentos add-on somam ${fmt(allTime.upsellTotal)} em cima das reservas OTA. Incentive hóspedes a pagar taxas extras via PIX direto para zerar comissões sobre esses valores.`,
+    });
+  }
+
+  // ── 6. Expense spike detection ───────────────────────────────────────────────
+  const EXPENSE_LABELS = {
+    SERVICOS_LIMPEZA:        'Limpeza',
+    CARTAO_CREDITO:          'Cartão de crédito',
+    ENERGIA_ELETRICA:        'Energia elétrica',
+    CONDOMINIO:              'Condomínio',
+    MANUTENCAO_PISCINA:      'Manutenção piscina',
+    PRODUTOS_LIMPEZA_PISCINA:'Produtos piscina',
+    OBRAS_CONSTRUCAO:        'Obras/Construção',
+    IMPOSTOS:                'Impostos',
+    INTERNET:                'Internet',
+    COMPRAS_ONLINE:          'Compras online',
+    MATERIAIS_MELHORIAS:     'Materiais/Melhorias',
+    JARDINAGEM_PAISAGISMO:   'Jardinagem/Paisagismo',
+    MANUTENCAO_SOLAR_BOMBA:  'Solar/Bomba',
+    OUTROS:                  'Outros',
+    A_CLASSIFICAR:           'A classificar',
+  };
+
+  for (const [cat, valor] of Object.entries(current.despesasCategorias)) {
+    const prevValor = previous.despesasCategorias[cat] || 0;
+    if (prevValor > 0 && valor > prevValor * 1.5 && valor > 300) {
+      const label = EXPENSE_LABELS[cat] || cat;
+      insights.push({
+        type:     'DESPESA',
+        severity: 'ALERTA',
+        titulo:   `${label} +${((valor/prevValor - 1)*100).toFixed(0)}% vs. período anterior`,
+        corpo:    `${fmt(valor)} este período vs. ${fmt(prevValor)} — aumento de ${fmt(valor - prevValor)}. Verifique se há lançamentos duplicados ou custo pontual.`,
+      });
+    }
+  }
+
+  // ── 7. A classificar alert ────────────────────────────────────────────────────
+  const aClassificar = current.despesasCategorias['A_CLASSIFICAR'] || 0;
+  if (aClassificar > 100) {
+    insights.push({
+      type:     'DESPESA',
+      severity: 'ALERTA',
+      titulo:   `${fmt(aClassificar)} sem categoria definida`,
+      corpo:    `Despesas marcadas como "A classificar" distorcem os relatórios por categoria. Acesse a lista de despesas e reclassifique esses lançamentos.`,
+    });
+  }
+
+  // ── 8. Best / worst month from historico ─────────────────────────────────────
+  if (historico.length >= 6) {
+    const sorted = [...historico].filter(h => h.receita > 0).sort((a, b) => b.resultado - a.resultado);
+    if (sorted.length >= 2) {
+      const best  = sorted[0];
+      const worst = sorted[sorted.length - 1];
+      if (best.resultado > 0) {
+        insights.push({
+          type:     'SAZONALIDADE',
+          severity: 'INFO',
+          titulo:   `Melhor mês: ${best.label} (resultado ${fmt(best.resultado)})`,
+          corpo:    `Pior mês nos últimos 12: ${worst.label} (resultado ${fmt(worst.resultado)}). Sazonalidade de ${((best.resultado / Math.max(worst.resultado, 1)) * 100 - 100).toFixed(0)}% entre pico e baixa.`,
+        });
+      }
+    }
+  }
+
+  // Sort: ALERTA first, then DESTAQUE, then INFO
+  const order = { ALERTA: 0, DESTAQUE: 1, INFO: 2 };
+  return insights.sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3));
+}
+
 router.get('/financeiro/dre', requireRole('ADMIN'), async (req, res) => {
   try {
     const period  = req.query.period  || 'month';
@@ -1991,9 +2159,20 @@ router.get('/financeiro/dre', requireRole('ADMIN'), async (req, res) => {
     const { start, end }         = buildPeriod(period);
     const { start: cs, end: ce } = buildComparePeriod(period, compare);
 
-    const [current, previous] = await Promise.all([
+    const [current, previous, upsellAgg, totalRevAgg] = await Promise.all([
       getKPIs(prop.id, start, end),
       getKPIs(prop.id, cs, ce),
+      // All-time upsell total (PIX add-ons on top of OTA bookings)
+      prisma.booking.aggregate({
+        where: { propertyId: prop.id, status: 'CONFIRMED', source: 'DIRECT', externalId: { startsWith: 'upsell-' } },
+        _sum:   { totalAmount: true },
+        _count: true,
+      }),
+      // All-time total revenue (for upsell % calculation)
+      prisma.booking.aggregate({
+        where: { propertyId: prop.id, status: 'CONFIRMED' },
+        _sum: { totalAmount: true },
+      }),
     ]);
 
     // 12-month historical
@@ -2030,33 +2209,43 @@ router.get('/financeiro/dre', requireRole('ADMIN'), async (req, res) => {
       valorAnterior: previous.despesasCategorias[cat] || 0,
     })).sort((a, b) => b.valor - a.valor);
 
+    const allTime = {
+      upsellTotal:   parseFloat(upsellAgg._sum.totalAmount || 0),
+      upsellCount:   upsellAgg._count,
+      totalRevenue:  parseFloat(totalRevAgg._sum.totalAmount || 0),
+    };
+
+    const insights = computeInsights(current, previous, historico, allTime);
+
     res.json({
-      periodo:   { label: period, start: start.toISOString(), end: end.toISOString() },
+      periodo:     { label: period, start: start.toISOString(), end: end.toISOString() },
       comparativo: { label: compare, start: cs.toISOString(), end: ce.toISOString() },
       kpis: {
-        receitaBruta:           current.receita,
-        receitaBrutaAnterior:   previous.receita,
-        despesasTotal:          current.despesas,
-        despesasTotalAnterior:  previous.despesas,
-        resultadoLiquido:       current.resultado,
-        resultadoLiquidoAnterior: previous.resultado,
-        margemLiquida:          current.margem,
-        margemLiquidaAnterior:  previous.margem,
-        reservasCount:          current.reservasCount,
-        custoPorReserva:        current.custoPorReserva,
-        ticketMedio:            current.ticketMedio,
+        receitaBruta:              current.receita,
+        receitaBrutaAnterior:      previous.receita,
+        despesasTotal:             current.despesas,
+        despesasTotalAnterior:     previous.despesas,
+        resultadoLiquido:          current.resultado,
+        resultadoLiquidoAnterior:  previous.resultado,
+        margemLiquida:             current.margem,
+        margemLiquidaAnterior:     previous.margem,
+        reservasCount:             current.reservasCount,
+        custoPorReserva:           current.custoPorReserva,
+        ticketMedio:               current.ticketMedio,
       },
       canais: {
-        // fee = host commission rate (charged to us by OTA, already deducted from totalAmount)
-        // guestFeeRate = service fee charged to the guest by the OTA (on top of nightly rate)
-        // Airbnb: 4.578% host fee (verified from CSV: service_fee/gross_earnings across all bookings)
-        // Booking.com: 13.0% host commission (exact across all 14 invoices)
-        airbnb:  { receita: current.canais.AIRBNB?.receita || 0,      reservas: current.canais.AIRBNB?.qtd || 0,      fee: 0.0458, guestFeeRate: 0.14 },
-        booking: { receita: current.canais.BOOKING_COM?.receita || 0,  reservas: current.canais.BOOKING_COM?.qtd || 0,  fee: 0.13, guestFeeRate: 0.00 },
-        direta:  { receita: current.canais.DIRECT?.receita || 0,       reservas: current.canais.DIRECT?.qtd || 0,       fee: 0.00, guestFeeRate: 0.00 },
+        // fee = host commission deducted from our payout (already reflected in totalAmount)
+        // guestFeeRate = service fee the OTA charges the guest on top of our listed price
+        // Airbnb host fee: 4.578% verified from actual CSV (service_fee ÷ gross_earnings)
+        // Booking.com host commission: exactly 13.0% across all 14 invoices
+        airbnb:  { receita: current.canais.AIRBNB?.receita     || 0, reservas: current.canais.AIRBNB?.qtd     || 0, fee: 0.0458, guestFeeRate: 0.14 },
+        booking: { receita: current.canais.BOOKING_COM?.receita || 0, reservas: current.canais.BOOKING_COM?.qtd || 0, fee: 0.13,   guestFeeRate: 0.00 },
+        direta:  { receita: current.canais.DIRECT?.receita      || 0, reservas: current.canais.DIRECT?.qtd      || 0, fee: 0.00,   guestFeeRate: 0.00 },
       },
       historico,
       despesasCategorias,
+      insights,         // smart observations ranked by severity
+      allTime,          // used by frontend for upsell % and context-setting
     });
   } catch (err) {
     console.error('[staff-portal] financeiro/dre error:', err);
@@ -2161,7 +2350,7 @@ router.get('/financeiro/cds', requireRole('ADMIN'), async (req, res) => {
 // ── GET /api/staff/financeiro/reservas-lucratividade ─────────────────────────
 // Returns per-booking cost/profit breakdown for ALL confirmed bookings.
 // Cost allocation:
-//   - Platform fee: AIRBNB=3%, BOOKING_COM=13%, DIRECT=0%
+//   - Platform fee: AIRBNB=4.58% (verified from actual CSV payouts), BOOKING_COM=13%, DIRECT=0%
 //   - Cleaning: nearest SERVICOS_LIMPEZA expense ±1–4 days around checkout
 //   - Fixed costs: (ENERGIA+INTERNET+CONDOMINIO+IMPOSTOS) for check-in month ÷ bookings that month
 router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (req, res) => {
@@ -2171,7 +2360,9 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
     });
     if (!prop) return res.status(404).json({ error: 'Propriedade não encontrada' });
 
-    const PLATFORM_FEES = { AIRBNB: 0.03, BOOKING_COM: 0.13, DIRECT: 0 };
+    // Airbnb 4.58% verified from actual CSV (service_fee ÷ gross_earnings).
+    // Booking.com 13.00% exact from all 14 invoices.
+    const PLATFORM_FEES = { AIRBNB: 0.0458, BOOKING_COM: 0.13, DIRECT: 0 };
     const FIXED_CATS = ['ENERGIA_ELETRICA', 'INTERNET', 'CONDOMINIO', 'IMPOSTOS'];
 
     const [bookings, cleaningExps] = await Promise.all([
@@ -2210,8 +2401,14 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
       if (countCache[k] !== undefined) return countCache[k];
       const s = new Date(year, month - 1, 1);
       const e = new Date(year, month, 0, 23, 59, 59);
+      // Exclude Booking.com monthly aggregates (nights=0) — they represent entire months,
+      // not individual stays, so counting them distorts per-booking cost allocation.
       countCache[k] = await prisma.booking.count({
-        where: { propertyId: prop.id, status: 'CONFIRMED', checkIn: { gte: s, lte: e } },
+        where: {
+          propertyId: prop.id, status: 'CONFIRMED',
+          checkIn: { gte: s, lte: e },
+          NOT: { nights: 0 },
+        },
       });
       return countCache[k];
     }
@@ -2231,26 +2428,37 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
     for (const b of bookings) {
       const totalAmount    = parseFloat(b.totalAmount || 0);
       const source         = b.source || 'DIRECT';
+      const isAggregate    = b.nights === 0; // Booking.com monthly invoices (not individual stays)
       const feeRate        = PLATFORM_FEES[source] ?? 0;
       const taxaPlataforma = Math.round(totalAmount * feeRate * 100) / 100;
 
-      // Try to match actual cleaning expense: checkout window -1 day to +4 days
-      const coMs = new Date(b.checkOut).getTime();
-      const cleaningMatch = cleaningExps.find(e => {
-        const diff = new Date(e.date).getTime() - coMs;
-        return diff >= -86400000 && diff <= 4 * 86400000;
-      });
-      // Use actual if found; otherwise use historical average (more accurate than 0)
-      const custoLimpeza      = cleaningMatch ? parseFloat(cleaningMatch.amount || 0) : avgCleaningCost;
-      const custoLimpezaFonte = cleaningMatch ? 'REAL' : 'ESTIMADO';
+      let custoLimpeza, custoLimpezaFonte, custoFixo;
 
-      // Fixed cost allocation by check-in month
-      const ci = new Date(b.checkIn);
-      const [fixed, count] = await Promise.all([
-        monthlyFixed(ci.getFullYear(), ci.getMonth() + 1),
-        monthlyBookings(ci.getFullYear(), ci.getMonth() + 1),
-      ]);
-      const custoFixo = count > 0 ? Math.round((fixed / count) * 100) / 100 : 0;
+      if (isAggregate) {
+        // Monthly aggregates cover multiple stays — cost allocation is meaningless per record.
+        // Show only the platform fee; mark cleaning + fixed as N/A.
+        custoLimpeza      = 0;
+        custoLimpezaFonte = 'N/A_AGGREGATE';
+        custoFixo         = 0;
+      } else {
+        // Try to match actual cleaning expense: checkout window -1 day to +4 days
+        const coMs = new Date(b.checkOut).getTime();
+        const cleaningMatch = cleaningExps.find(e => {
+          const diff = new Date(e.date).getTime() - coMs;
+          return diff >= -86400000 && diff <= 4 * 86400000;
+        });
+        // Use actual if found; otherwise use historical average (more accurate than 0)
+        custoLimpeza      = cleaningMatch ? parseFloat(cleaningMatch.amount || 0) : avgCleaningCost;
+        custoLimpezaFonte = cleaningMatch ? 'REAL' : 'ESTIMADO';
+
+        // Fixed cost allocation by check-in month (excludes aggregates from denominator)
+        const ci = new Date(b.checkIn);
+        const [fixed, count] = await Promise.all([
+          monthlyFixed(ci.getFullYear(), ci.getMonth() + 1),
+          monthlyBookings(ci.getFullYear(), ci.getMonth() + 1),
+        ]);
+        custoFixo = count > 0 ? Math.round((fixed / count) * 100) / 100 : 0;
+      }
 
       const custoTotal       = taxaPlataforma + custoLimpeza + custoFixo;
       const resultadoLiquido = totalAmount - custoTotal;
@@ -2269,6 +2477,7 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
         guests:           b.guestCount || 0,
         source,
         status,
+        isAggregate,
         totalReceita:        totalAmount,
         taxaPlataforma,
         custoLimpeza,
