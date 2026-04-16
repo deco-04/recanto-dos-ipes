@@ -114,6 +114,7 @@ enum BookingStatus {
   CONFIRMED
   CANCELLED
   REFUNDED
+  COMPLETED
 }
 
 enum BookingSource {
