@@ -8,42 +8,14 @@
  */
 
 const express = require('express');
-const jwt     = require('jsonwebtoken');
 const { z }   = require('zod');
 const prisma  = require('../lib/db');
 const { createWeeklyPackage, regeneratePost } = require('../lib/conteudo-agent');
 const { schedulePost, cancelScheduledPost }   = require('../lib/ghl-social');
 const { sendPushToRole } = require('../lib/push');
+const { requireStaff, requireAdmin } = require('../lib/staff-auth-middleware');
 
 const router = express.Router();
-
-// ── Auth middleware ────────────────────────────────────────────────────────────
-async function requireStaff(req, res, next) {
-  const auth  = req.headers.authorization || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
-
-  let payload;
-  try {
-    payload = jwt.verify(token, process.env.STAFF_JWT_SECRET);
-  } catch {
-    return res.status(401).json({ error: 'Token inválido' });
-  }
-
-  const staff = await prisma.staffMember.findUnique({
-    where:  { id: payload.sub },
-    select: { id: true, role: true, active: true },
-  });
-  if (!staff || !staff.active) return res.status(401).json({ error: 'Acesso negado' });
-
-  req.staff = staff;
-  next();
-}
-
-function requireAdmin(req, res, next) {
-  if (req.staff?.role !== 'ADMIN') return res.status(403).json({ error: 'Acesso negado' });
-  next();
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function serializePost(p) {

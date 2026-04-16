@@ -10,36 +10,13 @@
 
 const express  = require('express');
 const crypto   = require('crypto');
-const jwt      = require('jsonwebtoken');
 const prisma   = require('../lib/db');
 const { sendWhatsAppMessage, sendInstagramDM } = require('../lib/ghl-webhook');
 const { sendInboxEmail } = require('../lib/mailer');
+const { requireStaff } = require('../lib/staff-auth-middleware');
 // push imported inline in webhook handler (sendPushToStaff)
 
 const router = express.Router();
-
-// ── Auth middleware ────────────────────────────────────────────────────────────
-async function requireStaff(req, res, next) {
-  const auth  = req.headers.authorization || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
-
-  let payload;
-  try {
-    payload = jwt.verify(token, process.env.STAFF_JWT_SECRET);
-  } catch {
-    return res.status(401).json({ error: 'Token inválido' });
-  }
-
-  const staff = await prisma.staffMember.findUnique({
-    where:  { id: payload.sub },
-    select: { id: true, role: true, active: true },
-  });
-  if (!staff || !staff.active) return res.status(401).json({ error: 'Acesso negado' });
-
-  req.staff = staff;
-  next();
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function serializeConversation(c) {
@@ -90,7 +67,7 @@ router.get('/unread-count', requireStaff, async (req, res) => {
 // ── GET / — list conversations ───────────────────────────────────────────────
 router.get('/', requireStaff, async (req, res) => {
   try {
-    const { channel, page = '1', limit = '30' } = req.query;
+    const { channel, q, page = '1', limit = '30' } = req.query;
     const parsedPage  = Math.max(1, parseInt(page) || 1);
     const parsedLimit = Math.min(100, Math.max(1, parseInt(limit) || 30));
     const skip = (parsedPage - 1) * parsedLimit;
@@ -99,21 +76,30 @@ router.get('/', requireStaff, async (req, res) => {
     if (channel && channel !== 'ALL') {
       where.messages = { some: { channel } };
     }
+    if (q && q.trim()) {
+      const search = q.trim();
+      where.OR = [
+        { contactName:  { contains: search, mode: 'insensitive' } },
+        { contactPhone: { contains: search } },
+        { contactEmail: { contains: search, mode: 'insensitive' } },
+      ];
+    }
 
-    const conversations = await prisma.conversation.findMany({
-      where,
-      orderBy: { lastMessageAt: 'desc' },
-      skip,
-      take: parsedLimit,
-      include: {
-        messages: {
-          orderBy: { sentAt: 'desc' },
-          take: 1,
+    const [conversations, total] = await Promise.all([
+      prisma.conversation.findMany({
+        where,
+        orderBy: { lastMessageAt: 'desc' },
+        skip,
+        take: parsedLimit,
+        include: {
+          messages: {
+            orderBy: { sentAt: 'desc' },
+            take: 1,
+          },
         },
-      },
-    });
-
-    const total = await prisma.conversation.count({ where });
+      }),
+      prisma.conversation.count({ where }),
+    ]);
 
     res.json({
       conversations: conversations.map(serializeConversation),
@@ -123,6 +109,103 @@ router.get('/', requireStaff, async (req, res) => {
   } catch (err) {
     console.error('[mensagens] GET /conversas error:', err);
     res.status(500).json({ error: 'Erro ao carregar conversas' });
+  }
+});
+
+// ── POST / — create outbound conversation ─────────────────────────────────────
+router.post('/', requireStaff, async (req, res) => {
+  const { contactName, contactPhone, contactEmail, contactInstagram, channel, body, subject } = req.body;
+  if (!contactName?.trim()) return res.status(400).json({ error: 'contactName é obrigatório' });
+  if (!body?.trim() || !channel) return res.status(400).json({ error: 'body e channel são obrigatórios' });
+
+  const validChannels = ['WHATSAPP', 'INSTAGRAM', 'EMAIL'];
+  if (!validChannels.includes(channel)) return res.status(400).json({ error: 'Canal inválido' });
+
+  // Normalize contact identifiers to prevent duplicate conversations from whitespace differences
+  const normalizedPhone = contactPhone?.trim()    || null;
+  const normalizedEmail = contactEmail?.trim()    || null;
+  const normalizedInsta = contactInstagram?.trim() || null;
+
+  try {
+    const property = await prisma.property.findFirst({ where: { active: true } });
+    if (!property) return res.status(500).json({ error: 'Nenhuma propriedade ativa' });
+
+    // Find or create conversation keyed by phone (preferred) or email
+    const contactKey = normalizedPhone || normalizedEmail;
+    if (!contactKey) return res.status(400).json({ error: 'contactPhone ou contactEmail obrigatório' });
+
+    let conversation = await prisma.conversation.findFirst({
+      where: {
+        propertyId: property.id,
+        ...(normalizedPhone ? { contactPhone: normalizedPhone } : { contactEmail: normalizedEmail }),
+      },
+    });
+
+    if (!conversation) {
+      conversation = await prisma.conversation.create({
+        data: {
+          propertyId:       property.id,
+          contactName:      contactName.trim(),
+          contactPhone:     normalizedPhone,
+          contactEmail:     normalizedEmail,
+          contactInstagram: normalizedInsta,
+          lastMessageAt:    new Date(),
+          unreadCount:      0,
+        },
+      });
+    }
+
+    const staff = await prisma.staffMember.findUnique({
+      where:  { id: req.staff.id },
+      select: { name: true, emailSignature: true },
+    });
+
+    // Send via the correct channel
+    if (channel === 'WHATSAPP') {
+      if (!conversation.contactPhone) return res.status(400).json({ error: 'Contato sem telefone WhatsApp' });
+      const { sendWhatsAppMessage } = require('../lib/ghl-webhook');
+      await sendWhatsAppMessage(conversation.contactPhone, body, conversation.id);
+    } else if (channel === 'INSTAGRAM') {
+      if (!conversation.contactInstagram) return res.status(400).json({ error: 'Contato sem Instagram vinculado' });
+      const { sendInstagramDM } = require('../lib/ghl-webhook');
+      await sendInstagramDM(conversation.contactInstagram, body, conversation.id);
+    } else if (channel === 'EMAIL') {
+      if (!conversation.contactEmail) return res.status(400).json({ error: 'Contato sem e-mail' });
+      const { sendInboxEmail } = require('../lib/mailer');
+      await sendInboxEmail({
+        to:        conversation.contactEmail,
+        fromName:  staff?.name || 'Recantos da Serra',
+        subject:   subject || `Mensagem de ${staff?.name || 'Recantos da Serra'}`,
+        body,
+        signature: staff?.emailSignature,
+      });
+    }
+
+    const message = await prisma.inboxMessage.create({
+      data: {
+        conversationId: conversation.id,
+        staffId:        req.staff.id,
+        direction:      'OUTBOUND',
+        channel,
+        body,
+        sentAt:         new Date(),
+        readAt:         new Date(),
+      },
+      include: { staff: { select: { name: true } } },
+    });
+
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data:  { lastMessageAt: new Date() },
+    });
+
+    res.status(201).json({
+      conversation: serializeConversation({ ...conversation, messages: [message] }),
+      message:      serializeMessage(message),
+    });
+  } catch (err) {
+    console.error('[mensagens] POST / error:', err);
+    res.status(500).json({ error: err.message || 'Erro ao criar conversa' });
   }
 });
 

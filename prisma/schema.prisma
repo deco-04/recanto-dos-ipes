@@ -260,6 +260,8 @@ model StaffMember {
   emailSignature   String?
   inboxPushEnabled Boolean             @default(true)
   contentComments  ContentComment[]
+  ticketComments   TicketComment[]
+  activityLogs     StaffActivityLog[]
 }
 
 enum StaffRole {
@@ -402,8 +404,22 @@ model ServiceTicket {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  property Property    @relation(fields: [propertyId], references: [id])
-  openedBy StaffMember @relation(fields: [openedById], references: [id])
+  property Property       @relation(fields: [propertyId], references: [id])
+  openedBy StaffMember    @relation(fields: [openedById], references: [id])
+  comments TicketComment[]
+}
+
+model TicketComment {
+  id        String   @id @default(cuid())
+  ticketId  String
+  staffId   String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+
+  ticket ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  staff  StaffMember   @relation(fields: [staffId], references: [id])
+
+  @@index([ticketId])
 }
 
 enum TicketPriority {
@@ -825,4 +841,21 @@ model PushNotification {
   sentAt  DateTime    @default(now())
 
   staff StaffMember @relation(fields: [staffId], references: [id])
+}
+
+// ── Staff Activity Log ────────────────────────────────────────────────────────
+model StaffActivityLog {
+  id         String   @id @default(cuid())
+  staffId    String
+  actionType String   // LOGIN, TASK_COMPLETE, CHECKIN_DONE, CHECKOUT_DONE, TICKET_OPEN, etc.
+  entityType String?  // BOOKING, TASK, TICKET, MAINTENANCE_LOG, etc.
+  entityId   String?
+  summary    String?
+  meta       Json?    // extra context (e.g. booking guestName, task title)
+  createdAt  DateTime @default(now())
+
+  staff StaffMember @relation(fields: [staffId], references: [id])
+
+  @@index([staffId, createdAt])
+  @@index([createdAt])
 }

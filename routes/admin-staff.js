@@ -8,38 +8,14 @@
 
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { z } = require('zod');
 const prisma = require('../lib/db');
 const { sendStaffInvite } = require('../lib/mailer');
 const { sendPushToRole, sendPushToStaff } = require('../lib/push');
+const { requireAdmin } = require('../lib/staff-auth-middleware');
 
 const router = express.Router();
-
-// ── Auth middleware ───────────────────────────────────────────────────────────
-async function requireAdmin(req, res, next) {
-  const auth = req.headers['authorization'];
-  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Não autenticado' });
-
-  let payload;
-  try {
-    payload = jwt.verify(auth.slice(7), process.env.STAFF_JWT_SECRET);
-  } catch {
-    return res.status(401).json({ error: 'Token inválido ou expirado' });
-  }
-
-  if (payload.role !== 'ADMIN') return res.status(403).json({ error: 'Permissão insuficiente' });
-
-  const staff = await prisma.staffMember.findUnique({
-    where: { id: payload.sub },
-    select: { id: true, role: true, active: true },
-  });
-  if (!staff || !staff.active) return res.status(401).json({ error: 'Acesso negado' });
-
-  req.staff = staff;
-  next();
-}
 
 router.use(requireAdmin);
 

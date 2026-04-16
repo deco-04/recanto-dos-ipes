@@ -6,46 +6,28 @@
  * Mounted at: /api/staff
  */
 
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const { z } = require('zod');
-const prisma = require('../lib/db');
+const express    = require('express');
+const rateLimit  = require('express-rate-limit');
+const { z }      = require('zod');
+const prisma     = require('../lib/db');
 const { maybeCompleteOtaTask } = require('../lib/tasks');
 const { sendPorteiroMessage }  = require('../lib/ghl-webhook');
 const { sendPushToRole, sendPushToStaff } = require('../lib/push');
+const { requireStaff, requireRole } = require('../lib/staff-auth-middleware');
 
 const router = express.Router();
 
-// ── Auth middleware ─────────────────────────────────────────────────────────
-async function requireStaff(req, res, next) {
-  const auth = req.headers['authorization'];
-  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Não autenticado' });
-
-  let payload;
-  try {
-    payload = jwt.verify(auth.slice(7), process.env.STAFF_JWT_SECRET);
-  } catch {
-    return res.status(401).json({ error: 'Token inválido ou expirado' });
-  }
-
-  const staff = await prisma.staffMember.findUnique({
-    where: { id: payload.sub },
-    select: { id: true, role: true, active: true },
-  });
-  if (!staff || !staff.active) return res.status(401).json({ error: 'Acesso negado' });
-
-  req.staff = staff;
-  next();
-}
-
-function requireRole(...roles) {
-  return (req, res, next) => {
-    if (!roles.includes(req.staff?.role)) {
-      return res.status(403).json({ error: 'Permissão insuficiente' });
-    }
-    next();
-  };
-}
+// ── Rate limiting ─────────────────────────────────────────────────────────────
+// 120 requests/min per authenticated staff member (generous for normal use).
+// Falls back to IP when req.staff is not yet set (shouldn't happen after requireStaff).
+const portalLimiter = rateLimit({
+  windowMs:      60 * 1000,
+  max:           120,
+  keyGenerator:  (req) => req.staff?.id || req.ip,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message:       { error: 'Muitas requisições. Aguarde um momento.' },
+});
 
 // Returns true if the staff member belongs to the given property (ADMINs always pass)
 async function hasPropertyAccess(staffId, staffRole, propertyId) {
@@ -57,6 +39,7 @@ async function hasPropertyAccess(staffId, staffRole, propertyId) {
 }
 
 router.use(requireStaff);
+router.use(portalLimiter);
 
 // GET /api/staff/me — returns full staff profile (used by WebAuthn + token exchange)
 router.get('/me', async (req, res) => {
@@ -86,6 +69,50 @@ router.get('/me', async (req, res) => {
   }
 });
 
+// ── PATCH /api/staff/me — update own name / email / phone ────────────────────
+router.patch('/me', async (req, res) => {
+  const schema = z.object({
+    name:  z.string().min(2).max(100).optional(),
+    email: z.string().email().optional(),
+    phone: z.string().min(8).max(20).optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
+
+  const { name, email, phone } = parsed.data;
+  if (!name && !email && !phone) return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+
+  try {
+    // Check uniqueness for email/phone
+    if (email) {
+      const existing = await prisma.staffMember.findUnique({ where: { email } });
+      if (existing && existing.id !== req.staff.id) {
+        return res.status(409).json({ error: 'Este e-mail já está em uso' });
+      }
+    }
+    if (phone) {
+      const existing = await prisma.staffMember.findUnique({ where: { phone } });
+      if (existing && existing.id !== req.staff.id) {
+        return res.status(409).json({ error: 'Este telefone já está em uso' });
+      }
+    }
+
+    const updated = await prisma.staffMember.update({
+      where: { id: req.staff.id },
+      data: {
+        ...(name  && { name }),
+        ...(email && { email }),
+        ...(phone && { phone }),
+      },
+      select: { id: true, name: true, email: true, phone: true, role: true },
+    });
+    res.json(updated);
+  } catch (err) {
+    console.error('[staff-portal] PATCH /me error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar perfil' });
+  }
+});
+
 // Helper: serialize booking for front-end consumption
 function serializeBooking(b) {
   const sourceMap = { BOOKING_COM: 'BOOKING', AIRBNB: 'AIRBNB', DIRECT: 'DIRECT' };
@@ -110,12 +137,26 @@ function serializeBooking(b) {
 // ── GET /api/staff/reservas ─────────────────────────────────────────────────
 router.get('/reservas', requireRole('ADMIN'), async (req, res) => {
   try {
-    const bookings = await prisma.booking.findMany({
-      orderBy: { checkIn: 'desc' },
-      take: 100,
-      include: { user: { select: { name: true } } },
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+    const skip  = (page - 1) * limit;
+
+    const [bookings, total] = await Promise.all([
+      prisma.booking.findMany({
+        orderBy: { checkIn: 'desc' },
+        skip,
+        take: limit,
+        include: { user: { select: { name: true } } },
+      }),
+      prisma.booking.count(),
+    ]);
+
+    res.json({
+      bookings: bookings.map(serializeBooking),
+      total,
+      page,
+      pages: Math.ceil(total / limit),
     });
-    res.json(bookings.map(serializeBooking));
   } catch (err) {
     console.error('[staff-portal] reservas error:', err);
     res.status(500).json({ error: 'Erro ao buscar reservas' });
@@ -1104,6 +1145,56 @@ router.patch('/chamados/:id', requireRole('ADMIN', 'GOVERNANTA'), async (req, re
     res.json(ticket);
   } catch {
     res.status(500).json({ error: 'Erro ao atualizar chamado' });
+  }
+});
+
+// ── GET /api/staff/chamados/:id/comentarios ───────────────────────────────────
+router.get('/chamados/:id/comentarios', async (req, res) => {
+  try {
+    const ticket = await prisma.serviceTicket.findUnique({ where: { id: req.params.id } });
+    if (!ticket) return res.status(404).json({ error: 'Chamado não encontrado' });
+
+    const comments = await prisma.ticketComment.findMany({
+      where:   { ticketId: req.params.id },
+      orderBy: { createdAt: 'asc' },
+      include: { staff: { select: { id: true, name: true } } },
+    });
+    res.json(comments);
+  } catch (err) {
+    console.error('[staff-portal] GET chamados comments error:', err);
+    res.status(500).json({ error: 'Erro ao buscar comentários' });
+  }
+});
+
+// ── POST /api/staff/chamados/:id/comentarios ──────────────────────────────────
+router.post('/chamados/:id/comentarios', async (req, res) => {
+  const { body } = req.body;
+  if (!body?.trim()) return res.status(400).json({ error: 'Comentário não pode estar vazio' });
+  if (body.trim().length > 5000) return res.status(400).json({ error: 'Comentário muito longo (máx. 5000 caracteres)' });
+
+  try {
+    const ticket = await prisma.serviceTicket.findUnique({ where: { id: req.params.id } });
+    if (!ticket) return res.status(404).json({ error: 'Chamado não encontrado' });
+
+    const comment = await prisma.ticketComment.create({
+      data: { ticketId: req.params.id, staffId: req.staff.id, body: body.trim() },
+      include: { staff: { select: { id: true, name: true } } },
+    });
+
+    // Notify ticket opener if comment is from someone else
+    if (ticket.openedById !== req.staff.id) {
+      sendPushToStaff(ticket.openedById, {
+        title: 'Novo comentário no chamado',
+        body:  body.length > 60 ? body.slice(0, 60) + '…' : body,
+        type:  'TICKET_COMMENT',
+        data:  { ticketId: req.params.id },
+      }).catch(() => {});
+    }
+
+    res.status(201).json(comment);
+  } catch (err) {
+    console.error('[staff-portal] POST chamados comments error:', err);
+    res.status(500).json({ error: 'Erro ao adicionar comentário' });
   }
 });
 
@@ -2399,10 +2490,62 @@ router.post('/financeiro/despesas', requireRole('ADMIN'), async (req, res) => {
   }
 });
 
+// ── PATCH /api/staff/financeiro/despesas/:id ─────────────────────────────────
+router.patch('/financeiro/despesas/:id', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const { date, amount, category, description, payee, notes } = req.body;
+    const existing = await prisma.expense.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: 'Despesa não encontrada' });
+    if (existing.source === 'BANK_IMPORT') {
+      return res.status(400).json({ error: 'Despesas importadas do banco não podem ser editadas' });
+    }
+
+    const expense = await prisma.expense.update({
+      where: { id: req.params.id },
+      data: {
+        ...(date        && { date:        new Date(date) }),
+        ...(amount      && { amount:      parseFloat(amount) }),
+        ...(category    && { category }),
+        ...(description && { description }),
+        ...(payee       && { payee }),
+        ...(notes !== undefined && { notes: notes || null }),
+      },
+    });
+    res.json({ expense });
+  } catch (err) {
+    console.error('[staff-portal] financeiro/despesas PATCH error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar despesa' });
+  }
+});
+
+// ── DELETE /api/staff/financeiro/despesas/:id ────────────────────────────────
+router.delete('/financeiro/despesas/:id', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const existing = await prisma.expense.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: 'Despesa não encontrada' });
+    if (existing.source === 'BANK_IMPORT') {
+      return res.status(400).json({ error: 'Despesas importadas do banco não podem ser excluídas' });
+    }
+    await prisma.expense.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[staff-portal] financeiro/despesas DELETE error:', err);
+    res.status(500).json({ error: 'Erro ao excluir despesa' });
+  }
+});
+
+// CDS project phases — stored here until a ProjectPhase table exists
+const CDS_PHASES = [
+  { name: 'Conceito',      pct: 100 },
+  { name: 'Projeto',       pct: 100 },
+  { name: 'Detalhamento',  pct: 60  },
+  { name: 'Entrega',       pct: 0   },
+];
+
 router.get('/financeiro/cds', requireRole('ADMIN'), async (req, res) => {
   try {
     const cds = await prisma.property.findFirst({ where: { slug: 'cabanas' } });
-    if (!cds) return res.json({ totalInvestido: 0, pagamentos: [], acumulado: [] });
+    if (!cds) return res.json({ totalInvestido: 0, pagamentos: [], acumulado: [], phases: CDS_PHASES });
 
     const pagamentos = await prisma.expense.findMany({
       where: { propertyId: cds.id, category: 'DESIGN_ARQUITETURA' },
@@ -2425,6 +2568,7 @@ router.get('/financeiro/cds', requireRole('ADMIN'), async (req, res) => {
         acumulado: acumulado[i],
       })),
       acumulado,
+      phases: CDS_PHASES,
     });
   } catch (err) {
     console.error('[staff-portal] financeiro/cds error:', err);
@@ -2631,6 +2775,70 @@ router.patch('/configuracoes/porteiro', requireRole('ADMIN'), async (req, res) =
   } catch (err) {
     console.error('[staff-portal] PATCH porteiro error:', err);
     res.status(500).json({ error: 'Erro ao salvar' });
+  }
+});
+
+// ── GET /api/staff/atividades ────────────────────────────────────────────────
+// Admin-only: recent staff activity log across all staff or filtered by staffId/actionType
+router.get('/atividades', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const { staffId, actionType, limit: rawLimit = '50', page: rawPage = '1' } = req.query;
+    const limit   = Math.min(100, Math.max(1, parseInt(rawLimit) || 50));
+    const pageNum = Math.max(1, parseInt(rawPage) || 1);
+    const skip    = (pageNum - 1) * limit;
+
+    const where = {};
+    if (staffId)    where.staffId    = staffId;
+    if (actionType) where.actionType = actionType;
+
+    const [logs, total] = await Promise.all([
+      prisma.staffActivityLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: { staff: { select: { id: true, name: true, role: true } } },
+      }),
+      prisma.staffActivityLog.count({ where }),
+    ]);
+
+    res.json({ logs, total, page: pageNum, pages: Math.ceil(total / limit) });
+  } catch (err) {
+    console.error('[staff-portal] GET /atividades error:', err);
+    res.status(500).json({ error: 'Erro ao buscar atividades' });
+  }
+});
+
+// ── POST /api/staff/atividades ───────────────────────────────────────────────
+// Internal: any staff member can log an action for themselves.
+router.post('/atividades', async (req, res) => {
+  const { actionType, entityType, entityId, summary, meta } = req.body;
+  if (!actionType || typeof actionType !== 'string' || actionType.trim().length === 0) {
+    return res.status(400).json({ error: 'actionType obrigatório' });
+  }
+  if (actionType.length > 60)  return res.status(400).json({ error: 'actionType muito longo' });
+  if (entityType && entityType.length > 60) return res.status(400).json({ error: 'entityType muito longo' });
+  if (entityId  && entityId.length  > 100) return res.status(400).json({ error: 'entityId muito longo' });
+  if (summary   && summary.length   > 500) return res.status(400).json({ error: 'summary muito longo' });
+  if (meta !== undefined && (typeof meta !== 'object' || Array.isArray(meta))) {
+    return res.status(400).json({ error: 'meta deve ser um objeto JSON' });
+  }
+
+  try {
+    const log = await prisma.staffActivityLog.create({
+      data: {
+        staffId:    req.staff.id,
+        actionType: actionType.trim(),
+        entityType: entityType?.trim()   || null,
+        entityId:   entityId?.trim()     || null,
+        summary:    summary?.trim()      || null,
+        meta:       meta                 ?? undefined,
+      },
+    });
+    res.status(201).json(log);
+  } catch (err) {
+    console.error('[staff-portal] POST /atividades error:', err);
+    res.status(500).json({ error: 'Erro ao registrar atividade' });
   }
 });
 
