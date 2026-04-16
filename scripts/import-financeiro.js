@@ -124,6 +124,9 @@ const DIRECT_BOOKINGS = [
   { guest: 'Fernanda e amigas',  checkIn: '2025-12-20', checkOut: '2025-12-23', nights: 3, guests: 10, tier: 'PEAK'     },
 ];
 
+// 2024 baseline rates (used for historical imports, kept for accuracy)
+// Current Airbnb dynamic range: R$770–R$1.500/noite (updated 2025)
+// 2025+ direct bookings should use: LOW=770, MID=950, HIGH_MID=1150, PEAK=1500
 const TIER_PRICES = { LOW: 720, MID: 850, HIGH_MID: 1050, PEAK: 1300 };
 const BASE_GUESTS = 11;
 const EXTRA_GUEST_FEE = 50;

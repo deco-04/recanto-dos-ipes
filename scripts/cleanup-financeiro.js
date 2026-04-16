@@ -324,9 +324,8 @@ async function main() {
   }
 
   console.log(`\n  Expenses added: ${expCreated}`);
-  console.log(`  Bank balance before:  R$21,586.77`);
   console.log(`  Total paid (RDI+CDS): R$${expTotal.toFixed(2)}`);
-  console.log(`  Estimated balance:    R$${(21586.77 - expTotal).toFixed(2)}`);
+  console.log(`  Confirmed balance after all 4 payments: R$21,586.77`);
 
   // ── Step 5: Final revenue summary ──────────────────────────────────────────
   console.log('\n[5] Final revenue summary — RDI CONFIRMED bookings:');
