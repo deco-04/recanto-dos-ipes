@@ -1940,7 +1940,8 @@ async function getKPIs(propertyId, start, end) {
   const [bookings, expenses] = await Promise.all([
     prisma.booking.findMany({
       where: { propertyId, status: 'CONFIRMED', checkIn: { gte: start, lte: end } },
-      select: { totalAmount: true, source: true, nights: true },
+      select: { totalAmount: true, grossAmount: true, commissionAmount: true,
+                source: true, nights: true, isInvoiceAggregate: true },
     }),
     prisma.expense.findMany({
       where: { propertyId, date: { gte: start, lte: end } },
@@ -1948,18 +1949,36 @@ async function getKPIs(propertyId, start, end) {
     }),
   ]);
 
+  // Exclude invoice aggregates from count but keep their revenue in totals
+  // (they represent real net payout even without per-stay detail)
   const receita = bookings.reduce((s, b) => s + parseFloat(b.totalAmount || 0), 0);
   const despesas = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
   const resultado = receita - despesas;
   const margem = receita > 0 ? resultado / receita : 0;
-  const qtd = bookings.length;
+  // Booking count excludes aggregates — they inflate the count without adding insight
+  const qtd = bookings.filter(b => !b.isInvoiceAggregate).length;
 
-  const canais = { AIRBNB: { receita: 0, qtd: 0 }, BOOKING_COM: { receita: 0, qtd: 0 }, DIRECT: { receita: 0, qtd: 0 } };
+  // Per-channel: accumulate receita, qtd, and actual commission paid (when known)
+  const canais = {
+    AIRBNB:      { receita: 0, qtd: 0, commissionTotal: 0 },
+    BOOKING_COM: { receita: 0, qtd: 0, commissionTotal: 0 },
+    DIRECT:      { receita: 0, qtd: 0, commissionTotal: 0 },
+  };
+  const FALLBACK_RATES = { AIRBNB: 0.0458, BOOKING_COM: 0.13, DIRECT: 0 };
   for (const b of bookings) {
     const src = b.source || 'DIRECT';
-    if (!canais[src]) canais[src] = { receita: 0, qtd: 0 };
-    canais[src].receita += parseFloat(b.totalAmount || 0);
-    canais[src].qtd += 1;
+    if (!canais[src]) canais[src] = { receita: 0, qtd: 0, commissionTotal: 0 };
+    const net = parseFloat(b.totalAmount || 0);
+    canais[src].receita += net;
+    if (!b.isInvoiceAggregate) canais[src].qtd += 1;
+    // Use actual commissionAmount when available; otherwise estimate from net using correct formula:
+    // commission = gross × rate, net = gross × (1 − rate) → gross = net / (1 − rate)
+    // → commission = net × rate / (1 − rate)
+    const rate = FALLBACK_RATES[src] ?? 0;
+    const comm = b.commissionAmount
+      ? parseFloat(b.commissionAmount)
+      : (rate > 0 ? Math.round(net * rate / (1 - rate) * 100) / 100 : 0);
+    canais[src].commissionTotal += comm;
   }
 
   const catMap = {};
@@ -2033,20 +2052,22 @@ function computeInsights(current, previous, historico, allTime) {
   }
 
   // ── 3. Channel fee burden ────────────────────────────────────────────────────
-  const airbnbReceita  = current.canais.AIRBNB?.receita     || 0;
-  const bcomReceita    = current.canais.BOOKING_COM?.receita || 0;
-  const diretaReceita  = current.canais.DIRECT?.receita      || 0;
-  // Approximate gross (fee is already deducted from totalAmount)
-  const airbnbFeeBurden = Math.round(airbnbReceita * 0.0458 / (1 - 0.0458));
-  const bcomFeeBurden   = Math.round(bcomReceita   * 0.13   / (1 - 0.13));
+  const airbnbReceita  = current.canais.AIRBNB?.receita           || 0;
+  const bcomReceita    = current.canais.BOOKING_COM?.receita       || 0;
+  const diretaReceita  = current.canais.DIRECT?.receita            || 0;
+  // Use actual commissionTotal from getKPIs (real data when available, formula-estimated otherwise)
+  const airbnbFeeBurden = Math.round(current.canais.AIRBNB?.commissionTotal     || 0);
+  const bcomFeeBurden   = Math.round(current.canais.BOOKING_COM?.commissionTotal || 0);
   const totalFeeBurden  = airbnbFeeBurden + bcomFeeBurden;
 
   if (totalFeeBurden > 200 && current.receita > 0) {
+    const airbnbRate = airbnbReceita > 0 ? ((airbnbFeeBurden / airbnbReceita) * 100).toFixed(1) : '4.6';
+    const bcomRate   = bcomReceita   > 0 ? ((bcomFeeBurden   / bcomReceita  ) * 100).toFixed(1) : '13.0';
     insights.push({
       type:     'CANAIS',
       severity: 'INFO',
       titulo:   `${fmt(totalFeeBurden)} pagos em comissões OTA este período`,
-      corpo:    `Airbnb: ~${fmt(airbnbFeeBurden)} (4.6% host fee) · Booking.com: ~${fmt(bcomFeeBurden)} (13%). Reservas diretas (${fmt(diretaReceita)}) não têm este custo.`,
+      corpo:    `Airbnb: ~${fmt(airbnbFeeBurden)} (≈${airbnbRate}% do líquido) · Booking.com: ~${fmt(bcomFeeBurden)} (≈${bcomRate}%). Reservas diretas (${fmt(diretaReceita)}) não têm este custo.`,
     });
   }
 
@@ -2369,8 +2390,9 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
       prisma.booking.findMany({
         where:   { propertyId: prop.id, status: 'CONFIRMED' },
         orderBy: { checkIn: 'desc' },
-        select:  { id: true, guestName: true, checkIn: true, checkOut: true,
-                   nights: true, guestCount: true, source: true, totalAmount: true },
+        select:  { id: true, guestName: true, guestPhone: true, checkIn: true, checkOut: true,
+                   nights: true, guestCount: true, source: true, totalAmount: true,
+                   grossAmount: true, commissionAmount: true, isInvoiceAggregate: true },
       }),
       prisma.expense.findMany({
         where:   { propertyId: prop.id, category: 'SERVICOS_LIMPEZA' },
@@ -2401,13 +2423,13 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
       if (countCache[k] !== undefined) return countCache[k];
       const s = new Date(year, month - 1, 1);
       const e = new Date(year, month, 0, 23, 59, 59);
-      // Exclude Booking.com monthly aggregates (nights=0) — they represent entire months,
-      // not individual stays, so counting them distorts per-booking cost allocation.
+      // Exclude invoice aggregates — they are monthly payout placeholders, not individual stays,
+      // and would distort per-booking fixed-cost allocation if counted.
       countCache[k] = await prisma.booking.count({
         where: {
           propertyId: prop.id, status: 'CONFIRMED',
           checkIn: { gte: s, lte: e },
-          NOT: { nights: 0 },
+          isInvoiceAggregate: false,
         },
       });
       return countCache[k];
@@ -2415,10 +2437,11 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
 
     const now = new Date();
 
-    // Historical average cleaning cost = total SERVICOS_LIMPEZA ÷ past confirmed bookings
-    // Used as fallback when no actual expense can be matched (and always for future bookings)
+    // Historical average cleaning cost = total SERVICOS_LIMPEZA ÷ past individual (non-aggregate) bookings
     const totalCleaningAmount = cleaningExps.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-    const pastBookingCount    = bookings.filter(b => new Date(b.checkOut).getTime() < now.getTime()).length;
+    const pastBookingCount    = bookings.filter(
+      b => !b.isInvoiceAggregate && new Date(b.checkOut).getTime() < now.getTime()
+    ).length;
     const avgCleaningCost     = pastBookingCount > 0
       ? Math.round((totalCleaningAmount / pastBookingCount) * 100) / 100
       : 270;
@@ -2428,9 +2451,22 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
     for (const b of bookings) {
       const totalAmount    = parseFloat(b.totalAmount || 0);
       const source         = b.source || 'DIRECT';
-      const isAggregate    = b.nights === 0; // Booking.com monthly invoices (not individual stays)
+      // isInvoiceAggregate: explicit field set by reconciliation script (not nights===0 heuristic)
+      const isAggregate    = !!b.isInvoiceAggregate;
       const feeRate        = PLATFORM_FEES[source] ?? 0;
-      const taxaPlataforma = Math.round(totalAmount * feeRate * 100) / 100;
+
+      // Commission: use actual stored value when available (from Booking.com extranet screenshots).
+      // Fallback: estimate from net using correct formula — commission = net × rate / (1 − rate).
+      // (Not net × rate, which underestimates: 13% of gross ≠ 13% of net-of-commission.)
+      const taxaPlataforma = b.commissionAmount
+        ? parseFloat(b.commissionAmount)
+        : (feeRate > 0 ? Math.round(totalAmount * feeRate / (1 - feeRate) * 100) / 100 : 0);
+
+      // Actual commission rate for display (gross-based %)
+      const grossAmt = b.grossAmount ? parseFloat(b.grossAmount) : null;
+      const commissionRate = grossAmt && taxaPlataforma > 0
+        ? parseFloat(((taxaPlataforma / grossAmt) * 100).toFixed(1))
+        : (feeRate * 100);
 
       let custoLimpeza, custoLimpezaFonte, custoFixo;
 
@@ -2471,6 +2507,7 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
       results.push({
         id:               b.id,
         guestName:        b.guestName,
+        guestPhone:       b.guestPhone || null,
         checkIn:          b.checkIn,
         checkOut:         b.checkOut,
         nights:           b.nights || 0,
@@ -2479,6 +2516,8 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
         status,
         isAggregate,
         totalReceita:        totalAmount,
+        grossReceita:        grossAmt,      // guest-facing price (null for legacy records)
+        commissionRate,                    // % commission on gross (actual or estimated)
         taxaPlataforma,
         custoLimpeza,
         custoLimpezaFonte,
@@ -2486,7 +2525,7 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
         custoTotal,
         resultadoLiquido,
         margem,
-        avgCleaningCost,     // expose so frontend can display the basis
+        avgCleaningCost,
       });
     }
 
