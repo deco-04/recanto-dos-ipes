@@ -18,12 +18,13 @@ const { requireStaff, requireRole } = require('../lib/staff-auth-middleware');
 const router = express.Router();
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
-// 120 requests/min per authenticated staff member (generous for normal use).
-// Falls back to IP when req.staff is not yet set (shouldn't happen after requireStaff).
+// 120 requests/min per authenticated staff member.
+// requireStaff runs before this limiter so req.staff.id is always set.
+// 'anon' is a shared bucket for any hypothetical unauthenticated call (blocked by requireStaff anyway).
 const portalLimiter = rateLimit({
   windowMs:      60 * 1000,
   max:           120,
-  keyGenerator:  (req) => req.staff?.id || req.ip,
+  keyGenerator:  (req) => req.staff?.id ?? 'anon',
   standardHeaders: true,
   legacyHeaders:   false,
   message:       { error: 'Muitas requisições. Aguarde um momento.' },
