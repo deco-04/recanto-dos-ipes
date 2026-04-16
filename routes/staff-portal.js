@@ -973,6 +973,38 @@ router.post('/piscina/manutencao', async (req, res) => {
   }
 });
 
+// ── GET /api/staff/piscina/historico ────────────────────────────────────────
+router.get('/piscina/historico', requireRole('ADMIN', 'PISCINEIRO'), async (req, res) => {
+  try {
+    const property = await prisma.property.findFirst({ where: { active: true } });
+    if (!property) return res.status(500).json({ error: 'Nenhuma propriedade ativa' });
+
+    const logs = await prisma.maintenanceLog.findMany({
+      where: { propertyId: property.id },
+      orderBy: { visitDate: 'desc' },
+      take: 60,
+      select: {
+        id: true,
+        logType: true,
+        visitDate: true,
+        vacuumed: true,
+        borderCleaned: true,
+        filterCleaned: true,
+        waterTreated: true,
+        notes: true,
+        createdAt: true,
+        staff: { select: { id: true, name: true } },
+        booking: { select: { id: true, guestName: true } },
+      },
+    });
+
+    res.json(logs);
+  } catch (err) {
+    console.error('[staff-portal] piscina/historico error:', err);
+    res.status(500).json({ error: 'Erro ao carregar histórico' });
+  }
+});
+
 // ── POST /api/staff/chamados ─────────────────────────────────────────────────
 router.post('/chamados', async (req, res) => {
   const schema = z.object({
