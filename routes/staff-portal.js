@@ -1048,7 +1048,7 @@ router.get('/chamados', async (req, res) => {
 // Updates ticket status. ADMIN and GOVERNANTA only.
 router.patch('/chamados/:id', requireRole('ADMIN', 'GOVERNANTA'), async (req, res) => {
   const { status } = req.body;
-  const valid = ['ABERTO', 'EM_ANDAMENTO', 'RESOLVIDO', 'FECHADO'];
+  const valid = ['ABERTO', 'EM_ANDAMENTO', 'RESOLVIDO'];
   if (!status || !valid.includes(status)) {
     return res.status(400).json({ error: 'Status inválido' });
   }
