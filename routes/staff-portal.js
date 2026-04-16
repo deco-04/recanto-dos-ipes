@@ -390,6 +390,38 @@ router.get('/casa/proximas', async (req, res) => {
   }
 });
 
+// ── GET /api/staff/casa/proximas-saidas ─────────────────────────────────────
+// Returns confirmed bookings with checkout within the next N days (default 2)
+router.get('/casa/proximas-saidas', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 2;
+    const start = new Date();
+    const end   = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+    const bookings = await prisma.booking.findMany({
+      where: { status: { in: ['CONFIRMED', 'PENDING'] }, checkOut: { gte: start, lte: end } },
+      orderBy: { checkOut: 'asc' },
+      include: {
+        user: { select: { name: true } },
+        inspections: { where: { type: 'CHECKOUT' }, select: { id: true, status: true } },
+      },
+    });
+
+    res.json(bookings.map((b) => ({
+      bookingId: b.id,
+      guestName: b.user?.name || b.guestName || 'Hóspede',
+      checkIn:   b.checkIn.toISOString(),
+      checkOut:  b.checkOut.toISOString(),
+      guests:    b.guestCount,
+      inspectionId:     b.inspections?.[0]?.id   || null,
+      inspectionStatus: b.inspections?.[0]?.status || null,
+    })));
+  } catch (err) {
+    console.error('[staff-portal] casa/proximas-saidas error:', err);
+    res.status(500).json({ error: 'Erro ao buscar próximas saídas' });
+  }
+});
+
 // ── GET /api/staff/casa/calendario ──────────────────────────────────────────
 router.get('/casa/calendario', async (req, res) => {
   try {
