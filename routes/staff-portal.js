@@ -121,6 +121,10 @@ router.patch('/me', async (req, res) => {
 // Helper: serialize booking for front-end consumption
 function serializeBooking(b) {
   const sourceMap = { BOOKING_COM: 'BOOKING', AIRBNB: 'AIRBNB', DIRECT: 'DIRECT' };
+  const net   = parseFloat(b.totalAmount?.toString() || '0');
+  const gross = b.grossAmount      ? parseFloat(b.grossAmount.toString())      : null;
+  const comm  = b.commissionAmount ? parseFloat(b.commissionAmount.toString()) : null;
+  const upsellTotal = (b.upsells || []).reduce((s, u) => s + parseFloat(u.amount.toString()), 0);
   return {
     id: b.id,
     guestName: b.user?.name || b.guestName || 'Hóspede',
@@ -128,12 +132,25 @@ function serializeBooking(b) {
     guestPhone: b.guestPhone || null,
     checkIn: b.checkIn.toISOString(),
     checkOut: b.checkOut.toISOString(),
+    nights: b.nights || 0,
     guests: b.guestCount,
-    totalPrice: parseFloat(b.totalAmount?.toString() || '0'),
+    totalPrice: net,
+    grossAmount: gross,
+    commissionAmount: comm,
+    upsellTotal: upsellTotal || null,
+    upsells: (b.upsells || []).map(u => ({
+      id: u.id,
+      description: u.description,
+      amount: parseFloat(u.amount.toString()),
+      receivedAt: u.receivedAt?.toISOString() || null,
+      notes: u.notes || null,
+    })),
     status: b.status,
     source: sourceMap[b.source] || 'DIRECT',
     notes: b.notes || null,
     hasPet: b.hasPet || false,
+    petDescription: b.petDescription || null,
+    isInvoiceAggregate: b.isInvoiceAggregate || false,
     otaTaskId: b.otaTaskId || null,
     createdAt: b.createdAt?.toISOString() || null,
   };
@@ -151,7 +168,7 @@ router.get('/reservas', requireRole('ADMIN'), async (req, res) => {
         orderBy: { checkIn: 'desc' },
         skip,
         take: limit,
-        include: { user: { select: { name: true } } },
+        include: { user: { select: { name: true } }, upsells: true },
       }),
       prisma.booking.count(),
     ]);
@@ -173,7 +190,7 @@ router.get('/reservas/:id', requireRole('ADMIN', 'GOVERNANTA'), async (req, res)
   try {
     const booking = await prisma.booking.findUnique({
       where: { id: req.params.id },
-      include: { user: { select: { name: true } } },
+      include: { user: { select: { name: true } }, upsells: true },
     });
     if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
     const data = serializeBooking(booking);
@@ -257,7 +274,7 @@ router.patch('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
     const booking = await prisma.booking.update({
       where: { id: req.params.id },
       data: updates,
-      include: { user: { select: { name: true } } },
+      include: { user: { select: { name: true } }, upsells: true },
     });
     res.json(serializeBooking(booking));
   } catch (err) {
@@ -315,7 +332,7 @@ router.post('/reservas', requireRole('ADMIN'), async (req, res) => {
         hasPet,
         propertyId:       propertyId || null,
       },
-      include: { user: { select: { name: true } } },
+      include: { user: { select: { name: true } }, upsells: true },
     });
     res.status(201).json(serializeBooking(booking));
   } catch (err) {
@@ -325,46 +342,85 @@ router.post('/reservas', requireRole('ADMIN'), async (req, res) => {
 });
 
 // ── GET /api/staff/financeiro ────────────────────────────────────────────────
+// period: 'today' | 'week' | 'month' (default: 'month')
 router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
   try {
     const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const period = req.query.period || 'month';
 
-    const bookings = await prisma.booking.findMany({
-      where: {
-        status: { in: ['CONFIRMED'] },
-        checkIn: { gte: start, lte: end },
-      },
-    });
+    let start, end, periodoLabel;
+    if (period === 'today') {
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      periodoLabel = 'Hoje';
+    } else if (period === 'week') {
+      const dow = now.getDay(); // 0=Sun
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow, 0, 0, 0);
+      end   = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6, 23, 59, 59);
+      periodoLabel = 'Esta Semana';
+    } else {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      periodoLabel = start.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    }
 
-    const totalDias = end.getDate();
-    const faturamentoTotal = bookings.reduce(
-      (sum, b) => sum + parseFloat(b.totalAmount?.toString() || '0'),
-      0
-    );
-    const qtdReservas = bookings.length;
+    // Previous equivalent period for variacaoPct
+    const diffMs = end - start;
+    const prevStart = new Date(start - diffMs - 86400000);
+    const prevEnd   = new Date(start - 86400000);
 
+    // Month boundaries for occupancy (always full month)
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const totalDias  = monthEnd.getDate();
+
+    const [bookings, prevBookings, upsells] = await Promise.all([
+      prisma.booking.findMany({
+        where: { status: 'CONFIRMED', checkIn: { gte: start, lte: end } },
+        select: { totalAmount: true, source: true, checkIn: true, checkOut: true, nights: true, isInvoiceAggregate: true },
+      }),
+      prisma.booking.findMany({
+        where: { status: 'CONFIRMED', checkIn: { gte: prevStart, lte: prevEnd } },
+        select: { totalAmount: true },
+      }),
+      // Include upsell revenue in faturamento
+      prisma.bookingUpsell.findMany({
+        where: { booking: { status: 'CONFIRMED', checkIn: { gte: start, lte: end } } },
+        select: { amount: true },
+      }),
+    ]);
+
+    const upsellRevenue = upsells.reduce((s, u) => s + parseFloat(u.amount.toString()), 0);
+    const faturamentoBase = bookings.reduce((s, b) => s + parseFloat(b.totalAmount?.toString() || '0'), 0);
+    const faturamentoTotal = faturamentoBase + upsellRevenue;
+    const prevTotal = prevBookings.reduce((s, b) => s + parseFloat(b.totalAmount?.toString() || '0'), 0);
+    const variacaoPct = prevTotal > 0 ? Math.round((faturamentoBase - prevTotal) / prevTotal * 1000) / 10 : null;
+
+    const realBookings = bookings.filter(b => !b.isInvoiceAggregate);
+    const qtdReservas = realBookings.length;
     const diariamedia = qtdReservas > 0
-      ? bookings.reduce((sum, b) => {
-          const n = Math.round((new Date(b.checkOut) - new Date(b.checkIn)) / (1000 * 60 * 60 * 24));
-          return sum + parseFloat(b.totalAmount?.toString() || '0') / Math.max(n, 1);
-        }, 0) / qtdReservas
+      ? realBookings.reduce((s, b) => s + parseFloat(b.totalAmount?.toString() || '0') / Math.max(b.nights || 1, 1), 0) / qtdReservas
       : 0;
+    const ticketMedio = qtdReservas > 0 ? faturamentoTotal / qtdReservas : 0;
 
+    // Occupancy always based on current calendar month
+    const monthBookings = period === 'month' ? bookings : await prisma.booking.findMany({
+      where: { status: 'CONFIRMED', checkIn: { gte: monthStart, lte: monthEnd } },
+      select: { checkIn: true, checkOut: true },
+    });
     const occupied = new Set();
-    for (const b of bookings) {
+    for (const b of monthBookings) {
       const cur = new Date(b.checkIn);
       while (cur < new Date(b.checkOut)) {
-        if (cur >= start && cur <= end) occupied.add(cur.toISOString().split('T')[0]);
+        const d = cur.toISOString().split('T')[0];
+        if (cur >= monthStart && cur <= monthEnd) occupied.add(d);
         cur.setDate(cur.getDate() + 1);
       }
     }
-    const taxaOcupacao = (occupied.size / totalDias) * 100;
-    const ticketMedio = qtdReservas > 0 ? faturamentoTotal / qtdReservas : 0;
+    const taxaOcupacao = Math.round((occupied.size / totalDias) * 1000) / 10;
 
-    const sourceMap = {};
     const LABELS = { DIRECT: 'Direto', AIRBNB: 'Airbnb', BOOKING_COM: 'Booking.com' };
+    const sourceMap = {};
     for (const b of bookings) {
       const src = b.source || 'DIRECT';
       if (!sourceMap[src]) sourceMap[src] = { total: 0, qtd: 0 };
@@ -372,27 +428,35 @@ router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
       sourceMap[src].qtd += 1;
     }
     const porOrigem = Object.entries(sourceMap).map(([origem, data]) => ({
-      origem: LABELS[origem] || origem,
-      total: data.total,
-      qtd: data.qtd,
+      origem: LABELS[origem] || origem, total: data.total, qtd: data.qtd,
     }));
 
-    const porMes = [];
+    // 6-month history: single batch query then group in-memory
+    const histStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const histBookings = await prisma.booking.findMany({
+      where: { status: 'CONFIRMED', checkIn: { gte: histStart, lte: monthEnd } },
+      select: { totalAmount: true, checkIn: true },
+    });
+    const monthMap = {};
     for (let i = 5; i >= 0; i--) {
-      const ms = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const me = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
-      const mBookings = await prisma.booking.findMany({
-        where: { status: { in: ['CONFIRMED'] }, checkIn: { gte: ms, lte: me } },
-        select: { totalAmount: true },
-      });
-      const total = mBookings.reduce((s, b) => s + parseFloat(b.totalAmount?.toString() || '0'), 0);
-      porMes.push({ mes: ms.toLocaleDateString('pt-BR', { month: 'short' }), total });
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      monthMap[`${d.getFullYear()}-${d.getMonth()}`] = {
+        mes: d.toLocaleDateString('pt-BR', { month: 'short' }),
+        total: 0,
+      };
     }
+    for (const b of histBookings) {
+      const d = new Date(b.checkIn);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      if (monthMap[key]) monthMap[key].total += parseFloat(b.totalAmount?.toString() || '0');
+    }
+    const porMes = Object.values(monthMap);
 
     res.json({
-      periodo: start.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+      periodo: periodoLabel,
       faturamentoTotal,
-      variacaoPct: null,
+      upsellRevenue: upsellRevenue || null,
+      variacaoPct,
       qtdReservas,
       diariamedia,
       taxaOcupacao,
@@ -1327,14 +1391,16 @@ router.post('/reservas/:id/mensagens', requireRole('ADMIN', 'GOVERNANTA'), async
 // required fields (guestPhone + guestCount) are present.
 router.patch('/reservas/:id/dados', requireRole('ADMIN'), async (req, res) => {
   const schema = z.object({
-    guestName:  z.string().min(1).optional(),
-    guestEmail: z.string().email().optional(),
-    guestPhone: z.string().min(1).optional(),
-    guestCpf:   z.string().optional(),
-    guestCount: z.number().int().min(1).optional(),
-    hasPet:     z.boolean().optional(),
-    totalAmount: z.number().min(0).optional(),
-    notes:      z.string().optional(),
+    guestName:        z.string().min(1).optional(),
+    guestEmail:       z.string().email().optional(),
+    guestPhone:       z.string().min(1).optional(),
+    guestCpf:         z.string().optional(),
+    guestCount:       z.number().int().min(1).optional(),
+    hasPet:           z.boolean().optional(),
+    totalAmount:      z.number().min(0).optional(),
+    grossAmount:      z.number().min(0).optional(),
+    commissionAmount: z.number().min(0).optional(),
+    notes:            z.string().optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -1347,13 +1413,16 @@ router.patch('/reservas/:id/dados', requireRole('ADMIN'), async (req, res) => {
   if (Object.keys(updates).length === 0) {
     return res.status(400).json({ error: 'Nenhum campo para atualizar' });
   }
-  if (updates.totalAmount !== undefined) updates.totalAmount = updates.totalAmount.toString();
+  // Decimal fields must be cast to string for Prisma
+  if (updates.totalAmount      !== undefined) updates.totalAmount      = updates.totalAmount.toString();
+  if (updates.grossAmount      !== undefined) updates.grossAmount      = updates.grossAmount.toString();
+  if (updates.commissionAmount !== undefined) updates.commissionAmount = updates.commissionAmount.toString();
 
   try {
     const booking = await prisma.booking.update({
       where: { id: req.params.id },
       data:  updates,
-      include: { user: { select: { name: true } } },
+      include: { user: { select: { name: true } }, upsells: true },
     });
 
     // Auto-complete OTA task if required fields are now filled
@@ -1364,6 +1433,156 @@ router.patch('/reservas/:id/dados', requireRole('ADMIN'), async (req, res) => {
     if (err.code === 'P2025') return res.status(404).json({ error: 'Reserva não encontrada' });
     console.error('[staff-portal] PATCH reservas/:id/dados error:', err);
     res.status(500).json({ error: 'Erro ao atualizar dados da reserva' });
+  }
+});
+
+// ── POST /api/staff/reservas/:id/upsells ─────────────────────────────────────
+router.post('/reservas/:id/upsells', requireRole('ADMIN'), async (req, res) => {
+  const schema = z.object({
+    description: z.string().min(1),
+    amount:      z.number().min(0),
+    receivedAt:  z.string().optional(),
+    notes:       z.string().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.errors });
+
+  try {
+    // Verify booking exists
+    const exists = await prisma.booking.findUnique({ where: { id: req.params.id }, select: { id: true } });
+    if (!exists) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    const upsell = await prisma.bookingUpsell.create({
+      data: {
+        bookingId:   req.params.id,
+        description: parsed.data.description,
+        amount:      parsed.data.amount.toString(),
+        receivedAt:  parsed.data.receivedAt ? new Date(parsed.data.receivedAt) : null,
+        notes:       parsed.data.notes || null,
+      },
+    });
+    res.status(201).json({
+      id:          upsell.id,
+      description: upsell.description,
+      amount:      parseFloat(upsell.amount.toString()),
+      receivedAt:  upsell.receivedAt?.toISOString() || null,
+      notes:       upsell.notes || null,
+    });
+  } catch (err) {
+    console.error('[staff-portal] POST upsells error:', err);
+    res.status(500).json({ error: 'Erro ao adicionar upsell' });
+  }
+});
+
+// ── DELETE /api/staff/reservas/:id/upsells/:uid ───────────────────────────────
+router.delete('/reservas/:id/upsells/:uid', requireRole('ADMIN'), async (req, res) => {
+  try {
+    await prisma.bookingUpsell.delete({ where: { id: req.params.uid } });
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Upsell não encontrado' });
+    console.error('[staff-portal] DELETE upsell error:', err);
+    res.status(500).json({ error: 'Erro ao remover upsell' });
+  }
+});
+
+// ── GET /api/staff/reservas/:id/custos ────────────────────────────────────────
+// Returns per-booking cost breakdown: commission, cleaning, fixed costs.
+// These are computed on demand so they always reflect current expense data.
+router.get('/reservas/:id/custos', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true, source: true, totalAmount: true, commissionAmount: true,
+        grossAmount: true, checkIn: true, checkOut: true, nights: true,
+        isInvoiceAggregate: true, propertyId: true,
+      },
+    });
+    if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    const PLATFORM_FEES = { AIRBNB: 0.035, BOOKING_COM: 0.13, DIRECT: 0 };
+    const feeRate = PLATFORM_FEES[booking.source] ?? 0;
+    const net = parseFloat(booking.totalAmount?.toString() || '0');
+
+    // Commission: use stored value or estimate
+    const taxaPlataforma = booking.commissionAmount
+      ? parseFloat(booking.commissionAmount.toString())
+      : (feeRate > 0 ? Math.round(net * feeRate / (1 - feeRate) * 100) / 100 : 0);
+    const commissionSource = booking.commissionAmount ? 'REAL' : (feeRate > 0 ? 'ESTIMADO' : 'N/A');
+
+    // Cleaning: look for SERVICOS_LIMPEZA expense near checkOut
+    const checkOut = new Date(booking.checkOut);
+    const cleaningWindow = {
+      gte: new Date(checkOut.getTime() - 86400000),
+      lte: new Date(checkOut.getTime() + 4 * 86400000),
+    };
+    const cleaningExpense = await prisma.expense.findFirst({
+      where: { propertyId: booking.propertyId, category: 'SERVICOS_LIMPEZA', date: cleaningWindow },
+      orderBy: { date: 'asc' },
+      select: { amount: true, date: true, payee: true },
+    });
+
+    let custoLimpeza, limpezaSource;
+    if (cleaningExpense) {
+      custoLimpeza = parseFloat(cleaningExpense.amount.toString());
+      limpezaSource = 'REAL';
+    } else {
+      // Average cleaning cost from recent history
+      const cleaningAgg = await prisma.expense.aggregate({
+        where: { propertyId: booking.propertyId, category: 'SERVICOS_LIMPEZA' },
+        _avg: { amount: true },
+      });
+      custoLimpeza = cleaningAgg._avg.amount ? parseFloat(cleaningAgg._avg.amount.toString()) : 270;
+      limpezaSource = 'ESTIMADO';
+    }
+
+    // Fixed costs: ENERGIA, INTERNET, CONDOMINIO, IMPOSTOS for the check-in month
+    const checkIn = new Date(booking.checkIn);
+    const monthStart = new Date(checkIn.getFullYear(), checkIn.getMonth(), 1);
+    const monthEnd   = new Date(checkIn.getFullYear(), checkIn.getMonth() + 1, 0, 23, 59, 59);
+
+    const [fixedAgg, monthBookingCount] = await Promise.all([
+      prisma.expense.aggregate({
+        where: {
+          propertyId: booking.propertyId,
+          category: { in: ['ENERGIA_ELETRICA', 'INTERNET', 'CONDOMINIO', 'IMPOSTOS'] },
+          date: { gte: monthStart, lte: monthEnd },
+        },
+        _sum: { amount: true },
+      }),
+      prisma.booking.count({
+        where: {
+          propertyId: booking.propertyId,
+          status: 'CONFIRMED',
+          checkIn: { gte: monthStart, lte: monthEnd },
+          isInvoiceAggregate: false,
+        },
+      }),
+    ]);
+
+    const totalFixed = fixedAgg._sum.amount ? parseFloat(fixedAgg._sum.amount.toString()) : 0;
+    const custoFixo = monthBookingCount > 0 ? Math.round(totalFixed / monthBookingCount * 100) / 100 : 0;
+
+    const custoTotal = taxaPlataforma + (booking.isInvoiceAggregate ? 0 : custoLimpeza + custoFixo);
+    const resultadoLiquido = net - custoTotal;
+
+    res.json({
+      net,
+      gross: booking.grossAmount ? parseFloat(booking.grossAmount.toString()) : null,
+      commission:       taxaPlataforma,
+      commissionSource,
+      commissionRate:   net > 0 ? Math.round(taxaPlataforma / (net + taxaPlataforma) * 10000) / 100 : 0,
+      custoLimpeza:     booking.isInvoiceAggregate ? 0 : custoLimpeza,
+      limpezaSource:    booking.isInvoiceAggregate ? 'N/A' : limpezaSource,
+      custoFixo:        booking.isInvoiceAggregate ? 0 : custoFixo,
+      custoTotal,
+      resultadoLiquido,
+      margem:           net > 0 ? Math.round(resultadoLiquido / net * 10000) / 100 : 0,
+    });
+  } catch (err) {
+    console.error('[staff-portal] GET /custos error:', err);
+    res.status(500).json({ error: 'Erro ao calcular custos' });
   }
 });
 

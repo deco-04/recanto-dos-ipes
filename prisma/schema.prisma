@@ -102,6 +102,7 @@ model Booking {
   coGuests        BookingGuest[]
   messages        GuestMessage[]
   guestList       GuestListEntry[]
+  upsells         BookingUpsell[]
 
   @@index([checkIn, checkOut])
   @@index([guestEmail])
@@ -115,6 +116,22 @@ enum BookingStatus {
   CANCELLED
   REFUNDED
   COMPLETED
+}
+
+// ── Booking Upsells ───────────────────────────────────────────────────────────
+// Additional charges after booking (e.g. direct PIX from guest for add-ons)
+model BookingUpsell {
+  id          String    @id @default(cuid())
+  bookingId   String
+  description String    // "Passeio de quadriciclo", "Limpeza extra", etc.
+  amount      Decimal   @db.Decimal(10, 2)
+  receivedAt  DateTime? // null = expected/pending; set = confirmed received
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
 }
 
 enum BookingSource {
@@ -188,6 +205,7 @@ model Property {
   phone          String?      // e.g. "+55 31 2391-6688"
   websiteUrl     String?      // e.g. "https://sitiorecantodosipes.com"
   active         Boolean      @default(true)
+  pricingConfig  Json?        // { tiers: {LOW,MID,HIGH_MID,PEAK}, extraGuestPerNight, cleaningFee, baseGuests }
   createdAt      DateTime     @default(now())
 
   cabins        Cabin[]

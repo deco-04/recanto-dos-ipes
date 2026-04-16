@@ -657,4 +657,58 @@ router.patch('/ia/precos/:id', async (req, res) => {
   return res.json(updated);
 });
 
+// ── GET /api/admin/staff/properties/:id/pricing ───────────────────────────────
+router.get('/properties/:id/pricing', async (req, res) => {
+  try {
+    const prop = await prisma.property.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true, pricingConfig: true },
+    });
+    if (!prop) return res.status(404).json({ error: 'Propriedade não encontrada' });
+
+    // Return stored config or defaults
+    const defaults = {
+      tiers: { LOW: 720, MID: 850, HIGH_MID: 1050, PEAK: 1300 },
+      extraGuestPerNight: 50,
+      cleaningFee: 270,
+      baseGuests: 11,
+    };
+    res.json({ id: prop.id, name: prop.name, pricing: prop.pricingConfig || defaults });
+  } catch (err) {
+    console.error('[admin-staff] GET pricing error:', err);
+    res.status(500).json({ error: 'Erro ao buscar configuração de preços' });
+  }
+});
+
+// ── PATCH /api/admin/staff/properties/:id/pricing ─────────────────────────────
+router.patch('/properties/:id/pricing', async (req, res) => {
+  const schema = z.object({
+    tiers: z.object({
+      LOW:      z.number().min(0),
+      MID:      z.number().min(0),
+      HIGH_MID: z.number().min(0),
+      PEAK:     z.number().min(0),
+    }),
+    extraGuestPerNight: z.number().min(0),
+    cleaningFee:        z.number().min(0),
+    baseGuests:         z.number().int().min(1),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.errors });
+
+  try {
+    const prop = await prisma.property.update({
+      where: { id: req.params.id },
+      data:  { pricingConfig: parsed.data },
+      select: { id: true, name: true, pricingConfig: true },
+    });
+    res.json({ id: prop.id, name: prop.name, pricing: prop.pricingConfig });
+  } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Propriedade não encontrada' });
+    console.error('[admin-staff] PATCH pricing error:', err);
+    res.status(500).json({ error: 'Erro ao salvar configuração de preços' });
+  }
+});
+
 module.exports = router;
