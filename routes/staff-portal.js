@@ -1964,7 +1964,7 @@ async function getKPIs(propertyId, start, end) {
     BOOKING_COM: { receita: 0, qtd: 0, commissionTotal: 0 },
     DIRECT:      { receita: 0, qtd: 0, commissionTotal: 0 },
   };
-  const FALLBACK_RATES = { AIRBNB: 0.0458, BOOKING_COM: 0.13, DIRECT: 0 };
+  const FALLBACK_RATES = { AIRBNB: 0.035, BOOKING_COM: 0.13, DIRECT: 0 };
   for (const b of bookings) {
     const src = b.source || 'DIRECT';
     if (!canais[src]) canais[src] = { receita: 0, qtd: 0, commissionTotal: 0 };
@@ -2078,7 +2078,7 @@ function computeInsights(current, previous, historico, allTime) {
     const airbnbTicket = airbnbReceita / airbnbQtd;
     const bcomTicket   = bcomReceita   / bcomQtd;
     // Net-of-fee ticket
-    const airbnbNetTicket = airbnbTicket * (1 - 0.0458 / (1 - 0.0458));
+    const airbnbNetTicket = airbnbTicket * (1 - 0.035 / (1 - 0.035));
     const bcomNetTicket   = bcomTicket   * (1 - 0.13   / (1 - 0.13));
     if (bcomNetTicket < airbnbNetTicket * 0.7) {
       insights.push({
@@ -2257,9 +2257,9 @@ router.get('/financeiro/dre', requireRole('ADMIN'), async (req, res) => {
       canais: {
         // fee = host commission deducted from our payout (already reflected in totalAmount)
         // guestFeeRate = service fee the OTA charges the guest on top of our listed price
-        // Airbnb host fee: 4.578% verified from actual CSV (service_fee ÷ gross_earnings)
+        // Airbnb host fee: avg 3.498% measured across 57 bookings (backfill-airbnb-commission.js)
         // Booking.com host commission: exactly 13.0% across all 14 invoices
-        airbnb:  { receita: current.canais.AIRBNB?.receita     || 0, reservas: current.canais.AIRBNB?.qtd     || 0, fee: 0.0458, guestFeeRate: 0.14 },
+        airbnb:  { receita: current.canais.AIRBNB?.receita     || 0, reservas: current.canais.AIRBNB?.qtd     || 0, fee: 0.035, guestFeeRate: 0.14 },
         booking: { receita: current.canais.BOOKING_COM?.receita || 0, reservas: current.canais.BOOKING_COM?.qtd || 0, fee: 0.13,   guestFeeRate: 0.00 },
         direta:  { receita: current.canais.DIRECT?.receita      || 0, reservas: current.canais.DIRECT?.qtd      || 0, fee: 0.00,   guestFeeRate: 0.00 },
       },
@@ -2381,9 +2381,9 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
     });
     if (!prop) return res.status(404).json({ error: 'Propriedade não encontrada' });
 
-    // Airbnb 4.58% verified from actual CSV (service_fee ÷ gross_earnings).
+    // Airbnb avg 3.498% measured across 57 bookings (backfill-airbnb-commission.js).
     // Booking.com 13.00% exact from all 14 invoices.
-    const PLATFORM_FEES = { AIRBNB: 0.0458, BOOKING_COM: 0.13, DIRECT: 0 };
+    const PLATFORM_FEES = { AIRBNB: 0.035, BOOKING_COM: 0.13, DIRECT: 0 };
     const FIXED_CATS = ['ENERGIA_ELETRICA', 'INTERNET', 'CONDOMINIO', 'IMPOSTOS'];
 
     const [bookings, cleaningExps] = await Promise.all([
