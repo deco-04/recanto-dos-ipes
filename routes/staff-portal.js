@@ -155,6 +155,7 @@ function serializeBooking(b) {
     children3to5:   b.children3to5   ?? 0,
     childrenOver6:  b.childrenOver6  ?? 0,
     childrenFee:    b.childrenFee != null ? Number(b.childrenFee) : 0,
+    appFee:         b.appFee != null ? Number(b.appFee) : 0,
     isInvoiceAggregate: b.isInvoiceAggregate || false,
     otaTaskId: b.otaTaskId || null,
     createdAt: b.createdAt?.toISOString() || null,
@@ -229,6 +230,7 @@ router.patch('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
     checkOut:    z.string().optional(),
     guestCount:       z.number().int().min(1).optional(),
     totalAmount:      z.number().min(0).optional(),
+    appFee:           z.number().min(0).optional(),
     hasPet:           z.boolean().optional(),
     childrenUnder3:   z.number().int().min(0).optional(),
     children3to5:     z.number().int().min(0).optional(),
@@ -239,7 +241,7 @@ router.patch('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.errors });
 
   const { source, status, notes, guestName, guestEmail, guestPhone,
-          checkIn, checkOut, guestCount, totalAmount, hasPet,
+          checkIn, checkOut, guestCount, totalAmount, appFee, hasPet,
           childrenUnder3, children3to5, childrenOver6 } = parsed.data;
 
   const updates = {};
@@ -251,6 +253,7 @@ router.patch('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
   if (guestPhone  !== undefined) updates.guestPhone  = guestPhone;
   if (guestCount  !== undefined) updates.guestCount  = guestCount;
   if (totalAmount !== undefined) updates.totalAmount = totalAmount;
+  if (appFee      !== undefined) updates.appFee      = appFee;
   if (hasPet           !== undefined) updates.hasPet           = hasPet;
   if (childrenUnder3   !== undefined) updates.childrenUnder3   = childrenUnder3;
   if (children3to5     !== undefined) updates.children3to5     = children3to5;
@@ -309,6 +312,15 @@ router.patch('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
       data: updates,
       include: { user: { select: { name: true } }, upsells: true },
     });
+
+    // Fire-and-forget: if guest name was updated and the booking has a phone,
+    // try to update the matching GHL contact's name. Errors are logged, never block the response.
+    if (guestName !== undefined && booking.guestPhone) {
+      ghlClient.findContactByPhone(booking.guestPhone)
+        .then(c => c ? ghlClient.updateContact(c.id, { name: guestName }) : null)
+        .catch(e => console.error('[staff-portal] PATCH reservas GHL sync error:', e.message));
+    }
+
     res.json(serializeBooking(booking));
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'Reserva não encontrada' });
@@ -360,7 +372,7 @@ router.post('/reservas', requireRole('ADMIN'), async (req, res) => {
         extraGuestFee:    0,
         petFee:           0,
         source:           sourceMap[source],
-        status:           'CONFIRMED',
+        status:           source === 'DIRECT' ? 'REQUESTED' : 'CONFIRMED',
         notes,
         hasPet,
         propertyId:       propertyId || null,
