@@ -2,10 +2,11 @@
 -- Uses stable string IDs so routes/mailer can reference them as constants.
 -- Idempotent: ON CONFLICT DO NOTHING safe to re-run.
 
-INSERT INTO "Property" ("id", "name", "type", "city", "state", "websiteUrl", "active", "createdAt")
+INSERT INTO "Property" ("id", "name", "slug", "type", "city", "state", "websiteUrl", "active", "createdAt")
 VALUES (
   'cds_property_main',
   'Cabanas da Serra',
+  'cabanas-da-serra',
   'CABANA_COMPLEX',
   'Jaboticatubas',
   'MG',
