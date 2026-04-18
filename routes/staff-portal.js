@@ -15,6 +15,7 @@ const { sendPorteiroMessage }  = require('../lib/ghl-webhook');
 const { sendPushToRole, sendPushToStaff } = require('../lib/push');
 const { requireStaff, requireRole } = require('../lib/staff-auth-middleware');
 const { toE164 } = require('../lib/phone');
+const ghlClient  = require('../lib/ghl-client');
 
 const router = express.Router();
 
@@ -3269,6 +3270,98 @@ router.put('/admin/pricing-tiers/:id', requireRole('ADMIN'), async (req, res) =>
     if (err.code === 'P2025') return res.status(404).json({ error: 'Tier não encontrado' });
     console.error('[staff-portal] PUT pricing-tiers/:id error:', err);
     res.status(500).json({ error: 'Erro ao atualizar tier de preço' });
+  }
+});
+
+// ── GET /api/staff/contacts/initiable ────────────────────────────────────────
+// Returns a merged list of contacts you can start a new conversation with:
+// distinct guests from Booking table (with phones) merged with GHL contacts.
+// Supports search, source filter, and recency vs alphabetical sort.
+router.get('/contacts/initiable', requireRole('ADMIN'), async (req, res) => {
+  const sourceFilter = String(req.query.source || 'all').toUpperCase();   // ALL | DIRECT | AIRBNB | BOOKING_COM | GHL_ONLY
+  const sort         = String(req.query.sort || 'recency').toLowerCase(); // recency | alphabetical
+  const query        = String(req.query.query || '').trim().toLowerCase();
+
+  try {
+    // 1. Distinct booking guests with phones, ordered by most recent checkIn first.
+    const bookingRows = await prisma.booking.findMany({
+      where: { guestPhone: { not: null } },
+      select: {
+        guestName: true,
+        guestEmail: true,
+        guestPhone: true,
+        source: true,
+        checkIn: true,
+      },
+      orderBy: { checkIn: 'desc' },
+      distinct: ['guestPhone'],
+    });
+
+    // 2. GHL contacts via the new client.
+    const ghlContacts = await ghlClient.fetchContacts({ limit: 200, query });
+
+    // 3. Merge by phone (booking record wins when both exist — has source info).
+    const byPhone = new Map();
+    for (const b of bookingRows) {
+      const phone = (b.guestPhone || '').replace(/\D/g, '');
+      if (!phone) continue;
+      byPhone.set(phone, {
+        id: `booking-${phone}`,
+        name: b.guestName || 'Hóspede',
+        phone,
+        email: b.guestEmail || null,
+        source: b.source, // 'DIRECT' | 'AIRBNB' | 'BOOKING_COM'
+        lastSeen: b.checkIn ? b.checkIn.toISOString() : null,
+        channels: ['WHATSAPP', ...(b.guestEmail ? ['EMAIL'] : [])],
+      });
+    }
+    for (const g of ghlContacts) {
+      const phone = (g.phone || '').replace(/\D/g, '');
+      if (!phone) continue;
+      if (byPhone.has(phone)) continue; // booking row already wins
+      byPhone.set(phone, {
+        id: g.id,
+        name: g.name,
+        phone,
+        email: g.email,
+        source: 'GHL_ONLY',
+        lastSeen: g.lastActivityAt,
+        channels: ['WHATSAPP', ...(g.email ? ['EMAIL'] : [])],
+      });
+    }
+
+    let contacts = Array.from(byPhone.values());
+
+    // 4. Apply source filter.
+    if (sourceFilter !== 'ALL') {
+      contacts = contacts.filter(c => c.source === sourceFilter);
+    }
+
+    // 5. Apply text search.
+    if (query) {
+      contacts = contacts.filter(c =>
+        (c.name || '').toLowerCase().includes(query) ||
+        (c.phone || '').toLowerCase().includes(query) ||
+        (c.email || '').toLowerCase().includes(query)
+      );
+    }
+
+    // 6. Sort.
+    if (sort === 'alphabetical') {
+      contacts.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } else {
+      contacts.sort((a, b) => {
+        if (!a.lastSeen) return 1;
+        if (!b.lastSeen) return -1;
+        return new Date(b.lastSeen) - new Date(a.lastSeen);
+      });
+    }
+
+    // 7. Cap at 200.
+    res.json({ contacts: contacts.slice(0, 200) });
+  } catch (err) {
+    console.error('[staff-portal] GET contacts/initiable error:', err);
+    res.status(500).json({ error: 'Erro ao buscar contatos' });
   }
 });
 
