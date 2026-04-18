@@ -581,20 +581,27 @@ enum TaskStatus {
 
 // ── Unified Inbox (SP4) ───────────────────────────────────────────────────────
 model Conversation {
-  id               String    @id @default(cuid())
+  id               String             @id @default(cuid())
   propertyId       String
-  property         Property  @relation(fields: [propertyId], references: [id])
+  property         Property           @relation(fields: [propertyId], references: [id])
   contactName      String
   contactPhone     String?
   contactEmail     String?
   contactInstagram String?
   avatarUrl        String?
+  status           ConversationStatus @default(OPEN)
   lastMessageAt    DateTime?
-  unreadCount      Int       @default(0)
+  unreadCount      Int                @default(0)
   messages         InboxMessage[]
-  createdAt        DateTime  @default(now())
+  createdAt        DateTime           @default(now())
 
   @@index([propertyId, lastMessageAt])
+  @@index([propertyId, status])
+}
+
+enum ConversationStatus {
+  OPEN
+  RESOLVED
 }
 
 model InboxMessage {

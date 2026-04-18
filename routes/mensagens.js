@@ -29,6 +29,7 @@ function serializeConversation(c) {
     contactEmail:    c.contactEmail,
     contactInstagram: c.contactInstagram,
     avatarUrl:       c.avatarUrl,
+    status:          c.status ?? 'OPEN',
     channel:         last?.channel ?? 'WHATSAPP',
     lastMessage:     last?.body ?? null,
     lastMessageAt:   c.lastMessageAt,
@@ -68,7 +69,7 @@ router.get('/unread-count', requireStaff, async (req, res) => {
 // ── GET / — list conversations ───────────────────────────────────────────────
 router.get('/', requireStaff, async (req, res) => {
   try {
-    const { channel, q, page = '1', limit = '30' } = req.query;
+    const { channel, status, q, page = '1', limit = '30' } = req.query;
     const parsedPage  = Math.max(1, parseInt(page) || 1);
     const parsedLimit = Math.min(100, Math.max(1, parseInt(limit) || 30));
     const skip = (parsedPage - 1) * parsedLimit;
@@ -76,6 +77,12 @@ router.get('/', requireStaff, async (req, res) => {
     const where = {};
     if (channel && channel !== 'ALL') {
       where.messages = { some: { channel } };
+    }
+    // status filter: 'OPEN' | 'RESOLVED' — defaults to OPEN when not supplied
+    if (status && status !== 'ALL') {
+      where.status = status;
+    } else if (!status) {
+      where.status = 'OPEN';
     }
     if (q && q.trim()) {
       const search = q.trim();
@@ -110,6 +117,28 @@ router.get('/', requireStaff, async (req, res) => {
   } catch (err) {
     console.error('[mensagens] GET /conversas error:', err);
     res.status(500).json({ error: 'Erro ao carregar conversas' });
+  }
+});
+
+// ── GET /by-phone — find conversation by contact phone ───────────────────────
+router.get('/by-phone', requireStaff, async (req, res) => {
+  const { phone } = req.query;
+  if (!phone) return res.status(400).json({ error: 'phone é obrigatório' });
+
+  try {
+    const property = await prisma.property.findFirst({ where: { active: true } });
+    if (!property) return res.status(500).json({ error: 'Nenhuma propriedade ativa' });
+
+    const conversation = await prisma.conversation.findFirst({
+      where: { propertyId: property.id, contactPhone: String(phone) },
+      include: { messages: { orderBy: { sentAt: 'desc' }, take: 1 } },
+    });
+
+    if (!conversation) return res.status(404).json({ error: 'Conversa não encontrada' });
+    res.json(serializeConversation(conversation));
+  } catch (err) {
+    console.error('[mensagens] GET by-phone error:', err);
+    res.status(500).json({ error: 'Erro ao buscar conversa' });
   }
 });
 
@@ -310,6 +339,27 @@ router.post('/:id/mensagens', requireStaff, async (req, res) => {
   } catch (err) {
     console.error('[mensagens] POST mensagens error:', err);
     res.status(500).json({ error: err.message || 'Erro ao enviar mensagem' });
+  }
+});
+
+// ── PATCH /:id/status — open or resolve a conversation ───────────────────────
+router.patch('/:id/status', requireStaff, async (req, res) => {
+  const { status } = req.body;
+  const validStatuses = ['OPEN', 'RESOLVED'];
+  if (!validStatuses.includes(status)) {
+    return res.status(400).json({ error: `status deve ser um de: ${validStatuses.join(', ')}` });
+  }
+
+  try {
+    const conversation = await prisma.conversation.update({
+      where: { id: req.params.id },
+      data:  { status },
+      include: { messages: { orderBy: { sentAt: 'desc' }, take: 1 } },
+    });
+    res.json(serializeConversation(conversation));
+  } catch (err) {
+    console.error('[mensagens] PATCH status error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar status' });
   }
 });
 
