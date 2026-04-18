@@ -360,7 +360,7 @@ router.post('/reservas', requireRole('ADMIN'), async (req, res) => {
         extraGuestFee:    0,
         petFee:           0,
         source:           sourceMap[source],
-        status:           'CONFIRMED',
+        status:           source === 'DIRECT' ? 'REQUESTED' : 'CONFIRMED',
         notes,
         hasPet,
         propertyId:       propertyId || null,
