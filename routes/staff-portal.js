@@ -312,6 +312,15 @@ router.patch('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
       data: updates,
       include: { user: { select: { name: true } }, upsells: true },
     });
+
+    // Fire-and-forget: if guest name was updated and the booking has a phone,
+    // try to update the matching GHL contact's name. Errors are logged, never block the response.
+    if (guestName !== undefined && booking.guestPhone) {
+      ghlClient.findContactByPhone(booking.guestPhone)
+        .then(c => c ? ghlClient.updateContact(c.id, { name: guestName }) : null)
+        .catch(e => console.error('[staff-portal] PATCH reservas GHL sync error:', e.message));
+    }
+
     res.json(serializeBooking(booking));
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'Reserva não encontrada' });
