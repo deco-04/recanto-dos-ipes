@@ -224,6 +224,7 @@ model Property {
   contentPosts       ContentPost[]
   brandContentConfigs BrandContentConfig[]
   briefings     DailyBriefing[]           @relation("PropertyBriefings")
+  obras         Obra[]                    @relation("PropertyObras")
 }
 
 enum PropertyType {
@@ -282,6 +283,8 @@ model StaffMember {
   contentComments  ContentComment[]
   ticketComments   TicketComment[]
   activityLogs     StaffActivityLog[]
+  obrasCreated     Obra[]             @relation("ObraCreator")
+  obraUpdates      ObraUpdate[]       @relation("ObraUpdateAuthor")
 }
 
 enum StaffRole {
@@ -501,6 +504,7 @@ model Fornecedor {
   updatedAt DateTime @updatedAt
 
   expenses  Expense[]
+  obras     Obra[]    @relation("FornecedorObras")
 }
 
 // ── Expenses ──────────────────────────────────────────────────────────────────
@@ -540,14 +544,17 @@ model Expense {
   source      ExpenseSource   @default(MANUAL)
   bankRef     String?         @unique  // dedup key: "DD/MM/YYYY|payee|amount"
   supplierId  String?
+  obraId      String?         // optionally linked to an Obra project
   notes       String?
   createdAt   DateTime        @default(now())
 
   property   Property    @relation(fields: [propertyId], references: [id])
   supplier   Fornecedor? @relation(fields: [supplierId], references: [id])
+  obra       Obra?       @relation("ObraExpenses", fields: [obraId], references: [id])
 
   @@index([propertyId, date])
   @@index([category])
+  @@index([obraId])
 }
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────
@@ -911,6 +918,77 @@ enum ContentStage {
   APROVADO
   AGENDADO
   PUBLICADO
+}
+
+// ── Obra Management (Phase 5) ─────────────────────────────────────────────────
+model Obra {
+  id                String     @id @default(cuid())
+  propertyId        String
+  property          Property   @relation("PropertyObras", fields: [propertyId], references: [id])
+  title             String
+  description       String?    @db.Text
+  status            ObraStatus @default(PLANEJAMENTO)
+  startDate         DateTime?  @db.Date
+  estimatedEndDate  DateTime?  @db.Date
+  actualEndDate     DateTime?  @db.Date
+  orcamento         Decimal?   @db.Decimal(10, 2)  // planned budget
+  contractorName    String?
+  contractorPhone   String?
+  fornecedorId      String?
+  fornecedor        Fornecedor? @relation("FornecedorObras", fields: [fornecedorId], references: [id])
+  createdById       String
+  createdBy         StaffMember @relation("ObraCreator", fields: [createdById], references: [id])
+  etapas            ObraEtapa[]
+  expenses          Expense[]   @relation("ObraExpenses")
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([propertyId])
+}
+
+enum ObraStatus {
+  PLANEJAMENTO
+  EM_ANDAMENTO
+  PAUSADA
+  CONCLUIDA
+  CANCELADA
+}
+
+model ObraEtapa {
+  id          String          @id @default(cuid())
+  obraId      String
+  obra        Obra            @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  title       String
+  description String?         @db.Text
+  order       Int
+  status      ObraEtapaStatus @default(PENDENTE)
+  photoUrls   Json            @default("[]")
+  startedAt   DateTime?
+  concluidaAt DateTime?
+  updates     ObraUpdate[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([obraId])
+}
+
+enum ObraEtapaStatus {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDA
+}
+
+model ObraUpdate {
+  id        String      @id @default(cuid())
+  etapaId   String
+  etapa     ObraEtapa   @relation(fields: [etapaId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    StaffMember @relation("ObraUpdateAuthor", fields: [authorId], references: [id])
+  body      String      @db.Text
+  photoUrls Json        @default("[]")
+  createdAt DateTime    @default(now())
+
+  @@index([etapaId])
 }
 
 // ── Push Notifications ────────────────────────────────────────────────────────
