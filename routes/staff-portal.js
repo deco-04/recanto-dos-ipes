@@ -1813,10 +1813,16 @@ router.post('/reservas/:id/confirmar', requireRole('ADMIN'), async (req, res) =>
     }
 
     // Fire confirmation messages (non-blocking)
-    const { sendBookingConfirmation }  = require('../lib/mailer');
-    const { notifyBookingConfirmed }   = require('../lib/ghl-webhook');
-    const { sendPushToUser }           = require('../lib/push');
-    sendBookingConfirmation({ booking: confirmed }).catch(e => console.error('[mailer] confirm email error:', e.message));
+    const {
+      sendBookingConfirmation,
+      sendCDSBookingConfirmation,
+    } = require('../lib/mailer');
+    const { notifyBookingConfirmed } = require('../lib/ghl-webhook');
+    const { sendPushToUser }         = require('../lib/push');
+    const confirmFn = confirmed.propertyId === 'cds_property_main'
+      ? sendCDSBookingConfirmation
+      : sendBookingConfirmation;
+    confirmFn({ booking: confirmed }).catch(e => console.error('[mailer] confirm email error:', e.message));
     notifyBookingConfirmed(confirmed).catch(e => console.error('[ghl] confirm webhook error:', e.message));
     if (confirmed.userId) {
       const checkInDate = confirmed.checkIn.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
@@ -1868,10 +1874,16 @@ router.post('/reservas/:id/recusar', requireRole('ADMIN'), async (req, res) => {
     });
 
     // Fire decline messages (non-blocking)
-    const { sendBookingDeclined }   = require('../lib/mailer');
+    const {
+      sendBookingDeclined,
+      sendCDSBookingDeclined,
+    } = require('../lib/mailer');
     const { notifyBookingDeclined } = require('../lib/ghl-webhook');
     const { sendPushToUser }        = require('../lib/push');
-    sendBookingDeclined({ booking: declined, declineReason: message.trim() })
+    const declineFn = declined.propertyId === 'cds_property_main'
+      ? sendCDSBookingDeclined
+      : sendBookingDeclined;
+    declineFn({ booking: declined, declineReason: message.trim() })
       .catch(e => console.error('[mailer] decline email error:', e.message));
     notifyBookingDeclined(declined)
       .catch(e => console.error('[ghl] decline webhook error:', e.message));

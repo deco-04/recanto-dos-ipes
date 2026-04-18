@@ -591,16 +591,39 @@ app.get('/api/config/stripe', (_req, res) => {
   res.json({ publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '' });
 });
 
+// ── CDS host detection ────────────────────────────────────────────────────────
+const CDS_PUBLIC = path.join(ROOT, 'cds-public');
+function isCDS(req) {
+  const host = (req.hostname || '').toLowerCase().replace(/^www\./, '');
+  return host === 'cabanasdaserra.com';
+}
+
+const htmlCacheHeaders = (res, filePath) => {
+  if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+  else res.setHeader('Cache-Control', 'public, max-age=3600');
+};
+
+// ── CDS static assets ─────────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  if (!isCDS(req)) return next();
+  express.static(CDS_PUBLIC, { index: 'index.html', setHeaders: htmlCacheHeaders })(req, res, next);
+});
+
+// ── CDS clean URL routes ──────────────────────────────────────────────────────
+app.get('/booking',            (req, res, next) => isCDS(req) ? res.sendFile(path.join(CDS_PUBLIC, 'booking.html'))            : next());
+app.get('/reserva-solicitada', (req, res, next) => isCDS(req) ? res.sendFile(path.join(CDS_PUBLIC, 'reserva-solicitada.html')) : next());
+
+// ── CDS fallback → index.html ─────────────────────────────────────────────────
+app.use((req, res, next) => {
+  if (!isCDS(req)) return next();
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
+  res.sendFile(path.join(CDS_PUBLIC, 'index.html'));
+});
+
 // ── Main site (HTML — always revalidated) ─────────────────────────────────────
 app.use(express.static(ROOT, {
   index: 'index.html',
-  setHeaders(res, filePath) {
-    if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
-    } else {
-      res.setHeader('Cache-Control', 'public, max-age=3600');
-    }
-  },
+  setHeaders: htmlCacheHeaders,
 }));
 
 // ── Named page routes (clean URLs without .html) ─────────────────────────────

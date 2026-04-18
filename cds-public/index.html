@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cabanas da Serra — Fuga na Natureza, Jaboticatubas MG</title>
+  <meta name="description" content="Duas cabanas exclusivas na Serra do Cipó, Jaboticatubas MG. Perfeitas para casais e famílias pequenas. Reserve diretamente com a gente.">
+  <link rel="icon" type="image/svg+xml" href="/brand/cds-mark-color.svg">
+  <meta name="theme-color" content="#2D5A4A">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/cds-design.css">
+  <style>
+    /* ── Layout ── */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+      padding: 20px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      transition: background 0.4s ease, padding 0.4s ease;
+    }
+    nav.scrolled {
+      background: rgba(45,90,74,0.96);
+      backdrop-filter: blur(12px);
+      padding: 14px 24px;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.2);
+    }
+    .nav-logo img { height: 36px; width: auto; }
+    .nav-cta {
+      background: var(--ambar-500); color: #fff;
+      font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.02em;
+      padding: 10px 22px; border-radius: 999px; text-decoration: none;
+      transition: background 0.2s;
+    }
+    .nav-cta:hover { background: var(--ambar-400); }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100svh;
+      background: linear-gradient(
+        to bottom,
+        rgba(14,31,26,0.15) 0%,
+        rgba(14,31,26,0.1) 30%,
+        rgba(14,31,26,0.55) 70%,
+        rgba(14,31,26,0.82) 100%
+      ),
+      /* Placeholder gradient — replace with real photo */
+      linear-gradient(160deg, #2D5A4A 0%, #1A3D30 40%, #0E2218 100%);
+      background-size: cover;
+      background-position: center;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-end;
+      padding-bottom: 72px; padding-left: 24px; padding-right: 24px;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--ambar-400);
+      margin-bottom: 16px;
+    }
+    .hero-title {
+      font-family: var(--font-serif); font-size: clamp(2.5rem, 8vw, 5rem);
+      font-weight: 900; color: #fff; line-height: 1.05;
+      margin-bottom: 20px;
+    }
+    .hero-sub {
+      font-size: clamp(0.9rem, 2.5vw, 1.1rem); color: rgba(255,255,255,0.82);
+      line-height: 1.65; max-width: 520px; margin-bottom: 36px;
+    }
+    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .hero-btn-primary {
+      background: var(--ambar-500); color: #fff;
+      font-size: 0.9375rem; font-weight: 700; letter-spacing: 0.01em;
+      padding: 15px 32px; border-radius: 999px; text-decoration: none;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .hero-btn-primary:hover { background: var(--ambar-400); transform: translateY(-2px); }
+    .hero-btn-secondary {
+      background: rgba(255,255,255,0.12); color: #fff;
+      font-size: 0.9375rem; font-weight: 600;
+      padding: 15px 32px; border-radius: 999px;
+      border: 1.5px solid rgba(255,255,255,0.35);
+      text-decoration: none; transition: background 0.2s;
+    }
+    .hero-btn-secondary:hover { background: rgba(255,255,255,0.2); }
+
+    /* ── Section ── */
+    section { padding: 80px 24px; max-width: 1080px; margin: 0 auto; }
+
+    .section-eyebrow {
+      font-size: 0.7rem; font-weight: 800; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--ambar-500);
+      margin-bottom: 10px;
+    }
+    .section-title {
+      font-family: var(--font-serif); font-size: clamp(1.75rem, 4vw, 2.75rem);
+      font-weight: 700; color: var(--serra-900); line-height: 1.15;
+    }
+    .section-sub {
+      font-size: 1rem; color: var(--stone-500); line-height: 1.7;
+      max-width: 560px; margin-top: 12px;
+    }
+
+    /* ── Cabin cards ── */
+    .cabins-grid {
+      display: grid; grid-template-columns: 1fr;
+      gap: 28px; margin-top: 48px;
+    }
+    @media (min-width: 700px) { .cabins-grid { grid-template-columns: 1fr 1fr; } }
+
+    .cabin-card {
+      background: #fff; border-radius: 20px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border-subtle);
+      overflow: hidden;
+      transition: box-shadow 0.25s, transform 0.25s;
+    }
+    .cabin-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-3px); }
+
+    .cabin-img {
+      height: 220px;
+      background: linear-gradient(135deg, #2D5A4A, #1A3D30);
+      display: flex; align-items: center; justify-content: center;
+      position: relative; overflow: hidden;
+    }
+    .cabin-img-placeholder {
+      font-size: 3.5rem; opacity: 0.35;
+    }
+    .cabin-img-badge {
+      position: absolute; top: 14px; left: 14px;
+      background: rgba(14,31,26,0.7); color: #fff;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 5px 12px; border-radius: 999px;
+    }
+
+    .cabin-body { padding: 24px; }
+    .cabin-name {
+      font-family: var(--font-serif); font-size: 1.4rem;
+      font-weight: 700; color: var(--serra-800); margin-bottom: 6px;
+    }
+    .cabin-desc { font-size: 0.875rem; color: var(--stone-500); line-height: 1.6; margin-bottom: 20px; }
+
+    .cabin-features {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px;
+    }
+    .cabin-feature {
+      background: var(--cream-200); color: var(--stone-700);
+      font-size: 0.75rem; font-weight: 600; padding: 5px 12px;
+      border-radius: 999px;
+    }
+
+    .cabin-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      border-top: 1px solid var(--beige-dark); padding-top: 18px;
+    }
+    .cabin-price { display: flex; flex-direction: column; }
+    .cabin-price-from { font-size: 0.7rem; color: var(--stone-300); text-transform: uppercase; letter-spacing: 0.08em; }
+    .cabin-price-value {
+      font-size: 1.3rem; font-weight: 800; color: var(--serra-800);
+      font-family: var(--font-serif);
+    }
+    .cabin-price-sub { font-size: 0.7rem; color: var(--stone-300); }
+
+    .cabin-book-btn {
+      background: var(--serra-800); color: #fff;
+      font-size: 0.875rem; font-weight: 700;
+      padding: 11px 24px; border-radius: 12px;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .cabin-book-btn:hover { background: var(--serra-700); transform: translateY(-1px); }
+
+    /* ── Features strip ── */
+    .features-strip {
+      background: var(--serra-800);
+      padding: 60px 24px;
+    }
+    .features-inner {
+      max-width: 1080px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(2,1fr); gap: 32px;
+    }
+    @media (min-width: 640px) { .features-inner { grid-template-columns: repeat(4,1fr); } }
+    .feature-item { text-align: center; }
+    .feature-icon { font-size: 2.25rem; margin-bottom: 12px; }
+    .feature-label { font-size: 0.8125rem; font-weight: 700; color: rgba(255,255,255,0.9); }
+    .feature-sub   { font-size: 0.75rem; color: rgba(255,255,255,0.55); margin-top: 3px; }
+
+    /* ── How it works ── */
+    .steps-list { display: grid; grid-template-columns: 1fr; gap: 24px; margin-top: 44px; }
+    @media (min-width: 640px) { .steps-list { grid-template-columns: repeat(3,1fr); } }
+    .step-item { text-align: center; padding: 28px 20px; }
+    .step-number {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--ambar-500); color: #fff;
+      font-size: 1.25rem; font-weight: 800; font-family: var(--font-serif);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+    }
+    .step-title { font-size: 1rem; font-weight: 700; color: var(--serra-800); margin-bottom: 8px; }
+    .step-text  { font-size: 0.875rem; color: var(--stone-500); line-height: 1.6; }
+
+    /* ── Footer ── */
+    footer {
+      background: var(--serra-950); padding: 48px 24px;
+      text-align: center;
+    }
+    footer img { height: 44px; width: auto; margin-bottom: 16px; }
+    .footer-line { font-size: 0.8125rem; color: rgba(255,255,255,0.45); line-height: 1.8; }
+    .footer-line a { color: rgba(255,255,255,0.65); text-decoration: none; }
+    .footer-line a:hover { color: var(--ambar-400); }
+  </style>
+</head>
+<body>
+
+  <!-- ── Nav ────────────────────────────────────────────────────────────────── -->
+  <nav id="navbar">
+    <div class="nav-logo">
+      <img src="/brand/cds-h-white.svg" alt="Cabanas da Serra">
+    </div>
+    <a href="#cabanas" class="nav-cta">Reservar</a>
+  </nav>
+
+  <!-- ── Hero ───────────────────────────────────────────────────────────────── -->
+  <section class="hero" style="padding-top: 0;">
+    <p class="hero-eyebrow">Jaboticatubas · Serra do Cipó · MG</p>
+    <h1 class="hero-title">Sua fuga<br>na natureza</h1>
+    <p class="hero-sub">
+      Duas cabanas exclusivas, rodeadas de mata nativa. Para casais e
+      famílias que buscam silêncio, conforto e reconexão.
+    </p>
+    <div class="hero-actions">
+      <a href="#cabanas" class="hero-btn-primary">Ver cabanas</a>
+      <a href="#como-funciona" class="hero-btn-secondary">Como funciona</a>
+    </div>
+  </section>
+
+  <!-- ── Cabanas ─────────────────────────────────────────────────────────────── -->
+  <section id="cabanas">
+    <p class="section-eyebrow">Hospedagem</p>
+    <h2 class="section-title">Escolha sua cabana</h2>
+    <p class="section-sub">
+      Cada cabana é independente, com privacidade total. Ideal para casais e pequenas famílias de até 4 pessoas.
+    </p>
+
+    <div class="cabins-grid">
+
+      <!-- Cabana A -->
+      <div class="cabin-card">
+        <div class="cabin-img">
+          <span class="cabin-img-placeholder">🏕️</span>
+          <span class="cabin-img-badge">Cabana A</span>
+        </div>
+        <div class="cabin-body">
+          <h3 class="cabin-name">Cabana A</h3>
+          <p class="cabin-desc">
+            Aconchegante e privativa. Vista para o jardim, varanda coberta
+            e tudo que você precisa para desconectar do mundo.
+          </p>
+          <div class="cabin-features">
+            <span class="cabin-feature">👥 Até 4 pessoas</span>
+            <span class="cabin-feature">🐾 Aceita pets</span>
+            <span class="cabin-feature">🌳 Natureza</span>
+            <span class="cabin-feature">🔒 Privativa</span>
+          </div>
+          <div class="cabin-footer">
+            <div class="cabin-price">
+              <span class="cabin-price-from">A partir de</span>
+              <span class="cabin-price-value">R$ 380</span>
+              <span class="cabin-price-sub">por noite</span>
+            </div>
+            <a href="/booking?cabin=cabana-a" class="cabin-book-btn">Reservar →</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cabana B -->
+      <div class="cabin-card">
+        <div class="cabin-img">
+          <span class="cabin-img-placeholder">🌲</span>
+          <span class="cabin-img-badge">Cabana B</span>
+        </div>
+        <div class="cabin-body">
+          <h3 class="cabin-name">Cabana B</h3>
+          <p class="cabin-desc">
+            Conforto e natureza em harmonia. Perfeita para quem quer
+            uma experiência íntima em meio à mata da Serra.
+          </p>
+          <div class="cabin-features">
+            <span class="cabin-feature">👥 Até 4 pessoas</span>
+            <span class="cabin-feature">🐾 Aceita pets</span>
+            <span class="cabin-feature">🌳 Natureza</span>
+            <span class="cabin-feature">🔒 Privativa</span>
+          </div>
+          <div class="cabin-footer">
+            <div class="cabin-price">
+              <span class="cabin-price-from">A partir de</span>
+              <span class="cabin-price-value">R$ 380</span>
+              <span class="cabin-price-sub">por noite</span>
+            </div>
+            <a href="/booking?cabin=cabana-b" class="cabin-book-btn">Reservar →</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Features strip ─────────────────────────────────────────────────────── -->
+  <div class="features-strip">
+    <div class="features-inner">
+      <div class="feature-item">
+        <div class="feature-icon">🌿</div>
+        <div class="feature-label">Mata nativa</div>
+        <div class="feature-sub">Área preservada</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🔒</div>
+        <div class="feature-label">Privacidade total</div>
+        <div class="feature-sub">Cabanas independentes</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🐾</div>
+        <div class="feature-label">Pet friendly</div>
+        <div class="feature-sub">Seus pets são bem-vindos</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">📍</div>
+        <div class="feature-label">Jaboticatubas</div>
+        <div class="feature-sub">Serra do Cipó · MG</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Como funciona ──────────────────────────────────────────────────────── -->
+  <section id="como-funciona">
+    <p class="section-eyebrow">Processo</p>
+    <h2 class="section-title">Como funciona a reserva</h2>
+
+    <div class="steps-list">
+      <div class="step-item">
+        <div class="step-number">1</div>
+        <div class="step-title">Escolha as datas</div>
+        <p class="step-text">Selecione a cabana, as datas e o número de hóspedes. Veja o valor total antes de confirmar.</p>
+      </div>
+      <div class="step-item">
+        <div class="step-number">2</div>
+        <div class="step-title">Pré-autorização</div>
+        <p class="step-text">Seu cartão é pré-autorizado (nenhum valor cobrado ainda). Nossa equipe analisa em até 24h.</p>
+      </div>
+      <div class="step-item">
+        <div class="step-number">3</div>
+        <div class="step-title">Confirmação</div>
+        <p class="step-text">Ao confirmarmos, você recebe todos os detalhes por e-mail. Se não pudermos confirmar, a pré-autorização é cancelada.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ─────────────────────────────────────────────────────────────── -->
+  <footer>
+    <img src="/brand/cds-mark-white.svg" alt="Cabanas da Serra">
+    <p class="footer-line">
+      Cabanas da Serra · Jaboticatubas, MG<br>
+      <a href="mailto:contato@cabanasdaserra.com">contato@cabanasdaserra.com</a>
+    </p>
+    <p class="footer-line" style="margin-top:16px;font-size:0.75rem;">
+      © <span id="yr"></span> Cabanas da Serra · Todos os direitos reservados
+    </p>
+  </footer>
+
+  <script>
+    document.getElementById('yr').textContent = new Date().getFullYear();
+
+    // Sticky nav on scroll
+    const nav = document.getElementById('navbar');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('scrolled', window.scrollY > 60);
+    }, { passive: true });
+  </script>
+</body>
+</html>

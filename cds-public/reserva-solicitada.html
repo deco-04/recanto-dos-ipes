@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Solicitação Recebida — Cabanas da Serra</title>
+  <link rel="stylesheet" href="/css/cds-design.css">
+  <link rel="icon" type="image/svg+xml" href="/brand/cds-mark-color.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: #F4F7F4; min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 24px;
+      font-family: 'Inter', sans-serif;
+    }
+    .card {
+      background: white; border-radius: 20px;
+      padding: 32px 28px; max-width: 420px; width: 100%;
+      box-shadow: 0 4px 24px rgba(14,31,26,0.10);
+    }
+    .icon-wrap {
+      width: 64px; height: 64px; background: rgba(196,121,58,0.12);
+      border-radius: 50%; display: flex;
+      align-items: center; justify-content: center;
+      margin: 0 auto 20px; font-size: 32px;
+    }
+    h1 { font-size: 22px; font-weight: 800; color: #0E2218; text-align: center; margin: 0 0 8px; font-family: 'Playfair Display', serif; }
+    .subtitle { font-size: 14px; color: #6B7875; text-align: center; margin: 0 0 28px; line-height: 1.5; }
+    .steps { background: rgba(45,90,74,0.06); border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+    .steps p { margin: 0 0 4px; font-size: 12px; font-weight: 700; color: #2D5A4A; text-transform: uppercase; letter-spacing: 0.5px; }
+    .step { display: flex; gap: 12px; align-items: flex-start; margin-top: 12px; }
+    .step-num {
+      width: 24px; height: 24px; min-width: 24px;
+      background: #C4793A; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: #fff;
+    }
+    .step-text { font-size: 13px; color: #2D5A4A; line-height: 1.5; padding-top: 2px; }
+    .summary { background: #F4F7F4; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+    .summary-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+    .summary-row .label { color: #6B7875; }
+    .summary-row .value { font-weight: 600; color: #0E2218; }
+    .summary-row.total { border-top: 1px solid #D4E4DC; margin-top: 8px; padding-top: 8px; }
+    .summary-row.total .value { font-size: 15px; font-weight: 700; color: #2D5A4A; }
+    .contact { background: rgba(45,90,74,0.06); border-radius: 10px; padding: 12px; text-align: center; font-size: 12px; color: #2D5A4A; line-height: 1.6; }
+    .contact a { color: #C4793A; font-weight: 600; text-decoration: none; }
+    .brand { display: block; height: 52px; width: auto; margin: 0 auto 24px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img src="/brand/cds-mark-color.svg" alt="Cabanas da Serra" class="brand">
+    <div class="icon-wrap">⏳</div>
+    <h1>Solicitação recebida!</h1>
+    <p class="subtitle">Já recebemos seu pedido de reserva.<br>Nossa equipe confirma em breve.</p>
+
+    <div class="steps">
+      <p>O que acontece agora?</p>
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">Nossa equipe analisa sua solicitação em até <strong>24 horas</strong>.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">Ao confirmar, o valor é cobrado e você recebe todos os detalhes por e-mail.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">Se não pudermos confirmar, a pré-autorização é cancelada sem nenhum custo.</div>
+      </div>
+    </div>
+
+    <div class="summary" id="booking-summary">
+      <!-- populated by JS -->
+    </div>
+
+    <div class="contact">
+      Dúvidas? Entre em contato:<br>
+      <a href="https://cabanasdaserra.com">cabanasdaserra.com</a>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const raw = sessionStorage.getItem('cds_booking_confirmation');
+      if (!raw) return;
+      try {
+        const b   = JSON.parse(raw);
+        const fmt = d => new Date(d).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+        const cur = v => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const petRow = b.hasPet
+          ? `<div class="summary-row"><span class="label">Pet</span><span class="value">${b.petDescription || 'Sim'}</span></div>`
+          : '';
+        const cabinRow = b.cabinLabel
+          ? `<div class="summary-row"><span class="label">Cabana</span><span class="value">${b.cabinLabel}</span></div>`
+          : '';
+        document.getElementById('booking-summary').innerHTML = `
+          ${cabinRow}
+          <div class="summary-row"><span class="label">Check-in</span><span class="value">${fmt(b.checkIn)}</span></div>
+          <div class="summary-row"><span class="label">Check-out</span><span class="value">${fmt(b.checkOut)}</span></div>
+          <div class="summary-row"><span class="label">Hóspedes</span><span class="value">${b.guestCount || '—'}</span></div>
+          ${petRow}
+          <div class="summary-row total"><span class="label">Pré-autorizado</span><span class="value">${b.totalAmount ? cur(b.totalAmount) : '—'}</span></div>
+        `;
+      } catch(e) { /* ignore */ }
+    })();
+  </script>
+</body>
+</html>

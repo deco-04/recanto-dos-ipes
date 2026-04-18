@@ -99,8 +99,10 @@ function updatePetUI() {
   const on       = document.getElementById('f-pet-toggle').checked;
   const countRow = document.getElementById('pet-count-row');
   const notice   = document.getElementById('pet-notice');
+  const descRow  = document.getElementById('pet-description-row');
   countRow.classList.toggle('hidden', !on);
   notice.classList.toggle('hidden', !on);
+  if (descRow) descRow.classList.toggle('hidden', !on);
   document.getElementById('pet-label').textContent = on
     ? (parseInt(document.getElementById('pet-count-display').textContent) === 1 ? '1 pet' : `${document.getElementById('pet-count-display').textContent} pets`)
     : 'Sem pets';
@@ -167,7 +169,8 @@ async function submitBooking() {
   const checkIn  = document.getElementById('f-checkin').value;
   const checkOut = document.getElementById('f-checkout').value;
   const guests   = parseInt(document.getElementById('f-guests').value);
-  const petCount = getPetCount();
+  const petCount        = getPetCount();
+  const petDescription  = (document.getElementById('f-pet-description')?.value || '').trim() || undefined;
   const name     = document.getElementById('f-name').value.trim();
   const email    = document.getElementById('f-email').value.trim();
   const phone    = document.getElementById('f-phone').value.trim();
@@ -189,6 +192,7 @@ async function submitBooking() {
         checkIn, checkOut, guestCount: guests, petCount,
         guestName: name, guestEmail: email, guestPhone: phone,
         guestCpf: cpf || undefined, notes: notes || undefined,
+        petDescription: petCount > 0 ? petDescription : undefined,
       }),
     });
     const intentData = await intentRes.json();

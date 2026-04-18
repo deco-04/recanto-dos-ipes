@@ -4,7 +4,7 @@ const express = require('express');
 const router  = express.Router();
 const { z }   = require('zod');
 const prisma  = require('../lib/db');
-const { calculateQuote } = require('../lib/pricing');
+const { calculateQuote, calculateCDSQuote } = require('../lib/pricing');
 const { requireAuth }    = require('../lib/auth-middleware');
 
 const { checkLimit } = require('../lib/redis-rate-limit');
@@ -16,8 +16,9 @@ function getClientIp(req) {
 }
 
 // ── GET /api/bookings/availability ────────────────────────────────────────────
-// Query: ?start=YYYY-MM-DD&end=YYYY-MM-DD
-// Returns array of blocked date strings
+// Query: ?start=YYYY-MM-DD&end=YYYY-MM-DD[&cabinSlug=cabana-a]
+// Returns array of blocked date strings.
+// When cabinSlug is provided, only blocks from that specific cabin are returned.
 router.get('/availability', async (req, res) => {
   try {
     const start = req.query.start ? new Date(req.query.start) : new Date();
@@ -25,30 +26,44 @@ router.get('/availability', async (req, res) => {
       ? new Date(req.query.end)
       : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
 
-    // Dates blocked by iCal sync
-    const blockedRows = await prisma.blockedDate.findMany({
-      where: { date: { gte: start, lte: end } },
-      select: { date: true, source: true },
-    });
+    const cabinSlug = req.query.cabinSlug || null;
 
-    // Dates blocked by confirmed/requested direct bookings (PENDING excluded — only show real blocks)
-    const bookings = await prisma.booking.findMany({
-      where: {
-        status:   { in: ['CONFIRMED', 'REQUESTED'] },   // ← add REQUESTED
-        checkIn:  { lte: end },
-        checkOut: { gte: start },
-      },
-      select: { checkIn: true, checkOut: true },
-    });
+    // Resolve cabin DB id when slug provided
+    let cabinId = null;
+    if (cabinSlug) {
+      const cabin = await prisma.cabin.findFirst({ where: { slug: cabinSlug } });
+      if (!cabin) return res.status(404).json({ error: 'Cabana não encontrada' });
+      cabinId = cabin.id;
+    }
 
     const blocked = new Set();
 
-    for (const row of blockedRows) {
-      blocked.add(row.date.toISOString().split('T')[0]);
+    // iCal-blocked dates only apply to SRI (no cabinId on BlockedDate yet)
+    if (!cabinId) {
+      const blockedRows = await prisma.blockedDate.findMany({
+        where: { date: { gte: start, lte: end } },
+        select: { date: true },
+      });
+      for (const row of blockedRows) {
+        blocked.add(row.date.toISOString().split('T')[0]);
+      }
     }
 
+    // Direct booking blocks (per-cabin when cabinId provided)
+    const bookingWhere = {
+      status:   { in: ['CONFIRMED', 'REQUESTED'] },
+      checkIn:  { lte: end },
+      checkOut: { gte: start },
+    };
+    if (cabinId) bookingWhere.cabinId = cabinId;
+
+    const bookings = await prisma.booking.findMany({
+      where:  bookingWhere,
+      select: { checkIn: true, checkOut: true },
+    });
+
     for (const booking of bookings) {
-      const cur = new Date(booking.checkIn);
+      const cur  = new Date(booking.checkIn);
       const last = new Date(booking.checkOut);
       while (cur < last) {
         blocked.add(cur.toISOString().split('T')[0]);
@@ -64,19 +79,23 @@ router.get('/availability', async (req, res) => {
 });
 
 // ── GET /api/bookings/quote ───────────────────────────────────────────────────
-// Query: ?checkIn=YYYY-MM-DD&checkOut=YYYY-MM-DD&guests=N&petCount=0-4
+// Query: ?checkIn=YYYY-MM-DD&checkOut=YYYY-MM-DD&guests=N&petCount=0-4[&cabinSlug=cabana-a]
+// When cabinSlug is present, CDS cabin pricing applies.
 router.get('/quote', async (req, res) => {
   try {
-    const { checkIn, checkOut, guests, petCount } = req.query;
+    const { checkIn, checkOut, guests, petCount, cabinSlug } = req.query;
 
     if (!checkIn || !checkOut) {
       return res.status(400).json({ error: 'checkIn e checkOut são obrigatórios' });
     }
 
-    const guestCount = Math.max(1, parseInt(guests) || 1);
+    const guestCount  = Math.max(1, parseInt(guests) || 1);
     const petCountInt = Math.min(Math.max(parseInt(petCount) || 0, 0), 4);
 
-    const quote = await calculateQuote({ checkIn, checkOut, guestCount, petCount: petCountInt });
+    const quote = cabinSlug
+      ? await calculateCDSQuote({ checkIn, checkOut, guestCount, petCount: petCountInt })
+      : await calculateQuote({ checkIn, checkOut, guestCount, petCount: petCountInt });
+
     res.json(quote);
   } catch (err) {
     console.error('[bookings] quote error:', err);
@@ -104,6 +123,7 @@ router.post('/intent', async (req, res) => {
       guestCpf:       z.string().optional(),
       petDescription: z.string().max(200).optional(),
       notes:          z.string().max(500).optional(),
+      cabinSlug:      z.string().optional(), // CDS bookings pass the cabin slug
     });
 
     const data = schema.parse(req.body);
@@ -114,20 +134,33 @@ router.post('/intent', async (req, res) => {
     const inDate  = new Date(checkIn);
     const outDate = new Date(checkOut);
 
-    // Atomically check availability
-    const conflict = await prisma.$transaction(async tx => {
-      const blockedCount = await tx.blockedDate.count({
-        where: { date: { gte: inDate, lt: outDate } },
-      });
-      if (blockedCount > 0) return true;
+    // Resolve cabin when booking a CDS cabin
+    let cabinRecord = null;
+    if (data.cabinSlug) {
+      cabinRecord = await prisma.cabin.findFirst({ where: { slug: data.cabinSlug, active: true } });
+      if (!cabinRecord) {
+        return res.status(400).json({ error: 'Cabana não encontrada ou indisponível.' });
+      }
+    }
 
-      const bookingConflict = await tx.booking.count({
-        where: {
-          status: { in: ['CONFIRMED', 'PENDING', 'REQUESTED'] },  // ← add REQUESTED
-          checkIn:  { lt: outDate },
-          checkOut: { gt: inDate },
-        },
-      });
+    // Atomically check availability (scoped to cabin when provided)
+    const conflict = await prisma.$transaction(async tx => {
+      // iCal-blocked dates only apply to SRI (no property scope on BlockedDate yet)
+      if (!cabinRecord) {
+        const blockedCount = await tx.blockedDate.count({
+          where: { date: { gte: inDate, lt: outDate } },
+        });
+        if (blockedCount > 0) return true;
+      }
+
+      const bookingWhere = {
+        status:   { in: ['CONFIRMED', 'PENDING', 'REQUESTED'] },
+        checkIn:  { lt: outDate },
+        checkOut: { gt: inDate },
+      };
+      if (cabinRecord) bookingWhere.cabinId = cabinRecord.id;
+
+      const bookingConflict = await tx.booking.count({ where: bookingWhere });
       return bookingConflict > 0;
     });
 
@@ -135,22 +168,28 @@ router.post('/intent', async (req, res) => {
       return res.status(409).json({ error: 'Datas indisponíveis. Por favor selecione outras datas.' });
     }
 
-    const quote = await calculateQuote({ checkIn, checkOut, guestCount, petCount });
+    // Quote — use CDS pricing when a cabin is involved
+    const quote = cabinRecord
+      ? await calculateCDSQuote({ checkIn, checkOut, guestCount, petCount })
+      : await calculateQuote({ checkIn, checkOut, guestCount, petCount });
+
+    const propertyName = cabinRecord ? 'Cabanas da Serra' : 'Recanto dos Ipês';
 
     // Create Stripe PaymentIntent
     const stripe = require('../lib/stripe');
     const paymentIntent = await stripe.paymentIntents.create({
       amount:         Math.round(quote.totalAmount * 100), // cents
       currency:       'brl',
-      capture_method: 'manual',          // ← hold card, don't charge yet
+      capture_method: 'manual',          // hold card, don't charge yet
       metadata: {
         checkIn, checkOut,
-        guestCount: String(guestCount),
-        petCount:   String(petCount),
-        hasPet:     String(hasPet),
+        guestCount:  String(guestCount),
+        petCount:    String(petCount),
+        hasPet:      String(hasPet),
         guestName, guestEmail,
+        ...(cabinRecord ? { cabinSlug: data.cabinSlug, cabinId: cabinRecord.id } : {}),
       },
-      description: `Reserva Recanto dos Ipês — ${checkIn} a ${checkOut}`,
+      description: `Reserva ${propertyName} — ${checkIn} a ${checkOut}`,
     });
 
     // Create a PENDING booking record
@@ -165,7 +204,7 @@ router.post('/intent', async (req, res) => {
         guestCount,
         extraGuests:           quote.extraGuests,
         hasPet,
-        petDescription:        data.petDescription || null,   // ← new
+        petDescription:        data.petDescription || null,
         baseRatePerNight:      quote.baseRatePerNight,
         extraGuestFee:         quote.extraGuestFee,
         petFee:                quote.petFee,
@@ -174,6 +213,10 @@ router.post('/intent', async (req, res) => {
         notes:                 data.notes || null,
         status:                'PENDING',
         source:                'DIRECT',
+        ...(cabinRecord ? {
+          cabinId:    cabinRecord.id,
+          propertyId: cabinRecord.propertyId,
+        } : {}),
       },
     });
 
@@ -224,19 +267,23 @@ router.post('/confirm', async (req, res) => {
 
     // 3. Atomic final availability check + set REQUESTED
     const result = await prisma.$transaction(async tx => {
-      const blockedCount = await tx.blockedDate.count({
-        where: { date: { gte: pending.checkIn, lt: pending.checkOut } },
-      });
-      if (blockedCount > 0) return { conflict: true };
+      // iCal blocked dates only apply to SRI (no cabin scope yet)
+      if (!pending.cabinId) {
+        const blockedCount = await tx.blockedDate.count({
+          where: { date: { gte: pending.checkIn, lt: pending.checkOut } },
+        });
+        if (blockedCount > 0) return { conflict: true };
+      }
 
-      const bookingConflict = await tx.booking.count({
-        where: {
-          id:       { not: bookingId },
-          status:   { in: ['CONFIRMED', 'REQUESTED'] },
-          checkIn:  { lt: pending.checkOut },
-          checkOut: { gt: pending.checkIn },
-        },
-      });
+      const conflictWhere = {
+        id:       { not: bookingId },
+        status:   { in: ['CONFIRMED', 'REQUESTED'] },
+        checkIn:  { lt: pending.checkOut },
+        checkOut: { gt: pending.checkIn },
+      };
+      if (pending.cabinId) conflictWhere.cabinId = pending.cabinId;
+
+      const bookingConflict = await tx.booking.count({ where: conflictWhere });
       if (bookingConflict > 0) return { conflict: true };
 
       const requested = await tx.booking.update({
@@ -262,12 +309,17 @@ router.post('/confirm', async (req, res) => {
 
     // 5. Fire request-received messages + GHL (non-blocking, best-effort)
     try {
-      const { sendBookingRequestReceived } = require('../lib/mailer');
-      const { notifyBookingRequested }     = require('../lib/ghl-webhook');
-      const { sendPushToRole }             = require('../lib/push');
+      const {
+        sendBookingRequestReceived,
+        sendCDSBookingRequestReceived,
+      } = require('../lib/mailer');
+      const { notifyBookingRequested } = require('../lib/ghl-webhook');
+      const { sendPushToRole }         = require('../lib/push');
 
-      if (typeof sendBookingRequestReceived === 'function') {
-        sendBookingRequestReceived({ booking: result.requested })
+      const isCDS = result.requested.propertyId === 'cds_property_main';
+      const sendFn = isCDS ? sendCDSBookingRequestReceived : sendBookingRequestReceived;
+      if (typeof sendFn === 'function') {
+        sendFn({ booking: result.requested })
           .catch(e => console.error('[mailer] requestReceived error:', e.message));
       }
       if (typeof notifyBookingRequested === 'function') {

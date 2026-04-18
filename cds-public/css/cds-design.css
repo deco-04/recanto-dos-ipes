@@ -1,0 +1,118 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   CDS Design System — Cabanas da Serra
+   Mountain Hideaway · Verde Serra + Âmbar accent
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Design Tokens ────────────────────────────────────────────────────────── */
+:root {
+  /* Core palette — Verde Serra */
+  --serra-950: #0E1F1A;
+  --serra-900: #162B23;
+  --serra-800: #2D5A4A;   /* PRIMARY */
+  --serra-700: #3A7260;
+  --serra-600: #4A8A76;
+
+  /* Accent — Âmbar */
+  --ambar-400:  #E8974F;
+  --ambar-500:  #C4793A;  /* PRIMARY ACCENT */
+  --ambar-600:  #A06030;
+
+  /* Neutrals */
+  --cream-50:   #FAFAF7;
+  --cream-100:  #F4F7F4;
+  --cream-200:  #E8EFE9;
+  --beige:      #F4F7F4;
+  --beige-dark: #D4E4DC;
+
+  --stone-300:  #B0B8B4;
+  --stone-500:  #6B7875;
+  --stone-700:  #364039;
+
+  /* Semantic */
+  --shadow-sm:  0 2px 8px rgba(14,31,26,0.07);
+  --shadow-md:  0 4px 20px rgba(14,31,26,0.10);
+  --shadow-lg:  0 8px 40px rgba(14,31,26,0.13);
+  --shadow-xl:  0 16px 60px rgba(14,31,26,0.17);
+
+  --border-subtle: rgba(45,90,74,0.10);
+
+  --radius-sm:  0.5rem;
+  --radius-md:  0.875rem;
+  --radius-lg:  1.25rem;
+  --radius-xl:  1.75rem;
+  --radius-2xl: 2.5rem;
+
+  --transition-base: 200ms cubic-bezier(0.4,0,0.2,1);
+  --transition-slow: 400ms cubic-bezier(0.4,0,0.2,1);
+
+  /* Typography */
+  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-sans:  'Inter', system-ui, sans-serif;
+}
+
+/* ── Base Document ────────────────────────────────────────────────────────── */
+html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+body { font-family: var(--font-sans); background: var(--cream-100); color: var(--stone-700); }
+
+/* ── Animations ───────────────────────────────────────────────────────────── */
+@keyframes fadeUpIn  { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeIn    { from { opacity:0; } to { opacity:1; } }
+@keyframes spin-anim { to { transform: rotate(360deg); } }
+
+.animate-fade-up   { animation: fadeUpIn 0.6s var(--transition-slow) both; }
+.animate-fade-in   { animation: fadeIn 0.5s var(--transition-base) both; }
+.animate-delay-100 { animation-delay: 0.1s; }
+.animate-delay-200 { animation-delay: 0.2s; }
+.animate-delay-300 { animation-delay: 0.3s; }
+.spin { animation: spin-anim 0.9s linear infinite; }
+
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  background: var(--serra-800); color: #fff;
+  font-size: 0.9rem; font-weight: 700; letter-spacing: 0.01em;
+  padding: 0.9rem 1.75rem;
+  border-radius: var(--radius-lg); border: none; cursor: pointer;
+  transition: all var(--transition-base);
+}
+.btn-primary:hover { background: var(--serra-700); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.btn-primary:active { transform: translateY(0); }
+
+.btn-ambar {
+  background: var(--ambar-500); color: #fff;
+  font-weight: 800;
+}
+.btn-ambar:hover { background: var(--ambar-400); box-shadow: 0 4px 16px rgba(196,121,58,0.35); }
+
+/* ── Cards ────────────────────────────────────────────────────────────────── */
+.card {
+  background: #fff; border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle); box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-base), transform var(--transition-base);
+}
+.card:hover { box-shadow: var(--shadow-md); }
+.card-elevated { box-shadow: var(--shadow-md); }
+.card-elevated:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+
+/* ── Input fields ─────────────────────────────────────────────────────────── */
+.input-field {
+  width: 100%; border: 1.5px solid var(--beige-dark);
+  border-radius: var(--radius-md); padding: 0.875rem 1rem;
+  font-family: var(--font-sans); font-size: 0.875rem;
+  color: var(--stone-700); background: #fff;
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+  outline: none;
+}
+.input-field:focus { border-color: var(--ambar-500); box-shadow: 0 0 0 3px rgba(196,121,58,0.15); }
+.input-field::placeholder { color: var(--stone-300); }
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--cream-200); }
+::-webkit-scrollbar-thumb { background: var(--beige-dark); border-radius: 3px; }
+
+/* ── Selection ────────────────────────────────────────────────────────────── */
+::selection { background: rgba(196,121,58,0.2); color: var(--serra-900); }
+
+/* ── Focus ────────────────────────────────────────────────────────────────── */
+:focus-visible { outline: 2px solid var(--ambar-500); outline-offset: 3px; border-radius: 4px; }
