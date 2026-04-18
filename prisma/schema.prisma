@@ -90,6 +90,7 @@ model Booking {
   propertyId            String?
   cabinId               String?
   surveyStatus          SurveyStatus  @default(NAO_ENVIADO)
+  lastCancellationNotifiedAt DateTime?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
