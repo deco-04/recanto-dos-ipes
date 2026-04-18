@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 88" fill="none">
+  <!-- icon: scale 0.875 (56px), 6px top offset -->
+  <g transform="translate(0,6) scale(0.875)">
+  <!-- moon -->
+  <circle cx="56" cy="8" r="4.5" fill="#C4793A" opacity="0.9"/>
+  <!-- mountain silhouette -->
+  <polygon points="4,42 24,12 46,42" fill="#2D5A4A" opacity="0.18"/>
+  <polyline points="4,42 24,12 46,42" fill="none" stroke="#2D5A4A" stroke-width="1.2" stroke-linejoin="round" opacity="0.35"/>
+  <!-- back cabin roof -->
+  <polygon points="52,22 42,42 62,42"
+    fill="#C4793A" opacity="0.62"
+    stroke="#2D5A4A" stroke-width="1.2" stroke-linejoin="round"/>
+  <!-- back cabin walls -->
+  <rect x="42" y="42" width="20" height="4"
+    fill="#F5F3EF" stroke="#2D5A4A" stroke-width="1"/>
+  <!-- mid cabin roof -->
+  <polygon points="36,12 22,42 50,42"
+    fill="#C4793A" opacity="0.78"
+    stroke="#2D5A4A" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- mid cabin walls + door -->
+  <rect x="22" y="42" width="28" height="4"
+    fill="#F5F3EF" stroke="#2D5A4A" stroke-width="1.2"/>
+  <rect x="31" y="42" width="8" height="4" rx="0.5"
+    fill="#F5F3EF" stroke="#2D5A4A" stroke-width="1"/>
+  <!-- front cabin roof -->
+  <polygon points="18,4 2,42 34,42"
+    fill="#C4793A" opacity="0.92"
+    stroke="#2D5A4A" stroke-width="2" stroke-linejoin="round"/>
+  <!-- front cabin walls + window -->
+  <rect x="2" y="42" width="32" height="4"
+    fill="#F5F3EF" stroke="#2D5A4A" stroke-width="1.6"/>
+  <rect x="11" y="39" width="10" height="7" rx="0.5"
+    fill="#F5F3EF" stroke="#2D5A4A" stroke-width="1.3"/>
+  <!-- water surface -->
+  <line x1="0" y1="46" x2="64" y2="46"
+    stroke="#3D7D72" stroke-width="1.4" opacity="0.55"/>
+  <!-- water fill zone -->
+  <rect x="0" y="46" width="64" height="18"
+    fill="#3D7D72" opacity="0.07"/>
+  <!-- reflections — cabin roofs mirrored, fading -->
+  <polygon points="52,52 42,46 62,46" fill="#C4793A" opacity="0.18"/>
+  <polygon points="36,58 22,46 50,46" fill="#C4793A" opacity="0.14"/>
+  <polygon points="18,64 2,46 34,46"  fill="#C4793A" opacity="0.10"/>
+  <!-- water ripples -->
+  <path d="M2,50 Q10,49 18,50 Q26,51 34,50 Q44,49 54,50 Q60,51 62,50"
+    fill="none" stroke="#3D7D72" stroke-width="0.9" opacity="0.45"/>
+  <path d="M4,55 Q14,53 24,55 Q36,57 48,55 Q56,53 62,55"
+    fill="none" stroke="#3D7D72" stroke-width="0.7" opacity="0.30"/>
+  <path d="M8,60 Q20,58 34,60 Q48,62 58,60"
+    fill="none" stroke="#3D7D72" stroke-width="0.5" opacity="0.20"/>
+  </g>
+  <!-- wordmark -->
+  <text x="66" y="27"
+    font-family="'Big Shoulders Display', 'Arial Black', sans-serif"
+    font-size="21" font-weight="900" fill="#2D5A4A" letter-spacing="1.5">CABANAS</text>
+  <text x="66" y="51"
+    font-family="'Big Shoulders Display', 'Arial Black', sans-serif"
+    font-size="21" font-weight="900" fill="#2D5A4A" letter-spacing="1.5">DA SERRA</text>
+  <text x="66" y="80"
+    font-family="'Arsenal SC', Georgia, serif" font-size="8" font-weight="700"
+    fill="#C4793A" letter-spacing="2.5">Onde o tempo aprende a parar</text>
+</svg>
