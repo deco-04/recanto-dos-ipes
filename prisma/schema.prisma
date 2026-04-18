@@ -97,6 +97,7 @@ model Booking {
   property    Property?        @relation("PropertyBookings", fields: [propertyId], references: [id])
   cabin       Cabin?           @relation("CabinBookings", fields: [cabinId], references: [id])
   survey      Survey?
+  messageLogs     MessageLog[]
   inspections     InspectionReport[]
   maintenanceLogs MaintenanceLog[]
   coGuests        BookingGuest[]
@@ -635,15 +636,64 @@ model Survey {
   id                   String   @id @default(cuid())
   bookingId            String   @unique
   guestEmail           String
-  sentAt               DateTime?
+  sentAt               DateTime? // push notification sent at
+  waSentAt             DateTime? // WhatsApp NPS template sent at
   respondedAt          DateTime?
-  score                Int?
+  score                Int?      // 1-5 star rating (guest portal)
+  npsScore             Int?      // 0-10 NPS score (WhatsApp reply)
+  npsClassification    String?   // 'promotor' | 'neutro' | 'detrator'
+  npsFollowUpSent      Boolean   @default(false) // apology or review link sent
   comment              String?  @db.Text
   googleReviewLinkSent Boolean  @default(false)
   adminAlerted         Boolean  @default(false)
   createdAt            DateTime @default(now())
 
   booking Booking @relation(fields: [bookingId], references: [id])
+}
+
+// ── WhatsApp Templates ────────────────────────────────────────────────────────
+// Stores Meta-approved template metadata. Admins can edit the Meta template name
+// and variable labels without a code deployment.
+model MessageTemplate {
+  id           String   @id @default(cuid())
+  name         String   @unique // Meta template name (snake_case, e.g. "nps_pesquisa")
+  description  String            // Human-readable purpose
+  triggerEvent String   @unique  // Internal key: 'post_checkout_nps' | 'nps_promotor_review' | etc.
+  variables    Json              // [{index: 1, key: "nome", label: "Nome do hóspede"}]
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ── WhatsApp Message Log ──────────────────────────────────────────────────────
+// Tracks every WA message sent or received for audit + delivery status.
+model MessageLog {
+  id            String         @id @default(cuid())
+  bookingId     String?
+  guestPhone    String
+  templateName  String?        // null for free-text messages
+  direction     MsgDirection
+  body          String?        @db.Text
+  status        WaMessageStatus @default(QUEUED)
+  metaMessageId String?        // returned by Meta API — used to match delivery receipts
+  errorMessage  String?
+  sentAt        DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  booking Booking? @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId])
+  @@index([guestPhone])
+  @@index([metaMessageId])
+  @@index([sentAt])
+}
+
+enum WaMessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
 }
 
 // ── Guest Reputation ──────────────────────────────────────────────────────────

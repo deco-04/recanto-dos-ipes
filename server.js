@@ -301,10 +301,14 @@ app.use('/api/ical',       require('./routes/ical-export'));
 // Unified inbox — staff conversations (staffCors enforces allowed origins)
 const mensagensRouter = require('./routes/mensagens');
 app.use('/api/staff/conversas', staffCors, mensagensRouter);
-// GHL inbound webhook — staffCors applied so browser cross-origin requests
-// cannot reach conversation routes via this path; GHL server-to-server calls
-// have no Origin header so staffCors is a no-op for them.
+// GHL inbound webhook (legacy — kept for Instagram DM inbound; WA now via Meta directly)
 app.use('/api/webhooks', staffCors, mensagensRouter);
+
+// WhatsApp Business Cloud API webhook (Meta → our server)
+app.use('/api/webhooks/whatsapp', require('./routes/whatsapp-webhook'));
+
+// WhatsApp admin routes (templates + NPS data)
+app.use('/api/staff', staffCors, require('./routes/whatsapp-admin'));
 
 // AI Content Agent (staff)
 app.use('/api/staff/conteudo', staffCors, require('./routes/content'));
@@ -645,4 +649,8 @@ app.listen(PORT, () => {
   // Start background cron jobs (push reminders always run; iCal sync only when URLs are configured)
   const { startCronJobs } = require('./lib/cron');
   startCronJobs();
+
+  // Seed default WhatsApp message templates (upsert — safe to re-run on every start)
+  const { seedTemplates } = require('./lib/whatsapp');
+  seedTemplates().catch(err => console.error('[startup] seedTemplates failed:', err.message));
 });

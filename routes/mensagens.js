@@ -11,7 +11,8 @@
 const express  = require('express');
 const crypto   = require('crypto');
 const prisma   = require('../lib/db');
-const { sendWhatsAppMessage, sendInstagramDM } = require('../lib/ghl-webhook');
+const { sendInstagramDM } = require('../lib/ghl-webhook');
+const { sendText: sendWhatsAppDirect } = require('../lib/whatsapp');
 const { sendInboxEmail } = require('../lib/mailer');
 const { requireStaff } = require('../lib/staff-auth-middleware');
 // push imported inline in webhook handler (sendPushToStaff)
@@ -163,11 +164,9 @@ router.post('/', requireStaff, async (req, res) => {
     // Send via the correct channel
     if (channel === 'WHATSAPP') {
       if (!conversation.contactPhone) return res.status(400).json({ error: 'Contato sem telefone WhatsApp' });
-      const { sendWhatsAppMessage } = require('../lib/ghl-webhook');
-      await sendWhatsAppMessage(conversation.contactPhone, body, conversation.id);
+      await sendWhatsAppDirect(conversation.contactPhone, body);
     } else if (channel === 'INSTAGRAM') {
       if (!conversation.contactInstagram) return res.status(400).json({ error: 'Contato sem Instagram vinculado' });
-      const { sendInstagramDM } = require('../lib/ghl-webhook');
       await sendInstagramDM(conversation.contactInstagram, body, conversation.id);
     } else if (channel === 'EMAIL') {
       if (!conversation.contactEmail) return res.status(400).json({ error: 'Contato sem e-mail' });
@@ -264,7 +263,7 @@ router.post('/:id/mensagens', requireStaff, async (req, res) => {
       if (!conversation.contactPhone) {
         return res.status(400).json({ error: 'Contato sem telefone WhatsApp' });
       }
-      await sendWhatsAppMessage(conversation.contactPhone, body, conversation.id);
+      await sendWhatsAppDirect(conversation.contactPhone, body);
 
     } else if (channel === 'INSTAGRAM') {
       if (!conversation.contactInstagram) {
