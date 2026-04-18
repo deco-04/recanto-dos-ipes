@@ -54,12 +54,18 @@
     },
   };
 
-  const PRICE_DISPLAY = {
-    LOW:      'R$720',
-    MID:      'R$850',
-    HIGH_MID: 'R$1.050',
-    PEAK:     'R$1.300',
+  // Default price per tier — used to detect flash-sale discounts.
+  const TIER_DEFAULTS = {
+    LOW:      720,
+    MID:      850,
+    HIGH_MID: 1050,
+    PEAK:     1300,
   };
+
+  /** Formats a price as "R$720" / "R$1.050" (no decimals, Brazilian locale). */
+  function formatPrice(price) {
+    return 'R$' + Number(price).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+  }
 
   // ── State ─────────────────────────────────────────────────────────────────
   const state = {
@@ -363,8 +369,8 @@
       const dateStr = toISO(date);
       const isPast  = date < TODAY;
       const isBlocked = state.blockedDates.has(dateStr) || isPast;
-      const tier    = getTierForDate(dateStr);
-      const priceDisplay = tier ? PRICE_DISPLAY[tier] : PRICE_DISPLAY.LOW;
+      const { tier, pricePerNight, isFlashSale } = getPricingForDate(dateStr);
+      const priceDisplay = formatPrice(pricePerNight);
 
       if (!isPast) {
         totalFutureDays++;
@@ -378,7 +384,7 @@
       const isToday    = toISO(date) === toISO(TODAY);
 
       html += buildDayCell({ d, dateStr, isBlocked, isPast, tier, priceDisplay,
-                              isCheckIn, isCheckOut, isInRange, isToday });
+                              isCheckIn, isCheckOut, isInRange, isToday, isFlashSale });
     }
 
     grid.innerHTML = html;
@@ -393,7 +399,7 @@
   }
 
   function buildDayCell({ d, dateStr, isBlocked, isPast, tier, priceDisplay,
-                           isCheckIn, isCheckOut, isInRange, isToday }) {
+                           isCheckIn, isCheckOut, isInRange, isToday, isFlashSale }) {
     if (isBlocked) {
       const pastStyle = isPast
         ? 'background:#F3F4F6;color:#D1D5DB;'
@@ -422,12 +428,19 @@
       ? '<span class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-gold"></span>'
       : '';
 
+    // Flash-sale chip: shown when the actual price is below the tier default
+    const flashChip = isFlashSale && !isCheckIn && !isCheckOut
+      ? '<span style="position:absolute;top:2px;right:2px;background:#E11D48;color:#fff;' +
+        'font-size:6px;font-weight:700;line-height:1;padding:1px 3px;border-radius:3px;">PROMO</span>'
+      : '';
+
     return `
       <div class="relative flex flex-col items-center justify-center rounded-lg text-xs cursor-pointer
                   hover:ring-2 hover:ring-forest hover:ring-offset-1 transition-all select-none ${extraClass}"
            style="${bgStyle}height:52px;"
            data-date="${dateStr}"
-           title="${t.label} · ${priceDisplay}/noite">
+           title="${t.label} · ${priceDisplay}/noite${isFlashSale ? ' 🏷 Promoção!' : ''}">
+        ${flashChip}
         <span class="font-semibold text-sm leading-tight">${d}</span>
         <span class="text-[9px] leading-tight mt-0.5 opacity-75">${priceDisplay}</span>
         ${todayDot}
@@ -629,11 +642,22 @@
     }
   }
 
-  function getTierForDate(dateStr) {
+  /**
+   * Returns pricing info for a given date.
+   * Uses live pricePerNight from the API response rather than static tier defaults.
+   * Sets isFlashSale = true when the actual price is below the tier default.
+   *
+   * @returns {{ tier: string, pricePerNight: number, isFlashSale: boolean }}
+   */
+  function getPricingForDate(dateStr) {
     for (const p of state.pricingPeriods) {
-      if (dateStr >= p.startDate && dateStr <= p.endDate) return p.tier;
+      if (dateStr >= p.startDate && dateStr <= p.endDate) {
+        const price      = Number(p.pricePerNight) || TIER_DEFAULTS[p.tier] || TIER_DEFAULTS.LOW;
+        const isFlashSale = price < (TIER_DEFAULTS[p.tier] || Infinity);
+        return { tier: p.tier, pricePerNight: price, isFlashSale };
+      }
     }
-    return 'LOW';
+    return { tier: 'LOW', pricePerNight: TIER_DEFAULTS.LOW, isFlashSale: false };
   }
 
   function toISO(date) {

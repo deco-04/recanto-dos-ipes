@@ -13,6 +13,7 @@ const { z } = require('zod');
 const prisma = require('../lib/db');
 const { sendStaffInvite } = require('../lib/mailer');
 const { sendPushToRole, sendPushToStaff } = require('../lib/push');
+const { deriveTierFromPrice } = require('../lib/pricing');
 const { requireAdmin } = require('../lib/staff-auth-middleware');
 const { toE164 } = require('../lib/phone');
 
@@ -633,6 +634,7 @@ router.get('/ia/precos', async (req, res) => {
 });
 
 // PATCH /api/admin/staff/ia/precos/:id — accept or reject
+// On ACEITA: deletes any overlapping SeasonalPricing rows and creates a new one.
 router.patch('/ia/precos/:id', async (req, res) => {
   const schema = z.object({
     status: z.enum(['ACEITA', 'REJEITADA']),
@@ -645,13 +647,56 @@ router.patch('/ia/precos/:id', async (req, res) => {
   if (!suggestion) return res.status(404).json({ error: 'Sugestão não encontrada' });
   if (suggestion.status !== 'PENDENTE') return res.status(409).json({ error: 'Sugestão já processada' });
 
+  if (parsed.data.status === 'ACEITA') {
+    const tier = deriveTierFromPrice(suggestion.suggestedPrice);
+
+    // Format date range for name: "DD/MM a DD/MM/YYYY"
+    const startFmt = new Date(suggestion.periodStart).toLocaleDateString('pt-BR', {
+      day: '2-digit', month: '2-digit', timeZone: 'UTC',
+    });
+    const endFmt = new Date(suggestion.periodEnd).toLocaleDateString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC',
+    });
+    const name = `Sugestão IA — ${startFmt} a ${endFmt}`;
+
+    // Run everything in a transaction: update suggestion + replace overlapping rows
+    const [updated] = await prisma.$transaction([
+      prisma.pricingSuggestion.update({
+        where: { id: req.params.id },
+        data: {
+          status:        'ACEITA',
+          acceptedById:  req.staff.id,
+          acceptedAt:    new Date(),
+        },
+      }),
+      // Delete all SeasonalPricing rows that overlap the accepted period
+      prisma.seasonalPricing.deleteMany({
+        where: {
+          propertyId: suggestion.propertyId,
+          startDate:  { lte: suggestion.periodEnd },
+          endDate:    { gte: suggestion.periodStart },
+        },
+      }),
+      prisma.seasonalPricing.create({
+        data: {
+          name,
+          tier,
+          startDate:     suggestion.periodStart,
+          endDate:       suggestion.periodEnd,
+          pricePerNight: suggestion.suggestedPrice,
+          minNights:     2,
+          propertyId:    suggestion.propertyId,
+        },
+      }),
+    ]);
+
+    return res.json(updated);
+  }
+
+  // REJEITADA — just mark as rejected
   const updated = await prisma.pricingSuggestion.update({
     where: { id: req.params.id },
-    data: {
-      status: parsed.data.status,
-      acceptedById: parsed.data.status === 'ACEITA' ? req.staff.id : null,
-      acceptedAt: parsed.data.status === 'ACEITA' ? new Date() : null,
-    },
+    data: { status: 'REJEITADA' },
   });
 
   return res.json(updated);

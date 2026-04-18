@@ -2172,97 +2172,210 @@ router.get('/ia/alertas', requireRole('ADMIN'), async (req, res) => {
   }
 });
 
-// POST /api/staff/ia/briefing — daily narrative brief via Claude
-// 6-hour module-level cache. Pass ?refresh=1 to force regeneration.
-const _briefCache = new Map(); // propertyId → { text, cachedAt }
-const BRIEF_TTL_MS = 6 * 60 * 60 * 1000;
+// ── Briefing helpers ──────────────────────────────────────────────────────────
 
+const BRIEF_MODEL = 'claude-sonnet-4-6';
+
+/**
+ * Resolves the propertyId to use for a briefing request.
+ * Falls back to the first active property when none is specified.
+ */
+async function resolveBriefingProperty(queryPropertyId) {
+  if (queryPropertyId) {
+    const prop = await prisma.property.findUnique({
+      where: { id: queryPropertyId },
+      select: { id: true, name: true },
+    });
+    return prop;
+  }
+  return prisma.property.findFirst({
+    where: { active: true },
+    select: { id: true, name: true },
+  });
+}
+
+/**
+ * Gathers the full operational + financial + NPS snapshot for a property
+ * and calls Claude claude-sonnet-4-6 to produce the daily briefing text.
+ * Persists the result to DailyBriefing (upsert by propertyId + date).
+ *
+ * @returns {{ text: string, cachedAt: string, fromCache: boolean }}
+ */
+async function generateBriefing(property) {
+  const now             = new Date();
+  const today           = now.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+  const sevenDaysAgo    = new Date(now.getTime() - 7  * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo   = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const threeDaysAhead  = new Date(now.getTime() + 3  * 24 * 60 * 60 * 1000);
+  const monthStart      = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [
+    recentBookings,
+    upcomingBookings,
+    openTickets,
+    overdueSchedules,
+    alertas,
+    npsThisMonth,
+    revenueThirtyDays,
+  ] = await Promise.all([
+    prisma.booking.findMany({
+      where:  { propertyId: property.id, checkOut: { gte: sevenDaysAgo, lt: now } },
+      select: { status: true, guestName: true, nights: true },
+    }),
+    prisma.booking.findMany({
+      where:  { propertyId: property.id, status: 'CONFIRMED', checkIn: { gte: now, lte: threeDaysAhead } },
+      select: { guestName: true, checkIn: true, guestCount: true },
+    }),
+    prisma.serviceTicket.findMany({
+      where:  { propertyId: property.id, status: { in: ['ABERTO', 'EM_ANDAMENTO'] } },
+      select: { title: true, priority: true, status: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.maintenanceSchedule.findMany({
+      where:  { propertyId: property.id, nextDueAt: { lt: now } },
+      select: { item: true, nextDueAt: true },
+    }),
+    runAlertRules(prisma, property.id),
+    // NPS: surveys with npsScore this calendar month
+    prisma.survey.findMany({
+      where: {
+        booking: { propertyId: property.id },
+        npsScore: { not: null },
+        updatedAt: { gte: monthStart },
+      },
+      select: { npsScore: true, npsClassification: true },
+    }),
+    // Revenue: sum of confirmed bookings (totalAmount) in last 30 days
+    prisma.booking.aggregate({
+      where: {
+        propertyId: property.id,
+        status: { in: ['CONFIRMED', 'COMPLETED'] },
+        checkIn: { gte: thirtyDaysAgo },
+      },
+      _sum: { totalAmount: true },
+      _count: { id: true },
+    }),
+  ]);
+
+  const urgent    = alertas.filter(a => a.severity === 'URGENTE');
+
+  // NPS summary
+  const npsCount       = npsThisMonth.length;
+  const avgNps         = npsCount > 0
+    ? Math.round(npsThisMonth.reduce((s, r) => s + (r.npsScore ?? 0), 0) / npsCount)
+    : null;
+  const promotores     = npsThisMonth.filter(r => r.npsClassification === 'promotor').length;
+  const detratores     = npsThisMonth.filter(r => r.npsClassification === 'detrator').length;
+  const npsScore       = npsCount >= 5
+    ? Math.round(((promotores - detratores) / npsCount) * 100)
+    : null;
+
+  // Revenue summary
+  const revTotal  = Number(revenueThirtyDays._sum.totalAmount ?? 0);
+  const revCount  = revenueThirtyDays._count.id;
+
+  // Build context sections
+  const ticketsSection = openTickets.length > 0
+    ? `\nChamados abertos (${openTickets.length}):\n${openTickets.slice(0, 5).map(t => `• ${t.title} [${t.priority}]`).join('\n')}`
+    : '';
+  const overdueSection = overdueSchedules.length > 0
+    ? `\nManutenções atrasadas:\n${overdueSchedules.map(s => `• ${s.item} (desde ${s.nextDueAt.toLocaleDateString('pt-BR')})`).join('\n')}`
+    : '';
+  const upcomingSection = upcomingBookings.length > 0
+    ? `\nCheck-ins nos próximos 3 dias:\n${upcomingBookings.map(b => `• ${b.guestName} — ${new Date(b.checkIn).toLocaleDateString('pt-BR')} (${b.guestCount} hóspede${b.guestCount !== 1 ? 's' : ''})`).join('\n')}`
+    : '';
+  const npsSection = npsCount > 0
+    ? `\nNPS do mês: ${npsCount} resposta${npsCount !== 1 ? 's' : ''}` +
+      (avgNps !== null ? `, média ${avgNps}/10` : '') +
+      (npsScore !== null ? `, score NPS ${npsScore}` : '') +
+      ` (${promotores} promotores, ${detratores} detratores)`
+    : '\nNPS do mês: sem respostas ainda';
+  const revenueSection = revCount > 0
+    ? `\nReceita últimos 30 dias: R$${revTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} (${revCount} reserva${revCount !== 1 ? 's' : ''})`
+    : '';
+
+  const Anthropic = require('@anthropic-ai/sdk');
+  const client    = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  const response = await client.messages.create({
+    model:      BRIEF_MODEL,
+    max_tokens: 900,
+    messages:   [{
+      role:    'user',
+      content: `Você é o sistema de inteligência operacional do ${property.name}, uma pousada rural em Jaboticatubas, MG (Serra do Cipó).
+
+Snapshot operacional — ${now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}:
+- Check-outs nos últimos 7 dias: ${recentBookings.length}
+- Check-ins nos próximos 3 dias: ${upcomingBookings.length}
+- Alertas ativos: ${alertas.length} (${urgent.length} urgentes)
+- Chamados abertos: ${openTickets.length}
+- Manutenções atrasadas: ${overdueSchedules.length}
+${ticketsSection}${overdueSection}${upcomingSection}${npsSection}${revenueSection}
+
+Escreva um briefing operacional diário em português brasileiro. 3 a 4 parágrafos curtos e densos.
+Estrutura: (1) situação imediata e check-ins/check-outs, (2) chamados e manutenção, (3) satisfação de hóspedes e financeiro, (4) recomendações práticas para o dia.
+Tom: direto, confiante, sem dramatismo. Cite números reais do snapshot. Não invente dados ausentes — mencione "sem dados" quando aplicável.`,
+    }],
+  });
+
+  const text = response.content[0]?.text || '';
+
+  // Persist to DB (upsert by propertyId + date)
+  await prisma.dailyBriefing.upsert({
+    where:  { propertyId_date: { propertyId: property.id, date: today } },
+    update: { text, model: BRIEF_MODEL },
+    create: { id: require('crypto').randomUUID(), propertyId: property.id, date: today, text, model: BRIEF_MODEL },
+  });
+
+  return { text, cachedAt: now.toISOString(), fromCache: false };
+}
+
+// GET /api/staff/ia/briefing — return today's cached briefing (no regeneration)
+router.get('/ia/briefing', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const property = await resolveBriefingProperty(req.query.propertyId);
+    if (!property) return res.status(404).json({ error: 'Nenhuma propriedade ativa' });
+
+    const today = new Date().toISOString().split('T')[0];
+    const row   = await prisma.dailyBriefing.findUnique({
+      where: { propertyId_date: { propertyId: property.id, date: today } },
+    });
+
+    if (!row) return res.json({ text: null, cachedAt: null, fromCache: false });
+    return res.json({ text: row.text, cachedAt: row.createdAt.toISOString(), fromCache: true });
+  } catch (err) {
+    console.error('[staff-portal] GET ia/briefing error:', err);
+    res.status(500).json({ error: 'Erro ao buscar briefing' });
+  }
+});
+
+// POST /api/staff/ia/briefing — generate (or force-regenerate) the daily briefing
 router.post('/ia/briefing', requireRole('ADMIN'), async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(503).json({ error: 'ANTHROPIC_API_KEY não configurada' });
   }
 
   try {
-    const property = await prisma.property.findFirst({
-      where: { active: true },
-      select: { id: true, name: true },
-    });
+    const property     = await resolveBriefingProperty(req.query.propertyId);
     if (!property) return res.status(404).json({ error: 'Nenhuma propriedade ativa' });
 
-    const propertyId  = req.query.propertyId || property.id;
     const forceRefresh = req.query.refresh === '1';
-    const cached       = _briefCache.get(propertyId);
+    const today        = new Date().toISOString().split('T')[0];
 
-    if (cached && !forceRefresh && Date.now() - cached.cachedAt < BRIEF_TTL_MS) {
-      return res.json({ text: cached.text, cachedAt: new Date(cached.cachedAt).toISOString(), fromCache: true });
+    // Return DB cache unless force-refresh
+    if (!forceRefresh) {
+      const row = await prisma.dailyBriefing.findUnique({
+        where: { propertyId_date: { propertyId: property.id, date: today } },
+      });
+      if (row) {
+        return res.json({ text: row.text, cachedAt: row.createdAt.toISOString(), fromCache: true });
+      }
     }
 
-    // Gather operational snapshot
-    const now         = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const threeDaysAhead = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-
-    const [recentBookings, upcomingBookings, openTickets, overdueSchedules, alertas] = await Promise.all([
-      prisma.booking.findMany({
-        where:  { propertyId, checkOut: { gte: sevenDaysAgo, lt: now } },
-        select: { status: true, guestName: true, nights: true },
-      }),
-      prisma.booking.findMany({
-        where:  { propertyId, status: 'CONFIRMED', checkIn: { gte: now, lte: threeDaysAhead } },
-        select: { guestName: true, checkIn: true, guestCount: true },
-      }),
-      prisma.serviceTicket.findMany({
-        where:  { propertyId, status: { in: ['ABERTO', 'EM_ANDAMENTO'] } },
-        select: { title: true, priority: true, status: true },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.maintenanceSchedule.findMany({
-        where:  { propertyId, nextDueAt: { lt: now } },
-        select: { item: true, nextDueAt: true },
-      }),
-      runAlertRules(prisma, propertyId),
-    ]);
-
-    const urgent = alertas.filter(a => a.severity === 'URGENTE');
-
-    const ticketsSection = openTickets.length > 0
-      ? `\nChamados abertos (${openTickets.length}):\n${openTickets.slice(0, 5).map(t => `• ${t.title} [${t.priority}]`).join('\n')}`
-      : '';
-    const overdueSection = overdueSchedules.length > 0
-      ? `\nManutenções atrasadas:\n${overdueSchedules.map(s => `• ${s.item} (desde ${s.nextDueAt.toLocaleDateString('pt-BR')})`).join('\n')}`
-      : '';
-    const upcomingSection = upcomingBookings.length > 0
-      ? `\nCheck-ins nos próximos 3 dias:\n${upcomingBookings.map(b => `• ${b.guestName} — ${new Date(b.checkIn).toLocaleDateString('pt-BR')} (${b.guestCount} hóspede${b.guestCount !== 1 ? 's' : ''})`).join('\n')}`
-      : '';
-
-    const Anthropic = require('@anthropic-ai/sdk');
-    const client    = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-    const response = await client.messages.create({
-      model:      'claude-haiku-4-5-20251001',
-      max_tokens: 600,
-      messages:   [{
-        role:    'user',
-        content: `Você é o sistema de gestão operacional do ${property.name}, uma pousada em Jaboticatubas, MG.
-
-Snapshot do dia ${now.toLocaleDateString('pt-BR')}:
-- Check-outs nos últimos 7 dias: ${recentBookings.length}
-- Check-ins nos próximos 3 dias: ${upcomingBookings.length}
-- Alertas ativos: ${alertas.length} (${urgent.length} urgentes)
-- Chamados abertos: ${openTickets.length}
-- Manutenções atrasadas: ${overdueSchedules.length}
-${ticketsSection}${overdueSection}${upcomingSection}
-
-Escreva um briefing operacional diário em português. 3 a 4 parágrafos curtos. Destaque prioridades imediatas, o que está bem encaminhado, e qualquer ação recomendada. Tom: direto, profissional, sem dramaturgia.`,
-      }],
-    });
-
-    const text = response.content[0]?.text || '';
-    _briefCache.set(propertyId, { text, cachedAt: Date.now() });
-
-    res.json({ text, cachedAt: new Date().toISOString(), fromCache: false });
+    const result = await generateBriefing(property);
+    res.json(result);
   } catch (err) {
-    console.error('[staff-portal] ia/briefing error:', err);
+    console.error('[staff-portal] POST ia/briefing error:', err);
     res.status(500).json({ error: 'Erro ao gerar briefing' });
   }
 });
@@ -3066,4 +3179,7 @@ router.post('/atividades', async (req, res) => {
   }
 });
 
+// Export generateBriefing under a stable name for the cron job.
+// The cron calls this directly to avoid an internal HTTP round-trip.
 module.exports = router;
+module.exports.generateBriefingForCron = generateBriefing;
