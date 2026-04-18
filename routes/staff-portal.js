@@ -150,6 +150,10 @@ function serializeBooking(b) {
     notes: b.notes || null,
     hasPet: b.hasPet || false,
     petDescription: b.petDescription || null,
+    childrenUnder3: b.childrenUnder3 ?? 0,
+    children3to5:   b.children3to5   ?? 0,
+    childrenOver6:  b.childrenOver6  ?? 0,
+    childrenFee:    b.childrenFee != null ? Number(b.childrenFee) : 0,
     isInvoiceAggregate: b.isInvoiceAggregate || false,
     otaTaskId: b.otaTaskId || null,
     createdAt: b.createdAt?.toISOString() || null,
@@ -222,16 +226,20 @@ router.patch('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
     guestPhone:  z.string().optional(),
     checkIn:     z.string().optional(),
     checkOut:    z.string().optional(),
-    guestCount:  z.number().int().min(1).optional(),
-    totalAmount: z.number().min(0).optional(),
-    hasPet:      z.boolean().optional(),
+    guestCount:       z.number().int().min(1).optional(),
+    totalAmount:      z.number().min(0).optional(),
+    hasPet:           z.boolean().optional(),
+    childrenUnder3:   z.number().int().min(0).optional(),
+    children3to5:     z.number().int().min(0).optional(),
+    childrenOver6:    z.number().int().min(0).optional(),
   });
 
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.errors });
 
   const { source, status, notes, guestName, guestEmail, guestPhone,
-          checkIn, checkOut, guestCount, totalAmount, hasPet } = parsed.data;
+          checkIn, checkOut, guestCount, totalAmount, hasPet,
+          childrenUnder3, children3to5, childrenOver6 } = parsed.data;
 
   const updates = {};
   if (source      !== undefined) updates.source      = sourceReverseMap[source];
@@ -242,7 +250,10 @@ router.patch('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
   if (guestPhone  !== undefined) updates.guestPhone  = guestPhone;
   if (guestCount  !== undefined) updates.guestCount  = guestCount;
   if (totalAmount !== undefined) updates.totalAmount = totalAmount;
-  if (hasPet      !== undefined) updates.hasPet      = hasPet;
+  if (hasPet           !== undefined) updates.hasPet           = hasPet;
+  if (childrenUnder3   !== undefined) updates.childrenUnder3   = childrenUnder3;
+  if (children3to5     !== undefined) updates.children3to5     = children3to5;
+  if (childrenOver6    !== undefined) updates.childrenOver6    = childrenOver6;
 
   if (checkIn !== undefined) {
     const d = new Date(checkIn);
@@ -268,6 +279,27 @@ router.patch('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
 
   if (Object.keys(updates).length === 0) {
     return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+  }
+
+  // Recompute childrenFee if any children count changed
+  if (updates.childrenUnder3 !== undefined || updates.children3to5 !== undefined || updates.childrenOver6 !== undefined) {
+    const current = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      select: {
+        nights: true, baseRatePerNight: true,
+        childrenUnder3: true, children3to5: true, childrenOver6: true,
+        property: { include: { childPricingTiers: true } },
+      },
+    });
+    if (current) {
+      const nights = current.nights || 1;
+      const c3to5  = updates.children3to5  ?? current.children3to5;
+      const cOver6 = updates.childrenOver6 ?? current.childrenOver6;
+      const tier3to5  = current.property?.childPricingTiers?.find(t => t.rateType === 'FIXED' && t.ageMin === 3 && t.ageMax === 5);
+      const fixedRate = tier3to5?.fixedRate ? Number(tier3to5.fixedRate) : 25;
+      const baseRate  = current.baseRatePerNight ? Number(current.baseRatePerNight) : 0;
+      updates.childrenFee = (c3to5 * fixedRate * nights) + (cOver6 * baseRate * nights);
+    }
   }
 
   try {
@@ -3188,6 +3220,55 @@ router.post('/atividades', async (req, res) => {
   } catch (err) {
     console.error('[staff-portal] POST /atividades error:', err);
     res.status(500).json({ error: 'Erro ao registrar atividade' });
+  }
+});
+
+// ── GET /api/staff/admin/pricing-tiers ────────────────────────────────────────
+// Returns ChildPricingTier rows (URL kept short — internally these are
+// children pricing tiers; the model is `ChildPricingTier` due to a naming
+// collision with the existing `PricingTier` seasonal enum).
+router.get('/admin/pricing-tiers', requireRole('ADMIN'), async (req, res) => {
+  const { propertyId } = req.query;
+  try {
+    const tiers = await prisma.childPricingTier.findMany({
+      where: propertyId ? { propertyId: String(propertyId) } : undefined,
+      orderBy: [{ propertyId: 'asc' }, { ageMin: 'asc' }],
+    });
+    res.json(tiers);
+  } catch (err) {
+    console.error('[staff-portal] GET pricing-tiers error:', err);
+    res.status(500).json({ error: 'Erro ao buscar tiers de preço' });
+  }
+});
+
+// ── PUT /api/staff/admin/pricing-tiers/:id ────────────────────────────────────
+router.put('/admin/pricing-tiers/:id', requireRole('ADMIN'), async (req, res) => {
+  const schema = z.object({
+    label:     z.string().min(1),
+    ageMin:    z.number().int().min(0),
+    ageMax:    z.number().int().min(0),
+    rateType:  z.enum(['FREE', 'FIXED', 'FULL_PRICE']),
+    fixedRate: z.number().min(0).optional().nullable(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.errors });
+
+  try {
+    const tier = await prisma.childPricingTier.update({
+      where: { id: req.params.id },
+      data: {
+        label:     parsed.data.label,
+        ageMin:    parsed.data.ageMin,
+        ageMax:    parsed.data.ageMax,
+        rateType:  parsed.data.rateType,
+        fixedRate: parsed.data.fixedRate ?? null,
+      },
+    });
+    res.json(tier);
+  } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Tier não encontrado' });
+    console.error('[staff-portal] PUT pricing-tiers/:id error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar tier de preço' });
   }
 });
 

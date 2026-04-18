@@ -70,6 +70,10 @@ model Booking {
   guestCount            Int
   extraGuests           Int           @default(0)
   hasPet                Boolean       @default(false)
+  childrenUnder3        Int           @default(0)
+  children3to5          Int           @default(0)
+  childrenOver6         Int           @default(0)
+  childrenFee           Decimal       @default(0) @db.Decimal(10, 2)
   baseRatePerNight      Decimal       @db.Decimal(10, 2)
   extraGuestFee         Decimal       @db.Decimal(10, 2)
   petFee                Decimal       @db.Decimal(10, 2)
@@ -90,6 +94,7 @@ model Booking {
   propertyId            String?
   cabinId               String?
   surveyStatus          SurveyStatus  @default(NAO_ENVIADO)
+  lastCancellationNotifiedAt DateTime?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
@@ -225,6 +230,7 @@ model Property {
   brandContentConfigs BrandContentConfig[]
   briefings     DailyBriefing[]           @relation("PropertyBriefings")
   obras         Obra[]                    @relation("PropertyObras")
+  childPricingTiers ChildPricingTier[]
 }
 
 enum PropertyType {
@@ -996,6 +1002,25 @@ model ObraUpdate {
   createdAt DateTime    @default(now())
 
   @@index([etapaId])
+}
+
+// ── Child Pricing Tiers ───────────────────────────────────────────────────────
+// Admin-configurable age-band pricing rules per property.
+// rateType: "FREE" | "FIXED" | "FULL_PRICE"
+model ChildPricingTier {
+  id          String   @id @default(cuid())
+  propertyId  String
+  label       String   // e.g. "Crianças 3–5 anos"
+  ageMin      Int      // inclusive, 0 = no minimum
+  ageMax      Int      // inclusive, 99 = no maximum
+  rateType    String   // "FREE" | "FIXED" | "FULL_PRICE"
+  fixedRate   Decimal? @db.Decimal(10, 2)  // used only when rateType = "FIXED"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  property    Property @relation(fields: [propertyId], references: [id])
+
+  @@index([propertyId])
 }
 
 // ── Push Notifications ────────────────────────────────────────────────────────
