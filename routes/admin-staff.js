@@ -791,4 +791,16 @@ router.patch('/properties/:id/pricing', async (req, res) => {
   }
 });
 
+// ── POST /api/admin/staff/sync-pricing-now ───────────────────────────────────
+router.post('/sync-pricing-now', requireAdmin, async (req, res) => {
+  try {
+    const { pushPricingToRds } = require('../lib/sync-rds');
+    const result = await pushPricingToRds();
+    res.json(result);
+  } catch (err) {
+    console.error('[admin-staff] POST sync-pricing-now error:', err);
+    res.status(500).json({ error: 'Erro ao sincronizar' });
+  }
+});
+
 module.exports = router;
