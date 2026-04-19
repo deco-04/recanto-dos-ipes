@@ -702,6 +702,41 @@ router.patch('/ia/precos/:id', async (req, res) => {
   return res.json(updated);
 });
 
+// ── POST /api/admin/staff/pricing-suggestions/flash ──────────────────────────
+router.post('/pricing-suggestions/flash', async (req, res) => {
+  const schema = z.object({
+    propertyId:    z.string().min(1),
+    startDate:     z.string(),
+    endDate:       z.string(),
+    pricePerNight: z.number().min(0),
+    name:          z.string().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.errors });
+
+  const { propertyId, startDate, endDate, pricePerNight, name } = parsed.data;
+  const tier = deriveTierFromPrice(pricePerNight);
+
+  try {
+    const created = await prisma.seasonalPricing.create({
+      data: {
+        propertyId,
+        name: name || `Relâmpago ${new Date(startDate).toLocaleDateString('pt-BR')}`,
+        tier,
+        startDate: new Date(startDate),
+        endDate:   new Date(endDate),
+        pricePerNight,
+        minNights: 1,
+        isFlash:   true,
+      },
+    });
+    res.status(201).json(created);
+  } catch (err) {
+    console.error('[admin-staff] POST pricing-suggestions/flash error:', err);
+    res.status(500).json({ error: 'Erro ao criar oferta relâmpago' });
+  }
+});
+
 // ── GET /api/admin/staff/properties/:id/pricing ───────────────────────────────
 router.get('/properties/:id/pricing', async (req, res) => {
   try {
