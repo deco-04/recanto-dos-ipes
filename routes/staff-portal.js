@@ -2233,6 +2233,51 @@ router.get('/ia/alertas', requireRole('ADMIN'), async (req, res) => {
 
 const BRIEF_MODEL = 'claude-sonnet-4-6';
 
+const SYSTEM_PROMPT = `Você é o sistema de inteligência operacional de uma pousada rural na Serra do Cipó (MG, Brasil).
+Seu papel: gerar briefings operacionais diários para a equipe administrativa, em português brasileiro, tom direto e confiante.
+
+Estrutura obrigatória do markdown (SEMPRE essas 4 seções, nessa ordem):
+## Situação
+Situação imediata, check-ins/check-outs próximos.
+
+## Operações
+Chamados, manutenção, vistoria.
+
+## Hóspedes & Receita
+Satisfação (NPS), ocupação, receita do mês.
+
+## Recomendações
+Ações práticas para o dia.
+
+Sempre cite números reais do snapshot. Não invente dados ausentes — diga "sem dados" quando aplicável. Use a ferramenta submit_briefing para retornar o resultado estruturado.`;
+
+const SUBMIT_BRIEFING_TOOL = {
+  name: 'submit_briefing',
+  description: 'Retorna o briefing operacional diário em formato estruturado.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      markdown: {
+        type: 'string',
+        description: 'Briefing em markdown com as 4 seções obrigatórias (## Situação, ## Operações, ## Hóspedes & Receita, ## Recomendações).',
+      },
+      actionItems: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            title:   { type: 'string', description: 'Ação prática, 1 frase no imperativo.' },
+            urgency: { type: 'string', enum: ['baixa', 'média', 'alta'] },
+            dueAt:   { type: 'string', description: 'ISO date opcional para a ação.' },
+          },
+          required: ['title', 'urgency'],
+        },
+      },
+    },
+    required: ['markdown', 'actionItems'],
+  },
+};
+
 /**
  * Resolves the propertyId to use for a briefing request.
  * Falls back to the first active property when none is specified.
@@ -2359,35 +2404,58 @@ async function generateBriefing(property) {
 
   const response = await client.messages.create({
     model:      BRIEF_MODEL,
-    max_tokens: 900,
-    messages:   [{
+    max_tokens: 1500,
+    system: [{
+      type: 'text',
+      text: SYSTEM_PROMPT,
+      cache_control: { type: 'ephemeral' },
+    }],
+    tools: [SUBMIT_BRIEFING_TOOL],
+    tool_choice: { type: 'tool', name: 'submit_briefing' },
+    messages: [{
       role:    'user',
-      content: `Você é o sistema de inteligência operacional do ${property.name}, uma pousada rural em Jaboticatubas, MG (Serra do Cipó).
-
-Snapshot operacional — ${now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}:
+      content: `Snapshot operacional — ${now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })} — ${property.name}:
 - Check-outs nos últimos 7 dias: ${recentBookings.length}
 - Check-ins nos próximos 3 dias: ${upcomingBookings.length}
 - Alertas ativos: ${alertas.length} (${urgent.length} urgentes)
 - Chamados abertos: ${openTickets.length}
 - Manutenções atrasadas: ${overdueSchedules.length}
-${ticketsSection}${overdueSection}${upcomingSection}${npsSection}${revenueSection}
-
-Escreva um briefing operacional diário em português brasileiro. 3 a 4 parágrafos curtos e densos.
-Estrutura: (1) situação imediata e check-ins/check-outs, (2) chamados e manutenção, (3) satisfação de hóspedes e financeiro, (4) recomendações práticas para o dia.
-Tom: direto, confiante, sem dramatismo. Cite números reais do snapshot. Não invente dados ausentes — mencione "sem dados" quando aplicável.`,
+${ticketsSection}${overdueSection}${upcomingSection}${npsSection}${revenueSection}`,
     }],
   });
 
-  const text = response.content[0]?.text || '';
+  // Extract structured output from tool_use block
+  const toolUse = response.content.find(c => c.type === 'tool_use' && c.name === 'submit_briefing');
+  if (!toolUse) {
+    throw new Error('Briefing response missing submit_briefing tool_use block');
+  }
+  const { markdown, actionItems } = toolUse.input;
 
   // Persist to DB (upsert by propertyId + date)
+  const cachedAt = new Date();
   await prisma.dailyBriefing.upsert({
-    where:  { propertyId_date: { propertyId: property.id, date: today } },
-    update: { text, model: BRIEF_MODEL },
-    create: { id: require('crypto').randomUUID(), propertyId: property.id, date: today, text, model: BRIEF_MODEL },
+    where: { propertyId_date: { propertyId: property.id, date: today } },
+    create: {
+      id:           require('crypto').randomUUID(),
+      propertyId:   property.id,
+      date:         today,
+      text:         markdown,
+      actionItems,
+      model:        BRIEF_MODEL,
+      inputTokens:  response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      cachedTokens: response.usage.cache_read_input_tokens ?? 0,
+    },
+    update: {
+      text:         markdown,
+      actionItems,
+      inputTokens:  response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      cachedTokens: response.usage.cache_read_input_tokens ?? 0,
+    },
   });
 
-  return { text, cachedAt: now.toISOString(), fromCache: false };
+  return { text: markdown, actionItems, cachedAt, fromCache: false };
 }
 
 // GET /api/staff/ia/briefing — return today's cached briefing (no regeneration)
@@ -2401,8 +2469,8 @@ router.get('/ia/briefing', requireRole('ADMIN'), async (req, res) => {
       where: { propertyId_date: { propertyId: property.id, date: today } },
     });
 
-    if (!row) return res.json({ text: null, cachedAt: null, fromCache: false });
-    return res.json({ text: row.text, cachedAt: row.createdAt.toISOString(), fromCache: true });
+    if (!row) return res.json({ text: null, actionItems: [], cachedAt: null, fromCache: false });
+    return res.json({ text: row.text, actionItems: row.actionItems ?? [], cachedAt: row.createdAt.toISOString(), fromCache: true });
   } catch (err) {
     console.error('[staff-portal] GET ia/briefing error:', err);
     res.status(500).json({ error: 'Erro ao buscar briefing' });
@@ -2428,7 +2496,7 @@ router.post('/ia/briefing', requireRole('ADMIN'), async (req, res) => {
         where: { propertyId_date: { propertyId: property.id, date: today } },
       });
       if (row) {
-        return res.json({ text: row.text, cachedAt: row.createdAt.toISOString(), fromCache: true });
+        return res.json({ text: row.text, actionItems: row.actionItems ?? [], cachedAt: row.createdAt.toISOString(), fromCache: true });
       }
     }
 
