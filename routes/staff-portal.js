@@ -2294,14 +2294,17 @@ async function generateBriefing(property) {
     }),
     runAlertRules(prisma, property.id),
     // NPS: surveys with npsScore this calendar month
-    prisma.survey.findMany({
+    prisma.booking.findMany({
+      where: { propertyId: property.id },
+      select: { id: true },
+    }).then(rows => prisma.survey.findMany({
       where: {
-        booking: { propertyId: property.id },
+        bookingId: { in: rows.map(r => r.id) },
         npsScore: { not: null },
         updatedAt: { gte: monthStart },
       },
       select: { npsScore: true, npsClassification: true },
-    }),
+    })),
     // Revenue: sum of confirmed bookings (totalAmount) in last 30 days
     prisma.booking.aggregate({
       where: {
