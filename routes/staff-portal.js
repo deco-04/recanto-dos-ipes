@@ -2363,6 +2363,8 @@ async function generateBriefing(property) {
     }),
   ]);
 
+  const occupancy = await computeOccupancy(property.id, monthStart, now);
+
   const urgent    = alertas.filter(a => a.severity === 'URGENTE');
 
   // NPS summary
@@ -2421,6 +2423,7 @@ async function generateBriefing(property) {
 - Alertas ativos: ${alertas.length} (${urgent.length} urgentes)
 - Chamados abertos: ${openTickets.length}
 - Manutenções atrasadas: ${overdueSchedules.length}
+- Ocupação no mês: ${occupancy.ratePct}% (${occupancy.occupiedNights}/${occupancy.totalNights} noites)
 ${ticketsSection}${overdueSection}${upcomingSection}${npsSection}${revenueSection}`,
     }],
   });
