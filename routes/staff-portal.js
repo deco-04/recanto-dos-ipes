@@ -16,6 +16,7 @@ const { sendPushToRole, sendPushToStaff } = require('../lib/push');
 const { requireStaff, requireRole } = require('../lib/staff-auth-middleware');
 const { toE164 } = require('../lib/phone');
 const ghlClient  = require('../lib/ghl-client');
+const { computeOccupancy } = require('../lib/occupancy');
 
 const router = express.Router();
 
@@ -3445,6 +3446,33 @@ router.get('/contacts/initiable', requireRole('ADMIN'), async (req, res) => {
   } catch (err) {
     console.error('[staff-portal] GET contacts/initiable error:', err);
     res.status(500).json({ error: 'Erro ao buscar contatos' });
+  }
+});
+
+// ── GET /api/staff/financeiro/occupancy ───────────────────────────────────────
+router.get('/financeiro/occupancy', requireRole('ADMIN'), async (req, res) => {
+  const propertyId = String(req.query.propertyId || '');
+  if (!propertyId) return res.status(400).json({ error: 'propertyId obrigatório' });
+
+  const now = new Date();
+  const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1);
+  const from = req.query.from ? new Date(String(req.query.from)) : defaultFrom;
+  const to   = req.query.to   ? new Date(String(req.query.to))   : now;
+
+  if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+    return res.status(400).json({ error: 'from/to devem ser datas ISO válidas' });
+  }
+
+  try {
+    const result = await computeOccupancy(propertyId, from, to);
+    res.json({
+      ...result,
+      from: from.toISOString(),
+      to:   to.toISOString(),
+    });
+  } catch (err) {
+    console.error('[staff-portal] GET financeiro/occupancy error:', err);
+    res.status(500).json({ error: 'Erro ao calcular ocupação' });
   }
 });
 
