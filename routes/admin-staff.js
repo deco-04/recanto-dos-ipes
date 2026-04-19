@@ -50,11 +50,12 @@ async function fetchStaffWithProperties(where) {
   });
 }
 
-// GET /api/admin/staff/properties — list all active properties (for invite form)
+// GET /api/admin/staff/properties — list all active properties (for invite form
+// + property settings page that reads googleReviewUrl)
 router.get('/properties', async (_req, res) => {
   const properties = await prisma.property.findMany({
     where: { active: true },
-    select: { id: true, name: true, slug: true },
+    select: { id: true, name: true, slug: true, googleReviewUrl: true },
     orderBy: { name: 'asc' },
   });
   return res.json(properties);
