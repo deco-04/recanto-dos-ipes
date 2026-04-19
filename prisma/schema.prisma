@@ -181,6 +181,7 @@ model SeasonalPricing {
   endDate       DateTime    @db.Date
   pricePerNight Decimal     @db.Decimal(10, 2)
   minNights     Int         @default(2)
+  isFlash       Boolean     @default(false)
   propertyId    String?
   createdAt     DateTime    @default(now())
 
