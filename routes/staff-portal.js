@@ -2347,7 +2347,7 @@ async function generateBriefing(property) {
       where: {
         bookingId: { in: rows.map(r => r.id) },
         npsScore: { not: null },
-        updatedAt: { gte: monthStart },
+        respondedAt: { gte: monthStart },
       },
       select: { npsScore: true, npsClassification: true },
     })),
