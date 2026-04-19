@@ -212,6 +212,7 @@ model Property {
   porteiroPhone  String?      // WhatsApp number for the porteiro (gate guard)
   phone          String?      // e.g. "+55 31 2391-6688"
   websiteUrl     String?      // e.g. "https://sitiorecantodosipes.com"
+  googleReviewUrl String?
   active         Boolean      @default(true)
   pricingConfig  Json?        // { tiers: {LOW,MID,HIGH_MID,PEAK}, extraGuestPerNight, cleaningFee, baseGuests }
   createdAt      DateTime     @default(now())
@@ -666,6 +667,7 @@ model Survey {
   npsScore             Int?      // 0-10 NPS score (WhatsApp reply)
   npsClassification    String?   // 'promotor' | 'neutro' | 'detrator'
   npsFollowUpSent      Boolean   @default(false) // apology or review link sent
+  reminderSentAt       DateTime?
   comment              String?  @db.Text
   googleReviewLinkSent Boolean  @default(false)
   adminAlerted         Boolean  @default(false)

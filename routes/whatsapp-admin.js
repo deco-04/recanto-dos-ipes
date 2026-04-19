@@ -12,9 +12,65 @@
  * GET  /api/staff/message-log              — recent WA send/receive log (admin only)
  */
 
-const express = require('express');
-const prisma  = require('../lib/db');
+const express    = require('express');
+const prisma     = require('../lib/db');
 const { requireStaff } = require('../lib/staff-auth-middleware');
+const Anthropic  = require('@anthropic-ai/sdk');
+
+// ── Tiny Redis cache (graceful fallback if Redis unavailable) ────────────────
+let _redis = null;
+function getRedis() {
+  if (_redis !== null) return _redis;
+  if (!process.env.REDIS_URL) { _redis = false; return _redis; }
+  try {
+    const Redis = require('ioredis');
+    _redis = new Redis(process.env.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 1 });
+    _redis.connect().catch(() => { _redis = false; });
+  } catch {
+    _redis = false;
+  }
+  return _redis;
+}
+async function cacheGet(key) {
+  const r = getRedis();
+  if (!r) return null;
+  try { const v = await r.get(key); return v ? JSON.parse(v) : null; } catch { return null; }
+}
+async function cacheSet(key, value, ttlMs) {
+  const r = getRedis();
+  if (!r) return;
+  try { await r.set(key, JSON.stringify(value), 'PX', ttlMs); } catch { /* swallow */ }
+}
+
+const NPS_INSIGHTS_MODEL  = 'claude-sonnet-4-6';
+const NPS_INSIGHTS_SYSTEM = `Você analisa comentários NPS de uma pousada rural na Serra do Cipó (MG, Brasil).
+Resuma temas recorrentes em 2-3 parágrafos curtos em português brasileiro.
+Identifique até 5 temas principais (palavras-chave) e marque cada um como POSITIVO, NEGATIVO ou MISTO.
+Tom: direto, sem floreios. Cite trechos curtos quando útil.
+Use a ferramenta submit_insights para retornar o resultado estruturado.`;
+
+const SUBMIT_INSIGHTS_TOOL = {
+  name: 'submit_insights',
+  description: 'Retorna análise estruturada dos comentários NPS.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      summary: { type: 'string', description: 'Análise em 2-3 parágrafos markdown.' },
+      themes: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            label:     { type: 'string' },
+            sentiment: { type: 'string', enum: ['POSITIVO', 'NEGATIVO', 'MISTO'] },
+          },
+          required: ['label', 'sentiment'],
+        },
+      },
+    },
+    required: ['summary', 'themes'],
+  },
+};
 
 const router = express.Router();
 
@@ -188,6 +244,68 @@ router.get('/nps', requireStaff, async (req, res) => {
   } catch (err) {
     console.error('[wa-admin] GET nps error:', err);
     res.status(500).json({ error: 'Erro ao carregar dados NPS' });
+  }
+});
+
+// ── GET /nps/insights ────────────────────────────────────────────────────────
+router.get('/nps/insights', requireStaff, async (req, res) => {
+  const period  = String(req.query.period || 'month');
+  const fromDays = period === 'quarter' ? 90 : period === 'year' ? 365 : 30;
+  const from    = new Date(Date.now() - fromDays * 24 * 60 * 60 * 1000);
+
+  const cacheKey = `nps:insights:${period}`;
+  const cached   = await cacheGet(cacheKey);
+  if (cached) return res.json({ ...cached, fromCache: true });
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.json({ summary: 'AI não configurada (ANTHROPIC_API_KEY ausente).', themes: [], fromCache: false });
+  }
+
+  const surveys = await prisma.survey.findMany({
+    where: {
+      respondedAt: { gte: from, not: null },
+      comment:     { not: null },
+    },
+    select: { npsScore: true, npsClassification: true, comment: true, respondedAt: true },
+    orderBy: { respondedAt: 'desc' },
+    take: 50,
+  });
+
+  if (surveys.length === 0) {
+    return res.json({
+      summary:   `Sem comentários NPS nos últimos ${fromDays} dias.`,
+      themes:    [],
+      fromCache: false,
+    });
+  }
+
+  const userMessage = `Analise estes ${surveys.length} comentários NPS dos últimos ${fromDays} dias:\n\n${
+    surveys.map((s, i) => `[${i + 1}] Score ${s.npsScore} (${s.npsClassification}) — ${s.comment}`).join('\n\n')
+  }`;
+
+  try {
+    const client   = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const response = await client.messages.create({
+      model:       NPS_INSIGHTS_MODEL,
+      max_tokens:  1500,
+      system:      [{ type: 'text', text: NPS_INSIGHTS_SYSTEM, cache_control: { type: 'ephemeral' } }],
+      tools:       [SUBMIT_INSIGHTS_TOOL],
+      tool_choice: { type: 'tool', name: 'submit_insights' },
+      messages:    [{ role: 'user', content: userMessage }],
+    });
+
+    const toolUse = response.content.find(c => c.type === 'tool_use' && c.name === 'submit_insights');
+    if (!toolUse) {
+      console.error('[whatsapp-admin] nps insights: missing tool_use block');
+      return res.status(502).json({ error: 'AI response missing structured output' });
+    }
+
+    const result = { summary: toolUse.input.summary, themes: toolUse.input.themes };
+    await cacheSet(cacheKey, result, 60 * 60 * 1000);  // 1h
+    res.json({ ...result, fromCache: false });
+  } catch (err) {
+    console.error('[whatsapp-admin] GET /nps/insights error:', err.message);
+    res.status(500).json({ error: 'Erro ao gerar insights' });
   }
 });
 

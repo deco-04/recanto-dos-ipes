@@ -737,6 +737,34 @@ router.post('/pricing-suggestions/flash', async (req, res) => {
   }
 });
 
+// ── PATCH /api/admin/staff/properties/:id ────────────────────────────────────
+router.patch('/properties/:id', async (req, res) => {
+  const schema = z.object({
+    googleReviewUrl: z.string().url().nullable().optional().or(z.literal('')),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.errors });
+
+  // Normalize empty string to null
+  const data = {
+    ...(parsed.data.googleReviewUrl !== undefined && {
+      googleReviewUrl: parsed.data.googleReviewUrl || null,
+    }),
+  };
+
+  try {
+    const property = await prisma.property.update({
+      where: { id: req.params.id },
+      data,
+    });
+    res.json(property);
+  } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Propriedade não encontrada' });
+    console.error('[admin-staff] PATCH properties/:id error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar propriedade' });
+  }
+});
+
 // ── GET /api/admin/staff/properties/:id/pricing ───────────────────────────────
 router.get('/properties/:id/pricing', async (req, res) => {
   try {
