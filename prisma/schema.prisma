@@ -768,12 +768,16 @@ enum SuggestionStatus {
 
 // ── Daily AI Briefing ─────────────────────────────────────────────────────────
 model DailyBriefing {
-  id         String   @id @default(cuid())
-  propertyId String
-  date       String   // ISO date 'YYYY-MM-DD'
-  text       String   @db.Text
-  model      String
-  createdAt  DateTime @default(now())
+  id           String   @id @default(cuid())
+  propertyId   String
+  date         String   // ISO date 'YYYY-MM-DD'
+  text         String   @db.Text
+  actionItems  Json?
+  inputTokens  Int?
+  outputTokens Int?
+  cachedTokens Int?
+  model        String
+  createdAt    DateTime @default(now())
 
   property Property @relation("PropertyBriefings", fields: [propertyId], references: [id])
 
