@@ -692,3 +692,20 @@ a.bg-forest,
 .login-btn {
   color: #fff !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CALENDAR: Flash-sale visual indicator
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.flash-sale {
+  position: relative;
+}
+.flash-sale::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: none;
+  border-radius: 0.5rem;
+  box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+}

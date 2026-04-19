@@ -422,16 +422,19 @@
       extraClass = 'ring-2 ring-forest ring-offset-1';
     } else if (isInRange) {
       bgStyle = `background:#261C1518;color:${t.text};border:1px solid #261C1530;`;
+    } else if (isFlashSale) {
+      // Flash-sale cells get a yellow gradient background
+      bgStyle = 'background:linear-gradient(135deg, #fde68a 0%, #fbbf24 100%);color:#92400E;border:1px solid #fcd34d;';
+      extraClass = 'flash-sale';
     }
 
     const todayDot = isToday
       ? '<span class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-gold"></span>'
       : '';
 
-    // Flash-sale chip: shown when the actual price is below the tier default
-    const flashChip = isFlashSale && !isCheckIn && !isCheckOut
-      ? '<span style="position:absolute;top:2px;right:2px;background:#E11D48;color:#fff;' +
-        'font-size:6px;font-weight:700;line-height:1;padding:1px 3px;border-radius:3px;">PROMO</span>'
+    // Flash-sale lightning icon indicator (appears top-right)
+    const flashIcon = isFlashSale && !isCheckIn && !isCheckOut
+      ? '<span class="absolute top-1 right-1 text-lg leading-none opacity-70">⚡</span>'
       : '';
 
     return `
@@ -439,8 +442,8 @@
                   hover:ring-2 hover:ring-forest hover:ring-offset-1 transition-all select-none ${extraClass}"
            style="${bgStyle}height:52px;"
            data-date="${dateStr}"
-           title="${t.label} · ${priceDisplay}/noite${isFlashSale ? ' 🏷 Promoção!' : ''}">
-        ${flashChip}
+           title="${t.label} · ${priceDisplay}/noite${isFlashSale ? ' ⚡ Promoção!' : ''}">
+        ${flashIcon}
         <span class="font-semibold text-sm leading-tight">${d}</span>
         <span class="text-[9px] leading-tight mt-0.5 opacity-75">${priceDisplay}</span>
         ${todayDot}
@@ -644,8 +647,8 @@
 
   /**
    * Returns pricing info for a given date.
-   * Uses live pricePerNight from the API response rather than static tier defaults.
-   * Sets isFlashSale = true when the actual price is below the tier default.
+   * Uses live pricePerNight from the API response.
+   * isFlashSale is determined by the SeasonalPricing.isFlash database field.
    *
    * @returns {{ tier: string, pricePerNight: number, isFlashSale: boolean }}
    */
@@ -653,7 +656,7 @@
     for (const p of state.pricingPeriods) {
       if (dateStr >= p.startDate && dateStr <= p.endDate) {
         const price      = Number(p.pricePerNight) || TIER_DEFAULTS[p.tier] || TIER_DEFAULTS.LOW;
-        const isFlashSale = price < (TIER_DEFAULTS[p.tier] || Infinity);
+        const isFlashSale = p.isFlash === true;
         return { tier: p.tier, pricePerNight: price, isFlashSale };
       }
     }
