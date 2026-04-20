@@ -7,7 +7,8 @@ import { slugForBrand, parseGerarBody } from '../lib/content-gerar-helpers.js';
 
 describe('slugForBrand', () => {
   it('maps each brand to its canonical property slug', () => {
-    expect(slugForBrand('RDI')).toBe('sitio-recanto-ipes');
+    // Slugs match live production DB (audited 2026-04-20).
+    expect(slugForBrand('RDI')).toBe('recanto-dos-ipes');
     expect(slugForBrand('RDS')).toBe('recantos-da-serra');
     expect(slugForBrand('CDS')).toBe('cabanas-da-serra');
   });
