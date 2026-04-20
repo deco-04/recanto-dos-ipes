@@ -294,6 +294,7 @@ model StaffMember {
   activityLogs     StaffActivityLog[]
   obrasCreated     Obra[]             @relation("ObraCreator")
   obraUpdates      ObraUpdate[]       @relation("ObraUpdateAuthor")
+  expensesCreated  Expense[]          @relation("ExpenseCreator")
 }
 
 enum StaffRole {
@@ -555,11 +556,13 @@ model Expense {
   supplierId  String?
   obraId      String?         // optionally linked to an Obra project
   notes       String?
+  createdById String?         // optional so bank-imported expenses (no staff) still work
   createdAt   DateTime        @default(now())
 
-  property   Property    @relation(fields: [propertyId], references: [id])
-  supplier   Fornecedor? @relation(fields: [supplierId], references: [id])
-  obra       Obra?       @relation("ObraExpenses", fields: [obraId], references: [id])
+  property   Property     @relation(fields: [propertyId], references: [id])
+  supplier   Fornecedor?  @relation(fields: [supplierId], references: [id])
+  obra       Obra?        @relation("ObraExpenses", fields: [obraId], references: [id])
+  createdBy  StaffMember? @relation("ExpenseCreator", fields: [createdById], references: [id])
 
   @@index([propertyId, date])
   @@index([category])
