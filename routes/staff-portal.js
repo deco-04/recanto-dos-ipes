@@ -2920,6 +2920,7 @@ router.get('/financeiro/despesas', requireRole('ADMIN'), async (req, res) => {
       where,
       orderBy: { date: 'desc' },
       take: 200,
+      include: { createdBy: { select: { id: true, name: true } } },
     });
 
     res.json({ expenses });
@@ -2941,7 +2942,7 @@ router.post('/financeiro/despesas', requireRole('ADMIN'), async (req, res) => {
 
     const expense = await prisma.expense.create({
       data: {
-        propertyId: prop.id,
+        propertyId:  prop.id,
         date:        new Date(date),
         amount:      parseFloat(amount),
         category:    category || 'A_CLASSIFICAR',
@@ -2949,7 +2950,9 @@ router.post('/financeiro/despesas', requireRole('ADMIN'), async (req, res) => {
         payee:       payee || '',
         source:      'MANUAL',
         notes,
+        createdById: req.staff.id,  // attribution so the Obra cost log shows who logged it
       },
+      include: { createdBy: { select: { id: true, name: true } } },
     });
 
     res.status(201).json({ expense });
