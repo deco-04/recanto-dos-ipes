@@ -215,6 +215,7 @@ model Property {
   googleReviewUrl String?
   active         Boolean      @default(true)
   pricingConfig  Json?        // { tiers: {LOW,MID,HIGH_MID,PEAK}, extraGuestPerNight, cleaningFee, baseGuests }
+  accessInfo     Json?        // { wifi:{ssid,password}, checkin:{instructions,emergency}, maps:{url} }
   createdAt      DateTime     @default(now())
 
   cabins        Cabin[]

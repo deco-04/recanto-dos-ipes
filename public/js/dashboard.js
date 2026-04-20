@@ -42,11 +42,12 @@ let currentUser = null;
   populateProfileView(user);
 
   // Load all dashboard data in parallel
-  const [currentRes, upcomingRes, pastRes, pendingRes] = await Promise.all([
+  const [currentRes, upcomingRes, pastRes, pendingRes, kitRes] = await Promise.all([
     fetch('/api/dashboard/current'),
     fetch('/api/dashboard/upcoming'),
     fetch('/api/dashboard/past'),
     fetch('/api/dashboard/pending'),
+    fetch('/api/dashboard/arrival-kit'),
   ]);
 
   document.getElementById('loading-state').classList.add('hidden');
@@ -70,6 +71,12 @@ let currentUser = null;
   }
 
   let hasAny = false;
+
+  // Pre-arrival kit (non-blocking — no error shown if it fails)
+  if (kitRes.ok) {
+    const kitData = await kitRes.json();
+    if (kitData.accessInfo) renderArrivalKit(kitData);
+  }
 
   if (currentRes.ok) {
     const { booking } = await currentRes.json();
@@ -709,6 +716,163 @@ async function setPassword() {
     err.classList.remove('hidden');
     btn.disabled = false;
     btn.textContent = 'Salvar senha';
+  }
+}
+
+// ── Pre-arrival kit ───────────────────────────────────────────────────────────
+function renderArrivalKit({ accessInfo, checkIn, daysUntil }) {
+  const section = document.getElementById('arrival-kit-section');
+  const card    = document.getElementById('arrival-kit-card');
+  if (!section || !card || !accessInfo) return;
+
+  const isCurrentStay = daysUntil <= 0;
+  const countdown = isCurrentStay
+    ? 'Você está hospedado(a) agora!'
+    : daysUntil === 1
+      ? 'Você chega amanhã!'
+      : `Você chega em ${daysUntil} dias`;
+
+  const wifi     = accessInfo.wifi     || {};
+  const checkin  = accessInfo.checkin  || {};
+  const maps     = accessInfo.maps     || {};
+  const rules    = accessInfo.houseRules || [];
+
+  const instructionItems = (checkin.instructions || [])
+    .map(i => `<li style="padding:0.35rem 0; border-bottom:1px solid #F0EEE9; font-size:0.8125rem; color:#3D2B1F;">${i}</li>`)
+    .join('');
+
+  const ruleItems = rules
+    .map(r => `<li style="padding:0.35rem 0; border-bottom:1px solid #F0EEE9; font-size:0.8125rem; color:#3D2B1F;">${r}</li>`)
+    .join('');
+
+  card.innerHTML = `
+    <div style="background:#fff; border-radius:1.25rem; border:1px solid rgba(38,28,21,0.07); box-shadow:0 2px 12px rgba(38,28,21,0.07); overflow:hidden;">
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#2B7929,#3D9436); padding:1.125rem 1.375rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+        <div>
+          <p style="color:rgba(255,255,255,0.65); font-size:0.6875rem; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; margin:0 0 0.25rem;">Chegada</p>
+          <p style="color:#fff; font-family:'Playfair Display',serif; font-size:1.0625rem; font-weight:700; margin:0;">${countdown}</p>
+        </div>
+        <span style="background:rgba(255,255,255,0.2); color:#fff; font-size:0.75rem; font-weight:700; padding:0.375rem 0.875rem; border-radius:100px; white-space:nowrap;">
+          ${new Date(checkIn).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',timeZone:'UTC'})}
+        </span>
+      </div>
+
+      <div style="padding:1.25rem 1.375rem; display:grid; gap:1rem;">
+
+        <!-- WiFi card -->
+        <div style="background:#F7F7F2; border-radius:0.875rem; padding:1rem 1.125rem;">
+          <div style="display:flex; align-items:center; gap:0.625rem; margin-bottom:0.75rem;">
+            <div style="width:1.875rem; height:1.875rem; background:#E4E6C3; border-radius:0.5rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#2B7929" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg>
+            </div>
+            <p style="font-size:0.8125rem; font-weight:700; color:#261C15; margin:0;">Wi-Fi da propriedade</p>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.625rem;">
+            <div>
+              <p style="font-size:0.6875rem; color:#9A9A9A; margin:0 0 0.2rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em;">Rede</p>
+              <p style="font-size:0.875rem; font-weight:700; color:#261C15; margin:0; font-family:monospace;">${wifi.ssid || '—'}</p>
+            </div>
+            <div>
+              <p style="font-size:0.6875rem; color:#9A9A9A; margin:0 0 0.2rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em;">Senha</p>
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <p id="kit-wifi-pw" style="font-size:0.875rem; font-weight:700; color:#261C15; margin:0; font-family:monospace; filter:blur(4px); user-select:none; transition:filter 200ms;">${wifi.password || '—'}</p>
+                <button onclick="toggleWifiPw(this)"
+                  style="background:none; border:1px solid #C5D86D; color:#2B7929; font-size:0.7rem; font-weight:700; padding:0.2rem 0.5rem; border-radius:0.375rem; cursor:pointer; white-space:nowrap; transition:all 150ms;"
+                  onmouseover="this.style.background='#C5D86D'" onmouseout="this.style.background='none'">Ver</button>
+              </div>
+            </div>
+          </div>
+          <button onclick="copyToClipboard('${(wifi.password||'').replace(/'/g,"\\'")}', this)"
+            style="margin-top:0.75rem; width:100%; background:#2B7929; color:#fff; border:none; border-radius:0.625rem; padding:0.5rem 1rem; font-size:0.8125rem; font-weight:700; cursor:pointer; transition:background 150ms; display:flex; align-items:center; justify-content:center; gap:0.5rem;"
+            onmouseover="this.style.background='#3D9436'" onmouseout="this.style.background='#2B7929'">
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            Copiar senha do Wi-Fi
+          </button>
+        </div>
+
+        <!-- Check-in instructions -->
+        ${instructionItems ? `
+        <div>
+          <p style="font-size:0.6875rem; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:#9A9A9A; margin:0 0 0.5rem;">Instruções de chegada</p>
+          <ul style="list-style:none; margin:0; padding:0; background:#F7F7F2; border-radius:0.875rem; overflow:hidden; padding:0.25rem 1rem;">
+            ${instructionItems}
+          </ul>
+        </div>` : ''}
+
+        <!-- Emergency contact + Maps -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.625rem;">
+          ${checkin.emergency ? `
+          <a href="tel:${checkin.emergency.replace(/\s/g,'')}" style="background:#F7F7F2; border-radius:0.875rem; padding:0.875rem; text-decoration:none; display:flex; flex-direction:column; gap:0.375rem; border:1px solid transparent; transition:border-color 200ms;" onmouseover="this.style.borderColor='#C5D86D'" onmouseout="this.style.borderColor='transparent'">
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#2B7929" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+              <p style="font-size:0.6875rem; font-weight:800; color:#9A9A9A; margin:0; text-transform:uppercase; letter-spacing:0.08em;">Emergência</p>
+            </div>
+            <p style="font-size:0.8125rem; font-weight:700; color:#261C15; margin:0;">${checkin.emergencyLabel || 'Contato'}</p>
+            <p style="font-size:0.75rem; color:#2B7929; margin:0; font-family:monospace;">${checkin.emergency}</p>
+          </a>` : ''}
+          ${maps.url ? `
+          <a href="${maps.url}" target="_blank" rel="noopener" style="background:#F7F7F2; border-radius:0.875rem; padding:0.875rem; text-decoration:none; display:flex; flex-direction:column; gap:0.375rem; border:1px solid transparent; transition:border-color 200ms;" onmouseover="this.style.borderColor='#C5D86D'" onmouseout="this.style.borderColor='transparent'">
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#2B7929" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              <p style="font-size:0.6875rem; font-weight:800; color:#9A9A9A; margin:0; text-transform:uppercase; letter-spacing:0.08em;">Como chegar</p>
+            </div>
+            <p style="font-size:0.8125rem; font-weight:700; color:#261C15; margin:0;">Sítio Recanto dos Ipês</p>
+            <p style="font-size:0.75rem; color:#2B7929; margin:0;">Jaboticatubas, MG →</p>
+          </a>` : ''}
+        </div>
+
+        <!-- House rules (collapsible) -->
+        ${ruleItems ? `
+        <details style="background:#F7F7F2; border-radius:0.875rem; overflow:hidden;">
+          <summary style="padding:0.875rem 1rem; font-size:0.8125rem; font-weight:700; color:#261C15; cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between; user-select:none;">
+            <span style="display:flex; align-items:center; gap:0.5rem;">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#2B7929" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              Regras da casa
+            </span>
+            <span style="font-size:0.75rem; color:#9A9A9A; font-weight:400;">Ver</span>
+          </summary>
+          <ul style="list-style:none; margin:0; padding:0.25rem 1rem 0.875rem; border-top:1px solid #E4E6C3;">
+            ${ruleItems}
+          </ul>
+        </details>` : ''}
+
+      </div>
+    </div>
+  `;
+
+  section.classList.remove('hidden');
+}
+
+function toggleWifiPw(btn) {
+  const pw = document.getElementById('kit-wifi-pw');
+  if (!pw) return;
+  const blurred = pw.style.filter === 'blur(4px)';
+  pw.style.filter = blurred ? 'none' : 'blur(4px)';
+  pw.style.userSelect = blurred ? 'text' : 'none';
+  btn.textContent = blurred ? 'Ocultar' : 'Ver';
+}
+
+function copyToClipboard(text, btn) {
+  const original = btn.innerHTML;
+  const done = () => {
+    btn.innerHTML = '✓ Copiado!';
+    setTimeout(() => { btn.innerHTML = original; }, 2200);
+  };
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(done).catch(() => {
+      const el = document.createElement('textarea');
+      el.value = text; el.style.cssText = 'position:fixed;left:-9999px;top:0;';
+      document.body.appendChild(el); el.focus(); el.select();
+      try { document.execCommand('copy'); done(); } catch (_) {}
+      document.body.removeChild(el);
+    });
+  } else {
+    const el = document.createElement('textarea');
+    el.value = text; el.style.cssText = 'position:fixed;left:-9999px;top:0;';
+    document.body.appendChild(el); el.focus(); el.select();
+    try { document.execCommand('copy'); done(); } catch (_) {}
+    document.body.removeChild(el);
   }
 }
 

@@ -320,6 +320,63 @@ router.delete('/bookings/:id/guests/:guestId', async (req, res) => {
   }
 });
 
+// ── GET /api/dashboard/arrival-kit ───────────────────────────────────────────
+// Returns property accessInfo if the user has a CONFIRMED booking checking in
+// within the next 7 days (or currently ongoing). Fail-safe: never 500.
+router.get('/arrival-kit', async (req, res) => {
+  try {
+    const today  = new Date(); today.setHours(0, 0, 0, 0);
+    const cutoff = new Date(today); cutoff.setDate(today.getDate() + 7);
+
+    // 1. Check own bookings within window
+    const ownBooking = await prisma.booking.findFirst({
+      where: {
+        OR: [
+          { userId: req.session.userId },
+          { guestEmail: req.session.userEmail, userId: null },
+        ],
+        status:   'CONFIRMED',
+        checkIn:  { lte: cutoff },
+        checkOut: { gte: today },
+      },
+      orderBy: { checkIn: 'asc' },
+    });
+
+    // 2. Check co-guest bookings within window
+    let targetBooking = ownBooking;
+    if (!targetBooking && req.session.userId) {
+      const coGuestEntries = await prisma.bookingGuest.findMany({
+        where:   { userId: req.session.userId, status: 'CONFIRMADO' },
+        include: { booking: true },
+      });
+      const coBooking = coGuestEntries
+        .map(g => g.booking)
+        .find(b =>
+          b &&
+          b.status === 'CONFIRMED' &&
+          new Date(b.checkIn) <= cutoff &&
+          new Date(b.checkOut) >= today
+        ) ?? null;
+      if (coBooking) targetBooking = coBooking;
+    }
+
+    if (!targetBooking) return res.json({ accessInfo: null });
+
+    const property = await prisma.property.findFirst({ where: { active: true } });
+    const daysUntil = Math.ceil((new Date(targetBooking.checkIn) - today) / (1000 * 60 * 60 * 24));
+
+    res.json({
+      accessInfo: property?.accessInfo ?? null,
+      checkIn:    targetBooking.checkIn,
+      checkOut:   targetBooking.checkOut,
+      daysUntil,  // negative = already checked in
+    });
+  } catch (err) {
+    console.error('[dashboard] arrival-kit error:', err);
+    res.json({ accessInfo: null }); // fail silently — non-critical feature
+  }
+});
+
 // ── POST /api/dashboard/bookings/:id/guests/:guestId/resend ───────────────────
 router.post('/bookings/:id/guests/:guestId/resend', async (req, res) => {
   try {

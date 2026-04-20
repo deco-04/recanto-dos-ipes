@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Preços Sazonais — Admin · Recanto dos Ipês</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700&family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          forest: { DEFAULT:'#261C15', light:'#3D2B1F' },
+          gold:   { DEFAULT:'#C5D86D', dark:'#9BAB52' },
+          beige:  { DEFAULT:'#F7F7F2', dark:'#E4E6C3' },
+          green:  { brand:'#2B7929' },
+        },
+        fontFamily: { serif:['Playfair Display','serif'], sans:['Nunito','sans-serif'] },
+      }}
+    }
+  </script>
+  <style>
+    body { font-family:'Nunito',sans-serif; background:#F7F7F2; color:#261C15; }
+    .spin { animation: spin-anim 0.9s linear infinite; }
+    @keyframes spin-anim { to { transform: rotate(360deg); } }
+    .tier-LOW      { background:#EFF6FF; color:#1D4ED8; }
+    .tier-MID      { background:#F0FDF4; color:#166534; }
+    .tier-HIGH_MID { background:#FFFBEB; color:#92400E; }
+    .tier-PEAK     { background:#FFF1F2; color:#9F1239; }
+    input, select { outline:none; }
+    input:focus, select:focus { border-color:#2B7929 !important; box-shadow: 0 0 0 3px rgba(43,121,41,0.12); }
+    .rule-row:hover { background:#FAFAF7; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Nav ───────────────────────────────────────────────────────────────── -->
+  <nav style="background:#1A1108; height:52px; display:flex; align-items:center; padding:0 1.5rem; position:sticky; top:0; z-index:40; box-shadow:0 1px 0 rgba(197,216,109,0.12);">
+    <div style="max-width:64rem; width:100%; margin:0 auto; display:flex; align-items:center; justify-content:space-between;">
+      <div style="display:flex; align-items:center; gap:0.625rem;">
+        <img src="/brand/sri-mark-white.svg" width="22" height="22" alt="" style="display:block;">
+        <span style="color:#fff; font-family:'Playfair Display',serif; font-weight:700; font-size:0.9rem;">Recanto dos Ipês</span>
+        <span style="color:rgba(197,216,109,0.5); font-size:0.75rem; margin-left:0.25rem;">/ Preços</span>
+      </div>
+      <button id="logout-btn" onclick="logout()"
+        style="color:rgba(255,255,255,0.5); background:none; border:1px solid rgba(255,255,255,0.15); padding:0.35rem 0.75rem; border-radius:0.5rem; font-size:0.75rem; cursor:pointer; transition:all 180ms;"
+        onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">
+        Sair
+      </button>
+    </div>
+  </nav>
+
+  <!-- ── Login form (shown when not authenticated) ─────────────────────────── -->
+  <div id="login-screen" class="hidden" style="display:flex; min-height:calc(100vh - 52px); align-items:center; justify-content:center; padding:2rem;">
+    <div style="background:#fff; border-radius:1.25rem; border:1px solid #E4E6C3; box-shadow:0 4px 24px rgba(38,28,21,0.08); padding:2rem; width:100%; max-width:22rem;">
+      <h1 style="font-family:'Playfair Display',serif; font-size:1.375rem; font-weight:700; margin:0 0 0.375rem;">Entrar</h1>
+      <p style="color:#9A9A9A; font-size:0.8125rem; margin:0 0 1.5rem;">Acesso restrito a administradores.</p>
+      <div class="space-y-3">
+        <div>
+          <label style="display:block; font-size:0.75rem; font-weight:700; color:#6B6B6B; margin-bottom:0.3rem;">E-mail</label>
+          <input id="login-email" type="email" placeholder="seu@email.com"
+            style="width:100%; border:1.5px solid #E4E6C3; border-radius:0.75rem; padding:0.7rem 0.875rem; font-size:0.875rem; font-family:'Nunito',sans-serif; transition:border-color 200ms; box-sizing:border-box;"/>
+        </div>
+        <div>
+          <label style="display:block; font-size:0.75rem; font-weight:700; color:#6B6B6B; margin-bottom:0.3rem;">Senha</label>
+          <input id="login-password" type="password" placeholder="••••••••"
+            style="width:100%; border:1.5px solid #E4E6C3; border-radius:0.75rem; padding:0.7rem 0.875rem; font-size:0.875rem; font-family:'Nunito',sans-serif; transition:border-color 200ms; box-sizing:border-box;"/>
+        </div>
+        <p id="login-error" style="color:#DC2626; font-size:0.8rem; display:none; margin:0;"></p>
+        <button id="login-btn" onclick="doLogin()"
+          style="width:100%; background:#2B7929; color:#fff; border:none; border-radius:0.875rem; padding:0.8rem; font-size:0.9rem; font-weight:700; cursor:pointer; transition:background 180ms; font-family:'Nunito',sans-serif;"
+          onmouseover="this.style.background='#3D9436'" onmouseout="this.style.background='#2B7929'">
+          Entrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main content (shown when authenticated) ───────────────────────────── -->
+  <div id="main-screen" class="hidden" style="max-width:64rem; margin:0 auto; padding:1.75rem 1.5rem 5rem;">
+
+    <!-- Page header -->
+    <div style="margin-bottom:1.75rem;">
+      <p style="font-size:0.6875rem; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; color:#9A9A9A; margin:0 0 0.3rem;">Administração</p>
+      <h1 style="font-family:'Playfair Display',serif; font-size:1.625rem; font-weight:700; margin:0 0 0.375rem;">Preços Sazonais</h1>
+      <p style="color:#9A9A9A; font-size:0.875rem; margin:0;">Gerencie as regras de preço por período. A regra ativa no momento da reserva determina o valor da diária.</p>
+    </div>
+
+    <!-- Add rule card -->
+    <div style="background:#fff; border-radius:1.25rem; border:1px solid #E4E6C3; box-shadow:0 2px 12px rgba(38,28,21,0.06); padding:1.375rem; margin-bottom:1.5rem;">
+      <h2 style="font-size:0.9375rem; font-weight:700; margin:0 0 1rem;">Nova regra de preço</h2>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:0.75rem;">
+        <div>
+          <label style="display:block; font-size:0.7rem; font-weight:700; color:#6B6B6B; margin-bottom:0.3rem; text-transform:uppercase; letter-spacing:0.06em;">Nome</label>
+          <input id="f-name" type="text" placeholder="Ex: Carnaval 2026"
+            style="width:100%; border:1.5px solid #E4E6C3; border-radius:0.625rem; padding:0.6rem 0.75rem; font-size:0.875rem; font-family:'Nunito',sans-serif; transition:border-color 200ms; box-sizing:border-box;"/>
+        </div>
+        <div>
+          <label style="display:block; font-size:0.7rem; font-weight:700; color:#6B6B6B; margin-bottom:0.3rem; text-transform:uppercase; letter-spacing:0.06em;">Início</label>
+          <input id="f-start" type="date"
+            style="width:100%; border:1.5px solid #E4E6C3; border-radius:0.625rem; padding:0.6rem 0.75rem; font-size:0.875rem; font-family:'Nunito',sans-serif; transition:border-color 200ms; box-sizing:border-box;"/>
+        </div>
+        <div>
+          <label style="display:block; font-size:0.7rem; font-weight:700; color:#6B6B6B; margin-bottom:0.3rem; text-transform:uppercase; letter-spacing:0.06em;">Fim</label>
+          <input id="f-end" type="date"
+            style="width:100%; border:1.5px solid #E4E6C3; border-radius:0.625rem; padding:0.6rem 0.75rem; font-size:0.875rem; font-family:'Nunito',sans-serif; transition:border-color 200ms; box-sizing:border-box;"/>
+        </div>
+        <div>
+          <label style="display:block; font-size:0.7rem; font-weight:700; color:#6B6B6B; margin-bottom:0.3rem; text-transform:uppercase; letter-spacing:0.06em;">Diária (R$)</label>
+          <input id="f-price" type="number" min="1" step="0.01" placeholder="850"
+            style="width:100%; border:1.5px solid #E4E6C3; border-radius:0.625rem; padding:0.6rem 0.75rem; font-size:0.875rem; font-family:'Nunito',sans-serif; transition:border-color 200ms; box-sizing:border-box;"/>
+        </div>
+        <div>
+          <label style="display:block; font-size:0.7rem; font-weight:700; color:#6B6B6B; margin-bottom:0.3rem; text-transform:uppercase; letter-spacing:0.06em;">Mín. noites</label>
+          <input id="f-min" type="number" min="1" value="2"
+            style="width:100%; border:1.5px solid #E4E6C3; border-radius:0.625rem; padding:0.6rem 0.75rem; font-size:0.875rem; font-family:'Nunito',sans-serif; transition:border-color 200ms; box-sizing:border-box;"/>
+        </div>
+        <div>
+          <label style="display:block; font-size:0.7rem; font-weight:700; color:#6B6B6B; margin-bottom:0.3rem; text-transform:uppercase; letter-spacing:0.06em;">Temporada</label>
+          <select id="f-tier"
+            style="width:100%; border:1.5px solid #E4E6C3; border-radius:0.625rem; padding:0.6rem 0.75rem; font-size:0.875rem; font-family:'Nunito',sans-serif; background:#fff; transition:border-color 200ms; box-sizing:border-box; cursor:pointer;">
+            <option value="LOW">Baixa (LOW)</option>
+            <option value="MID" selected>Média (MID)</option>
+            <option value="HIGH_MID">Alta média (HIGH_MID)</option>
+            <option value="PEAK">Alta (PEAK)</option>
+          </select>
+        </div>
+      </div>
+      <p id="add-error" style="color:#DC2626; font-size:0.8rem; margin:0.75rem 0 0; display:none;"></p>
+      <div style="margin-top:1rem; display:flex; align-items:center; gap:0.75rem;">
+        <button id="add-btn" onclick="addRule()"
+          style="background:#2B7929; color:#fff; border:none; border-radius:0.75rem; padding:0.65rem 1.375rem; font-size:0.875rem; font-weight:700; cursor:pointer; transition:background 180ms; font-family:'Nunito',sans-serif; display:flex; align-items:center; gap:0.5rem;"
+          onmouseover="this.style.background='#3D9436'" onmouseout="this.style.background='#2B7929'">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+          Adicionar regra
+        </button>
+        <p id="add-success" style="color:#166534; font-size:0.8rem; display:none;">✓ Regra adicionada!</p>
+      </div>
+    </div>
+
+    <!-- Rules list -->
+    <div style="background:#fff; border-radius:1.25rem; border:1px solid #E4E6C3; box-shadow:0 2px 12px rgba(38,28,21,0.06); overflow:hidden;">
+      <div style="padding:1.125rem 1.375rem; border-bottom:1px solid #F0EEE9; display:flex; align-items:center; justify-content:space-between;">
+        <h2 style="font-size:0.9375rem; font-weight:700; margin:0;">Regras ativas</h2>
+        <div id="list-loading" style="display:flex; align-items:center; gap:0.5rem; color:#9A9A9A; font-size:0.8125rem;">
+          <svg class="spin" width="14" height="14" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+          Carregando…
+        </div>
+      </div>
+
+      <!-- Table header (desktop) -->
+      <div id="rules-header" class="hidden"
+        style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr 80px; padding:0.625rem 1.375rem; background:#F7F7F2; font-size:0.7rem; font-weight:800; color:#9A9A9A; letter-spacing:0.08em; text-transform:uppercase; gap:0.5rem;">
+        <span>Nome / Período</span>
+        <span>Temporada</span>
+        <span>Diária</span>
+        <span>Mín.</span>
+        <span>Datas</span>
+        <span></span>
+      </div>
+
+      <div id="rules-body" style="min-height:80px;"></div>
+    </div>
+
+  </div>
+
+  <script>
+  'use strict';
+
+  const TOKEN_KEY = 'sri_staff_token';
+  const TIERS = { LOW: 'Baixa', MID: 'Média', HIGH_MID: 'Alta Média', PEAK: 'Alta' };
+  const fmtBRL = v => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(Number(v));
+  const fmtDate = d => {
+    const s = typeof d === 'string' ? d.slice(0,10) : d.toISOString().slice(0,10);
+    const [y,m,dd] = s.split('-');
+    return `${dd}/${m}/${y}`;
+  };
+
+  function getToken() { return localStorage.getItem(TOKEN_KEY); }
+
+  function adminHeaders() {
+    return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` };
+  }
+
+  // ── Auth ─────────────────────────────────────────────────────────────────────
+  async function doLogin() {
+    const email    = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errEl    = document.getElementById('login-error');
+    const btn      = document.getElementById('login-btn');
+    errEl.style.display = 'none';
+
+    if (!email || !password) {
+      errEl.textContent = 'Preencha e-mail e senha.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Entrando…';
+    try {
+      const res  = await fetch('/api/staff/auth/login', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.error || 'Credenciais inválidas.';
+        errEl.style.display = 'block';
+        return;
+      }
+      if (data.role !== 'ADMIN') {
+        errEl.textContent = 'Acesso restrito a administradores.';
+        errEl.style.display = 'block';
+        return;
+      }
+      localStorage.setItem(TOKEN_KEY, data.staffToken);
+      showMain();
+    } catch {
+      errEl.textContent = 'Erro de conexão. Tente novamente.';
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Entrar';
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem(TOKEN_KEY);
+    document.getElementById('main-screen').style.display  = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('login-screen').classList.remove('hidden');
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────────
+  (function init() {
+    const token = getToken();
+    if (token) {
+      showMain();
+    } else {
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('login-screen').classList.remove('hidden');
+    }
+
+    document.getElementById('login-password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doLogin();
+    });
+  })();
+
+  async function showMain() {
+    document.getElementById('login-screen').style.display  = 'none';
+    document.getElementById('main-screen').style.display   = 'block';
+    document.getElementById('main-screen').classList.remove('hidden');
+    await loadRules();
+  }
+
+  // ── CRUD ─────────────────────────────────────────────────────────────────────
+  async function loadRules() {
+    document.getElementById('list-loading').style.display = 'flex';
+    document.getElementById('rules-header').classList.add('hidden');
+    document.getElementById('rules-body').innerHTML = '';
+
+    try {
+      const res = await fetch('/api/admin/staff/precos', { headers: adminHeaders() });
+
+      if (res.status === 401) { logout(); return; }
+      if (!res.ok) throw new Error('Erro ao carregar regras');
+
+      const rules = await res.json();
+      document.getElementById('list-loading').style.display = 'none';
+
+      if (rules.length === 0) {
+        document.getElementById('rules-body').innerHTML = `
+          <div style="padding:2.5rem; text-align:center; color:#9A9A9A; font-size:0.875rem;">
+            Nenhuma regra de preço cadastrada ainda.
+          </div>`;
+        return;
+      }
+
+      document.getElementById('rules-header').classList.remove('hidden');
+      document.getElementById('rules-header').style.display = 'grid';
+
+      document.getElementById('rules-body').innerHTML = rules.map(r => `
+        <div class="rule-row"
+          style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr 80px; padding:0.875rem 1.375rem; border-bottom:1px solid #F7F7F2; align-items:center; gap:0.5rem; transition:background 150ms;">
+          <div>
+            <p style="font-weight:700; font-size:0.875rem; margin:0 0 0.15rem;">${r.name || '—'}</p>
+            <p style="font-size:0.75rem; color:#9A9A9A; margin:0; font-family:monospace;">${r.id.slice(-8)}</p>
+          </div>
+          <span style="display:inline-flex; align-items:center; padding:0.2rem 0.625rem; border-radius:100px; font-size:0.7rem; font-weight:800; letter-spacing:0.04em; width:fit-content;"
+            class="tier-${r.tier}">${TIERS[r.tier] || r.tier}</span>
+          <p style="font-weight:700; font-size:0.9375rem; margin:0;">${fmtBRL(r.pricePerNight)}</p>
+          <p style="font-size:0.875rem; margin:0; color:#6B6B6B;">${r.minNights}x</p>
+          <div>
+            <p style="font-size:0.75rem; margin:0; color:#6B6B6B;">${fmtDate(r.startDate)}</p>
+            <p style="font-size:0.75rem; margin:0; color:#6B6B6B;">→ ${fmtDate(r.endDate)}</p>
+          </div>
+          <button onclick="deleteRule('${r.id}', '${(r.name||'').replace(/'/g,"\\'")}', this)"
+            style="background:none; border:1px solid #FECACA; color:#EF4444; border-radius:0.5rem; padding:0.35rem 0.625rem; font-size:0.75rem; cursor:pointer; font-family:'Nunito',sans-serif; font-weight:600; transition:all 150ms; white-space:nowrap;"
+            onmouseover="this.style.background='#FEF2F2'" onmouseout="this.style.background='none'">
+            Excluir
+          </button>
+        </div>
+      `).join('');
+    } catch (err) {
+      document.getElementById('list-loading').style.display = 'none';
+      document.getElementById('rules-body').innerHTML = `
+        <div style="padding:2rem; text-align:center; color:#DC2626; font-size:0.875rem;">
+          ${err.message}. <button onclick="loadRules()" style="background:none;border:none;color:#2B7929;cursor:pointer;font-weight:700;text-decoration:underline;">Tentar novamente</button>
+        </div>`;
+    }
+  }
+
+  async function addRule() {
+    const name  = document.getElementById('f-name').value.trim();
+    const start = document.getElementById('f-start').value;
+    const end   = document.getElementById('f-end').value;
+    const price = parseFloat(document.getElementById('f-price').value);
+    const min   = parseInt(document.getElementById('f-min').value, 10);
+    const tier  = document.getElementById('f-tier').value;
+    const errEl = document.getElementById('add-error');
+    const okEl  = document.getElementById('add-success');
+    const btn   = document.getElementById('add-btn');
+
+    errEl.style.display = 'none';
+    okEl.style.display  = 'none';
+
+    if (!name)              { errEl.textContent = 'Informe um nome para a regra.';         errEl.style.display='block'; return; }
+    if (!start || !end)     { errEl.textContent = 'Informe as datas de início e término.'; errEl.style.display='block'; return; }
+    if (start > end)        { errEl.textContent = 'Data de início deve ser antes do fim.'; errEl.style.display='block'; return; }
+    if (isNaN(price)||price<=0) { errEl.textContent = 'Informe um valor de diária válido.'; errEl.style.display='block'; return; }
+    if (isNaN(min)||min<1)  { errEl.textContent = 'Mínimo de noites deve ser ≥ 1.';        errEl.style.display='block'; return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="spin" width="14" height="14" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Salvando…';
+
+    try {
+      const res = await fetch('/api/admin/staff/precos', {
+        method:  'POST',
+        headers: adminHeaders(),
+        body:    JSON.stringify({ name, startDate: start, endDate: end, pricePerNight: price, minNights: min, tier }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        errEl.textContent = data.error || 'Erro ao salvar regra.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      // Reset form
+      ['f-name','f-start','f-end','f-price'].forEach(id => { document.getElementById(id).value = ''; });
+      document.getElementById('f-min').value  = '2';
+      document.getElementById('f-tier').value = 'MID';
+      okEl.style.display = 'block';
+      setTimeout(() => { okEl.style.display = 'none'; }, 3000);
+
+      await loadRules();
+    } catch {
+      errEl.textContent = 'Erro de conexão. Tente novamente.';
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg> Adicionar regra';
+    }
+  }
+
+  async function deleteRule(id, name, btn) {
+    const label = name ? `"${name}"` : 'esta regra';
+    if (!confirm(`Excluir ${label}? Esta ação não pode ser desfeita.`)) return;
+
+    btn.disabled = true; btn.textContent = '…';
+    try {
+      const res = await fetch(`/api/admin/staff/precos/${id}`, {
+        method:  'DELETE',
+        headers: adminHeaders(),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Erro ao excluir regra.');
+        btn.disabled = false; btn.textContent = 'Excluir';
+        return;
+      }
+      await loadRules();
+    } catch {
+      alert('Erro de conexão. Tente novamente.');
+      btn.disabled = false; btn.textContent = 'Excluir';
+    }
+  }
+  </script>
+
+</body>
+</html>

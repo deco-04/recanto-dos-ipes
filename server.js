@@ -639,6 +639,7 @@ app.get('/dashboard',          (_req, res) => res.sendFile(path.join(ROOT, 'publ
 app.get('/reserva-solicitada', (_req, res) => res.sendFile(path.join(ROOT, 'public', 'reserva-solicitada.html')));
 app.get('/blog',               (_req, res) => res.sendFile(path.join(ROOT, 'public', 'blog.html')));
 app.get('/blog-post',          (_req, res) => res.sendFile(path.join(ROOT, 'public', 'blog-post.html')));
+app.get('/admin-precos',       (_req, res) => res.sendFile(path.join(ROOT, 'public', 'admin-precos.html')));
 
 // ── Fallback → index.html (SPA-safe, but not for /api routes) ────────────────
 app.use((req, res, next) => {
