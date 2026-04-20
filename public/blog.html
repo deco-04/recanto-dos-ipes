@@ -127,7 +127,7 @@
       const img = Array.isArray(post.mediaUrls) && post.mediaUrls.length > 0 ? post.mediaUrls[0] : null;
 
       return `
-        <a href="/blog-post.html?id=${post.id}"
+        <a href="/blog-post?id=${post.id}"
            class="card-hover bg-white rounded-2xl overflow-hidden border border-beige-dark flex flex-col">
           ${img
             ? `<img src="${img}" alt="${post.title}" class="w-full h-44 object-cover"/>`

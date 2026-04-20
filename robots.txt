@@ -29,7 +29,7 @@ User-agent: ClaudeBot
 Allow: /
 
 # Sitemap
-Sitemap: https://recanto-dos-ipes-production.up.railway.app/sitemap.xml
+Sitemap: https://sitiorecantodosipes.com/sitemap.xml
 
 # Crawl delay (be friendly to our server)
 Crawl-delay: 1

@@ -6,7 +6,7 @@
   <!-- Homepage -->
   <url>
     <loc>https://sitiorecantodosipes.com/</loc>
-    <lastmod>2026-04-10</lastmod>
+    <lastmod>2026-04-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="pt-BR" href="https://sitiorecantodosipes.com/"/>
@@ -52,7 +52,7 @@
   <!-- Gallery page -->
   <url>
     <loc>https://sitiorecantodosipes.com/galeria</loc>
-    <lastmod>2026-04-10</lastmod>
+    <lastmod>2026-04-19</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -92,9 +92,25 @@
   <!-- FAQ page -->
   <url>
     <loc>https://sitiorecantodosipes.com/faq</loc>
-    <lastmod>2026-04-10</lastmod>
+    <lastmod>2026-04-19</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+  </url>
+
+  <!-- Blog -->
+  <url>
+    <loc>https://sitiorecantodosipes.com/blog</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Booking -->
+  <url>
+    <loc>https://sitiorecantodosipes.com/booking</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
   </url>
 
 </urlset>
