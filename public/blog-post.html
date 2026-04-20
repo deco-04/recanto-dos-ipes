@@ -253,6 +253,71 @@
         // Body
         document.getElementById('post-body').innerHTML = markdownToHtml(post.body);
 
+        // Inject BlogPosting Schema.org
+        const schema = {
+          "@context": "https://schema.org",
+          "@type": "BlogPosting",
+          "headline": post.title,
+          "description": (post.body || '').slice(0, 160).replace(/[#*>\n]/g, ' ').trim(),
+          "url": `https://sitiorecantodosipes.com/blog-post?id=${post.id}`,
+          "datePublished": post.publishedAt || post.createdAt,
+          "dateModified": post.updatedAt || post.publishedAt || post.createdAt,
+          "inLanguage": "pt-BR",
+          "author": {
+            "@type": "Organization",
+            "name": "Sítio Recanto dos Ipês",
+            "url": "https://sitiorecantodosipes.com/"
+          },
+          "publisher": {
+            "@type": "Organization",
+            "name": "Sítio Recanto dos Ipês",
+            "url": "https://sitiorecantodosipes.com/",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://sitiorecantodosipes.com/brand/sri-mark-white.svg"
+            }
+          },
+          "image": Array.isArray(post.mediaUrls) && post.mediaUrls.length > 0
+            ? post.mediaUrls[0]
+            : "https://sitiorecantodosipes.com/images/rancho.jpg",
+          "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": `https://sitiorecantodosipes.com/blog-post?id=${post.id}`
+          },
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Início", "item": "https://sitiorecantodosipes.com/" },
+              { "@type": "ListItem", "position": 2, "name": "Blog",   "item": "https://sitiorecantodosipes.com/blog" },
+              { "@type": "ListItem", "position": 3, "name": post.title }
+            ]
+          }
+        };
+        const schemaEl = document.createElement('script');
+        schemaEl.type = 'application/ld+json';
+        schemaEl.textContent = JSON.stringify(schema);
+        document.head.appendChild(schemaEl);
+
+        // Update canonical link
+        let canonical = document.querySelector('link[rel="canonical"]');
+        if (!canonical) { canonical = document.createElement('link'); canonical.rel = 'canonical'; document.head.appendChild(canonical); }
+        canonical.href = `https://sitiorecantodosipes.com/blog-post?id=${post.id}`;
+
+        // Update OG tags
+        const setMeta = (prop, val) => {
+          let el = document.querySelector(`meta[property="${prop}"]`) || document.querySelector(`meta[name="${prop}"]`);
+          if (!el) { el = document.createElement('meta'); el.setAttribute(prop.startsWith('og:') || prop.startsWith('article:') ? 'property' : 'name', prop); document.head.appendChild(el); }
+          el.content = val;
+        };
+        setMeta('og:title', `${post.title} — Sítio Recanto dos Ipês`);
+        setMeta('og:description', (post.body || '').slice(0, 160).replace(/[#*>\n]/g, ' ').trim());
+        setMeta('og:url', `https://sitiorecantodosipes.com/blog-post?id=${post.id}`);
+        setMeta('og:type', 'article');
+        if (Array.isArray(post.mediaUrls) && post.mediaUrls.length > 0) {
+          setMeta('og:image', post.mediaUrls[0]);
+        }
+        if (post.publishedAt) setMeta('article:published_time', post.publishedAt);
+
         document.getElementById('article').classList.remove('hidden');
       } catch (e) {
         document.getElementById('loading').classList.add('hidden');
