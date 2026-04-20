@@ -3197,7 +3197,12 @@ const CDS_PHASES = [
 
 router.get('/financeiro/cds', requireRole('ADMIN'), async (req, res) => {
   try {
-    const cds = await prisma.property.findFirst({ where: { slug: 'cabanas' } });
+    // Live DB has two CDS rows: legacy 'cabanas' + canonical 'cabanas-da-serra'
+    // (seeded by Sprint C). Match either so existing expenses under the legacy
+    // row still aggregate into the dashboard.
+    const cds = await prisma.property.findFirst({
+      where: { slug: { in: ['cabanas-da-serra', 'cabanas'] }, active: true },
+    });
     if (!cds) return res.json({ totalInvestido: 0, pagamentos: [], acumulado: [], phases: CDS_PHASES });
 
     const pagamentos = await prisma.expense.findMany({
