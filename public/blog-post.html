@@ -40,8 +40,8 @@
       margin-bottom: 0.75rem;
       line-height: 1.3;
     }
-    .prose h1 { font-size: 1.5rem; }
-    .prose h2 { font-size: 1.25rem; }
+    .prose h1 { font-size: clamp(1.75rem, 3vw, 2.5rem); font-weight: 700; }
+    .prose h2 { font-size: 1.25rem; font-style: normal; }
     .prose h3 { font-size: 1.1rem; }
     .prose p  { margin-bottom: 1.1rem; line-height: 1.8; color: #3D2B1F; }
     .prose ul, .prose ol { margin: 0.75rem 0 1rem 1.25rem; color: #3D2B1F; }
@@ -51,13 +51,16 @@
     .prose strong { font-weight: 700; color: #261C15; }
     .prose em { font-style: italic; }
     .prose blockquote {
-      border-left: 3px solid #C5D86D;
-      margin: 1.5rem 0;
-      padding: 0.75rem 1.25rem;
-      background: #F7F7F2;
-      border-radius: 0 8px 8px 0;
+      font-family: 'Playfair Display', serif;
       font-style: italic;
-      color: #6B6B6B;
+      border-left: 4px solid #9BAB52;
+      margin: 1.75rem 0;
+      padding: 0.875rem 1.5rem;
+      background: #FBF9F4;
+      border-radius: 0 8px 8px 0;
+      color: #261C15;
+      font-size: 1.05rem;
+      line-height: 1.7;
     }
     .prose hr { border-color: #E4E6C3; margin: 2rem 0; }
   </style>
@@ -112,13 +115,14 @@
     </div>
 
     <!-- Meta -->
-    <div class="flex items-center gap-3 mb-4">
-      <span id="pillar-badge" class="text-xs font-bold uppercase tracking-wider text-gold-dark bg-gold/20 px-2.5 py-1 rounded-full"></span>
+    <div class="flex items-center gap-3 mb-3">
+      <span id="pillar-badge" class="text-xs font-bold uppercase tracking-[0.12em] text-gold-dark bg-gold/20 border border-gold/30 px-3 py-1 rounded-full"></span>
       <span id="post-date" class="text-xs text-stone-light"></span>
     </div>
 
     <!-- Title -->
-    <h1 id="post-title" class="font-serif text-2xl md:text-3xl font-bold text-forest leading-tight mb-8"></h1>
+    <h1 id="post-title" class="font-serif text-2xl md:text-3xl font-bold text-forest leading-tight mb-3"></h1>
+    <p class="font-serif text-gold-dark italic text-base mb-8 hidden" id="post-subtitle"></p>
 
     <!-- Body -->
     <div id="post-body" class="prose text-base"></div>
@@ -128,7 +132,9 @@
 
     <!-- CTA -->
     <div class="bg-forest rounded-2xl p-6 md:p-8 text-center text-white">
-      <p class="font-serif text-xl font-bold mb-2">Pronto para viver essa experiência?</p>
+      <p class="text-eyebrow mb-2">Pronto para reservar?</p>
+      <p class="font-serif text-xl font-bold mb-1">Pronto para viver essa experiência?</p>
+      <p class="font-serif text-gold/75 italic text-sm mb-4">Da Serra do Cipó, com capricho</p>
       <p class="text-white/70 text-sm mb-5">Reserve sua estadia no Sítio Recanto dos Ipês em Jaboticatubas, MG.</p>
       <div class="flex flex-col sm:flex-row gap-3 justify-center">
         <a href="/booking"

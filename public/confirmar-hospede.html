@@ -51,6 +51,7 @@
       </a>
     </div>
 
+
     <!-- Loading state -->
     <div id="state-loading" class="bg-white rounded-3xl shadow-lg p-8 text-center">
       <p class="text-stone text-sm">Verificando convite…</p>
@@ -72,19 +73,21 @@
         <div class="w-14 h-14 bg-gold/20 rounded-full flex items-center justify-center mx-auto mb-3">
           <span class="text-2xl">🌿</span>
         </div>
-        <h1 class="font-serif text-xl font-bold text-forest">Você foi convidado!</h1>
-        <p class="text-stone text-sm mt-2">Confirme sua presença para acessar os detalhes da estadia.</p>
+        <p class="text-eyebrow mb-2">Convite especial</p>
+        <h1 class="font-serif text-3xl font-bold text-forest leading-tight">Você foi convidado!</h1>
+        <p class="font-serif italic mt-2 text-sm" style="color:#9BAB52;">Uma estadia na Serra do Cipó aguarda por você</p>
+        <p class="text-stone text-sm mt-3">Confirme sua presença para acessar os detalhes da estadia.</p>
       </div>
 
       <form id="confirm-form" onsubmit="handleConfirm(event)" class="space-y-4">
         <div>
-          <label class="block text-sm font-semibold text-forest mb-1.5">Seu nome completo</label>
+          <label class="block font-serif text-sm font-semibold text-forest mb-1.5">Seu nome completo</label>
           <input id="input-name" type="text" required minlength="2"
             class="w-full border-2 border-beige-dark rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold transition-colors"
             placeholder="Como prefere ser chamado(a)?"/>
         </div>
         <div>
-          <label class="block text-sm font-semibold text-forest mb-1.5">Telefone / WhatsApp <span class="text-stone font-normal">(opcional)</span></label>
+          <label class="block font-serif text-sm font-semibold text-forest mb-1.5">Telefone / WhatsApp <span class="text-stone font-normal font-sans">(opcional)</span></label>
           <input id="input-phone" type="tel"
             class="w-full border-2 border-beige-dark rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold transition-colors"
             placeholder="(31) 99999-9999"/>
@@ -102,7 +105,9 @@
       <div class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
         <span class="text-2xl">✅</span>
       </div>
-      <h2 class="font-serif text-xl font-bold text-forest mb-2">Presença confirmada!</h2>
+      <p class="text-eyebrow mb-2">Tudo certo</p>
+      <h2 class="font-serif text-2xl font-bold text-forest mb-1">Presença confirmada!</h2>
+      <p class="font-serif italic text-sm mb-4" style="color:#9BAB52;">Sua estadia está garantida no Recanto</p>
       <p class="text-stone text-sm mb-6">
         Boa notícia! Você já pode acessar os detalhes da estadia no seu painel.
       </p>
