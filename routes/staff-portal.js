@@ -17,6 +17,7 @@ const { requireStaff, requireRole } = require('../lib/staff-auth-middleware');
 const { toE164 } = require('../lib/phone');
 const ghlClient  = require('../lib/ghl-client');
 const { computeOccupancy } = require('../lib/occupancy');
+const { upsertContactFromBooking } = require('../lib/contacts');
 
 // Bookings counted as "realized revenue": CONFIRMED (upcoming or in-progress) and
 // COMPLETED (past, auto-transitioned by the 02:00 cron). Excludes REQUESTED
@@ -203,6 +204,55 @@ router.get('/reservas', requireRole('ADMIN'), async (req, res) => {
   } catch (err) {
     console.error('[staff-portal] reservas error:', err);
     res.status(500).json({ error: 'Erro ao buscar reservas' });
+  }
+});
+
+// ── GET /api/staff/contacts ─────────────────────────────────────────────────
+// Address-book feed for the staff app. Query params:
+//   propertyId  optional — scope to one property. "ALL" or omitted = all.
+//   search      optional — substring match on name or phoneE164.
+//   limit       default 100, max 500.
+// Returns rows pre-shaped for the /admin/contatos UI (no extra joins needed).
+router.get('/contacts', requireRole('ADMIN', 'GOVERNANTA', 'PISCINEIRO'), async (req, res) => {
+  try {
+    const propertyId = req.query.propertyId;
+    const search     = (req.query.search || '').trim();
+    const limit      = Math.min(500, Math.max(1, parseInt(req.query.limit) || 100));
+
+    const where = {};
+    if (propertyId && propertyId !== 'ALL') where.propertyId = propertyId;
+    if (search) {
+      where.OR = [
+        { name:      { contains: search, mode: 'insensitive' } },
+        { phoneE164: { contains: search.replace(/\D/g, '') || search } },
+        { email:     { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const contacts = await prisma.contact.findMany({
+      where,
+      orderBy: { lastSeenAt: 'desc' },
+      take:    limit,
+      include: { property: { select: { id: true, name: true, slug: true } } },
+    });
+
+    res.json({
+      contacts: contacts.map(c => ({
+        id:           c.id,
+        name:         c.name,
+        phoneE164:    c.phoneE164,
+        email:        c.email,
+        source:       c.source,
+        bookingCount: c.bookingCount,
+        firstSeenAt:  c.firstSeenAt.toISOString(),
+        lastSeenAt:   c.lastSeenAt.toISOString(),
+        property:     c.property,
+      })),
+      total: contacts.length,
+    });
+  } catch (err) {
+    console.error('[staff-portal] GET /contacts error:', err);
+    res.status(500).json({ error: 'Erro ao listar contatos' });
   }
 });
 
@@ -424,6 +474,18 @@ router.post('/reservas', requireRole('ADMIN'), async (req, res) => {
       },
       include: { user: { select: { name: true } }, upsells: true },
     });
+
+    // Auto-register the guest in the contact list (E.164 + default +55).
+    // Fire-and-forget: contact-list accuracy is eventually consistent and
+    // must not block the booking response.
+    upsertContactFromBooking({
+      guestPhone:  booking.guestPhone,
+      guestName:   booking.guestName,
+      guestEmail:  booking.guestEmail,
+      propertyId:  booking.propertyId,
+      source:      'BOOKING',
+    }).catch(e => console.error('[staff-portal] POST reservas contact upsert error:', e.message));
+
     res.status(201).json(serializeBooking(booking));
   } catch (err) {
     console.error('[staff-portal] POST reservas error:', err);
@@ -1545,6 +1607,19 @@ router.patch('/reservas/:id/dados', requireRole('ADMIN'), async (req, res) => {
 
     // Auto-complete OTA task if required fields are now filled
     await maybeCompleteOtaTask(req.params.id);
+
+    // If a phone number was supplied in this update, sync the address book —
+    // most iCal bookings arrive without a phone and only get one after staff
+    // call the guest. This is our main chance to capture the contact.
+    if (updates.guestPhone && booking.guestPhone) {
+      upsertContactFromBooking({
+        guestPhone:  booking.guestPhone,
+        guestName:   booking.guestName,
+        guestEmail:  booking.guestEmail,
+        propertyId:  booking.propertyId,
+        source:      booking.source === 'DIRECT' ? 'BOOKING' : 'ICAL',
+      }).catch(e => console.error('[staff-portal] PATCH dados contact upsert error:', e.message));
+    }
 
     res.json(serializeBooking(booking));
   } catch (err) {
@@ -2864,13 +2939,26 @@ function computeInsights(current, previous, historico, allTime) {
 
 router.get('/financeiro/dre', requireRole('ADMIN'), async (req, res) => {
   try {
-    const period  = req.query.period  || 'month';
-    const compare = req.query.compare || 'previous';
+    const period       = req.query.period  || 'month';
+    const compare      = req.query.compare || 'previous';
+    const propertyIdQs = req.query.propertyId;
 
-    const prop = await prisma.property.findFirst({
-      where: { slug: { not: 'cabanas' }, active: true },
-      orderBy: { createdAt: 'asc' }, // ensures 'recanto-dos-ipes' (oldest/primary) is always selected
-    });
+    // Resolve the property to scope KPIs by. Priority:
+    //   1. ?propertyId=<id>    — admin picked this property from the switcher
+    //   2. default to oldest active non-CDS property (legacy behavior)
+    // When propertyId === 'ALL' we still resolve to the primary property
+    // for now (DRE is a single-property view by design; Visão Geral gets
+    // surfaced through aggregate endpoints).
+    let prop;
+    if (propertyIdQs && propertyIdQs !== 'ALL') {
+      prop = await prisma.property.findUnique({ where: { id: propertyIdQs } });
+    }
+    if (!prop) {
+      prop = await prisma.property.findFirst({
+        where: { slug: { not: 'cabanas' }, active: true },
+        orderBy: { createdAt: 'asc' },
+      });
+    }
     if (!prop) return res.status(404).json({ error: 'Propriedade não encontrada' });
 
     const { start, end }         = buildPeriod(period);

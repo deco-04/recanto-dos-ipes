@@ -215,13 +215,23 @@ router.post('/:id/reinvite', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // GET /api/admin/staff/hospedes — guest list with reputation
-router.get('/hospedes', async (_req, res) => {
+// Query params:
+//   propertyId  optional — scope to one property (includes only guests with
+//               at least one booking at that property). "ALL" or omitted =
+//               aggregated Visão Geral across every property.
+router.get('/hospedes', async (req, res) => {
+  const propertyId = req.query.propertyId;
+  const bookingFilter = (propertyId && propertyId !== 'ALL')
+    ? { propertyId }
+    : {};
+
   const guests = await prisma.user.findMany({
-    where: { bookings: { some: {} } }, // only guests who have at least one booking
+    where: { bookings: { some: bookingFilter } },
     include: {
       reputation: true,
       bookings: {
-        select: { id: true, status: true, totalAmount: true, checkIn: true, checkOut: true, source: true },
+        where: bookingFilter,
+        select: { id: true, status: true, totalAmount: true, checkIn: true, checkOut: true, source: true, propertyId: true },
         orderBy: { checkIn: 'desc' },
       },
     },
@@ -235,9 +245,9 @@ router.get('/hospedes', async (_req, res) => {
     phone: g.phone,
     cpf: g.cpf,
     createdAt: g.createdAt,
-    totalStays: g.reputation?.totalStays ?? g.bookings.filter(b => b.status === 'CONFIRMED').length,
+    totalStays: g.reputation?.totalStays ?? g.bookings.filter(b => b.status === 'CONFIRMED' || b.status === 'COMPLETED').length,
     totalSpent: parseFloat((g.reputation?.totalSpent ?? g.bookings
-      .filter(b => b.status === 'CONFIRMED')
+      .filter(b => b.status === 'CONFIRMED' || b.status === 'COMPLETED')
       .reduce((s, b) => s + parseFloat(b.totalAmount?.toString() || '0'), 0)).toString()),
     tier: g.reputation?.tier ?? 'VISITANTE',
     averageScore: g.reputation?.averageScore ?? null,

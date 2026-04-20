@@ -234,12 +234,45 @@ model Property {
   briefings     DailyBriefing[]           @relation("PropertyBriefings")
   obras         Obra[]                    @relation("PropertyObras")
   childPricingTiers ChildPricingTier[]
+  contacts      Contact[]
 }
 
 enum PropertyType {
   SITIO
   CABANA_COMPLEX
   CABANA
+}
+
+// ── Contact ───────────────────────────────────────────────────────────────────
+// First-class address book keyed on E.164 phone. Auto-upserted whenever a
+// booking (manual, iCal, GHL) lands a phone number. `propertyId` records the
+// property the contact was first associated with; a contact that stays across
+// multiple properties keeps the original property tag but sees bookingCount
+// increment each time.
+model Contact {
+  id           String        @id @default(cuid())
+  phoneE164    String        @unique
+  name         String?
+  email        String?
+  propertyId   String?
+  property     Property?     @relation(fields: [propertyId], references: [id])
+  source       ContactSource @default(BOOKING)
+  firstSeenAt  DateTime      @default(now())
+  lastSeenAt   DateTime      @default(now())
+  bookingCount Int           @default(1)
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([propertyId, lastSeenAt])
+  @@index([email])
+}
+
+enum ContactSource {
+  BOOKING
+  ICAL
+  GHL
+  MANUAL
 }
 
 model Cabin {
