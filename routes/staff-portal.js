@@ -651,13 +651,26 @@ router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
 });
 
 // ── GET /api/staff/casa/proximas ─────────────────────────────────────────────
+// Accepts ?propertyId= to scope to one property. Orphans (propertyId=NULL)
+// are excluded unconditionally so a booking with a broken FK can't leak
+// into panels for unrelated properties (e.g., RDI orphan showing on CDS).
 router.get('/casa/proximas', async (req, res) => {
   try {
     const start = new Date();
     const end = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    const propertyId = req.query.propertyId;
+
+    const where = {
+      status:    { in: ['CONFIRMED', 'PENDING'] },
+      checkIn:   { gte: start, lte: end },
+      propertyId: { not: null },  // never show orphans
+    };
+    if (propertyId && propertyId !== 'ALL') {
+      where.propertyId = propertyId;
+    }
 
     const bookings = await prisma.booking.findMany({
-      where: { status: { in: ['CONFIRMED', 'PENDING'] }, checkIn: { gte: start, lte: end } },
+      where,
       orderBy: { checkIn: 'asc' },
       include: {
         user: { select: { name: true } },
@@ -687,9 +700,17 @@ router.get('/casa/proximas-saidas', async (req, res) => {
     const days = parseInt(req.query.days) || 2;
     const start = new Date();
     const end   = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    const propertyId = req.query.propertyId;
+
+    const where = {
+      status:     { in: ['CONFIRMED', 'PENDING'] },
+      checkOut:   { gte: start, lte: end },
+      propertyId: { not: null },  // never show orphans
+    };
+    if (propertyId && propertyId !== 'ALL') where.propertyId = propertyId;
 
     const bookings = await prisma.booking.findMany({
-      where: { status: { in: ['CONFIRMED', 'PENDING'] }, checkOut: { gte: start, lte: end } },
+      where,
       orderBy: { checkOut: 'asc' },
       include: {
         user: { select: { name: true } },
