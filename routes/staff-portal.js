@@ -733,6 +733,54 @@ router.get('/casa/proximas-saidas', async (req, res) => {
   }
 });
 
+// ── GET /api/staff/casa/em-curso ────────────────────────────────────────────
+// Confirmed bookings where the guest is currently staying (checkIn <= now < checkOut).
+// Governanta + admin surfaces use this to show "quem está hospedado agora" without
+// needing to parse checkIn/checkOut dates client-side.
+//
+// Sprint T — previously these bookings were invisible on /casa (próximas entradas
+// filtered them out because their checkIn is in the past) and had no dedicated KPI
+// on the admin dashboard.
+router.get('/casa/em-curso', async (req, res) => {
+  try {
+    const now = new Date();
+    const propertyId = req.query.propertyId;
+
+    const where = {
+      status:     { in: ['CONFIRMED', 'PENDING'] },
+      checkIn:    { lte: now },
+      checkOut:   { gt: now },
+      propertyId: { not: null },
+      isInvoiceAggregate: false,   // never surface Booking.com monthly payout placeholders
+    };
+    if (propertyId && propertyId !== 'ALL') where.propertyId = propertyId;
+
+    const bookings = await prisma.booking.findMany({
+      where,
+      orderBy: { checkOut: 'asc' },   // sort by who leaves soonest
+      include: {
+        user: { select: { name: true } },
+        inspections: { where: { type: 'CHECKOUT' }, select: { id: true, status: true } },
+      },
+    });
+
+    res.json(bookings.map(b => ({
+      bookingId:        b.id,
+      propertyId:       b.propertyId,
+      guestName:        b.user?.name || b.guestName || 'Hóspede',
+      checkIn:          b.checkIn.toISOString(),
+      checkOut:         b.checkOut.toISOString(),
+      guests:           b.guestCount,
+      source:           b.source,
+      inspectionId:     b.inspections?.[0]?.id     || null,
+      inspectionStatus: b.inspections?.[0]?.status || null,
+    })));
+  } catch (err) {
+    console.error('[staff-portal] casa/em-curso error:', err);
+    res.status(500).json({ error: 'Erro ao buscar hóspedes em curso' });
+  }
+});
+
 // ── GET /api/staff/casa/calendario ──────────────────────────────────────────
 router.get('/casa/calendario', async (req, res) => {
   try {
@@ -3712,9 +3760,13 @@ router.get('/contacts/initiable', requireRole('ADMIN'), async (req, res) => {
 });
 
 // ── GET /api/staff/financeiro/occupancy ───────────────────────────────────────
+// Query params:
+//   propertyId  — specific property id, or 'ALL' / missing → cross-property
+//                 (active non-CDS properties, same scope as Visão Geral).
+//   from / to   — ISO dates. Defaults to month-to-date.
 router.get('/financeiro/occupancy', requireRole('ADMIN'), async (req, res) => {
-  const propertyId = String(req.query.propertyId || '');
-  if (!propertyId) return res.status(400).json({ error: 'propertyId obrigatório' });
+  const propertyIdQs = req.query.propertyId ? String(req.query.propertyId) : '';
+  const isAllScope   = !propertyIdQs || propertyIdQs === 'ALL';
 
   const now = new Date();
   const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -3726,11 +3778,24 @@ router.get('/financeiro/occupancy', requireRole('ADMIN'), async (req, res) => {
   }
 
   try {
-    const result = await computeOccupancy(propertyId, from, to);
+    let propertyIds;
+    if (isAllScope) {
+      const props = await prisma.property.findMany({
+        where:  { slug: { not: 'cabanas' }, active: true },
+        select: { id: true },
+      });
+      propertyIds = props.map(p => p.id);
+      if (propertyIds.length === 0) return res.status(404).json({ error: 'Nenhuma propriedade ativa' });
+    } else {
+      propertyIds = [propertyIdQs];
+    }
+
+    const result = await computeOccupancy(propertyIds, from, to);
     res.json({
       ...result,
-      from: from.toISOString(),
-      to:   to.toISOString(),
+      from:  from.toISOString(),
+      to:    to.toISOString(),
+      scope: isAllScope ? 'ALL' : 'SINGLE',
     });
   } catch (err) {
     console.error('[staff-portal] GET financeiro/occupancy error:', err);
