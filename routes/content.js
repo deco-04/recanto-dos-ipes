@@ -355,7 +355,9 @@ function serializePublicPost(p) {
   };
 }
 
-router.get('/blog/posts', async (req, res) => {
+// Public blog endpoints — mounted at /api/blog by server.js
+// Routes: GET /api/blog/posts  and  GET /api/blog/posts/:id
+router.get('/posts', async (req, res) => {
   try {
     const posts = await prisma.contentPost.findMany({
       where: { contentType: 'BLOG', stage: 'PUBLICADO', brand: 'RDI' },
@@ -369,7 +371,7 @@ router.get('/blog/posts', async (req, res) => {
   }
 });
 
-router.get('/blog/posts/:id', async (req, res) => {
+router.get('/posts/:id', async (req, res) => {
   try {
     const post = await prisma.contentPost.findUnique({
       where: { id: req.params.id },
