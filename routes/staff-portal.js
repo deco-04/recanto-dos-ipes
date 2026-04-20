@@ -627,6 +627,11 @@ router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
 
     const despesasTotal = expenses.reduce((s, e) => s + parseFloat(e.amount.toString()), 0);
     const resultadoLiquido = faturamentoTotal - despesasTotal;
+    // Margem líquida % — Sprint B hero number. Zero when there's no revenue to
+    // divide into, so a pre-opening property reads "0%" instead of NaN / Infinity.
+    const margemLiquidaPct = faturamentoTotal > 0
+      ? Math.round((resultadoLiquido / faturamentoTotal) * 1000) / 10
+      : 0;
 
     res.json({
       periodo: periodoLabel,
@@ -634,6 +639,7 @@ router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
       upsellRevenue: upsellRevenue || null,
       despesasTotal,
       resultadoLiquido,
+      margemLiquidaPct,
       canceladasCount,
       oportunidadePerdida,
       variacaoPct,
@@ -3800,6 +3806,201 @@ router.get('/financeiro/occupancy', requireRole('ADMIN'), async (req, res) => {
   } catch (err) {
     console.error('[staff-portal] GET financeiro/occupancy error:', err);
     res.status(500).json({ error: 'Erro ao calcular ocupação' });
+  }
+});
+
+// ── GET /api/staff/dashboard-summary ─────────────────────────────────────────
+// Sprint B aggregator for the executive dashboard home. Returns the signals
+// the admin needs to decide/act, NOT the period-based financeiro data (the
+// existing /financeiro endpoint already covers that — this is purely additive).
+//
+// Query:
+//   propertyId — specific id, or 'ALL' / missing → all active non-CDS properties
+//
+// Response shape is stable and safe for future additions; callers key off
+// field names, never array positions.
+router.get('/dashboard-summary', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const propertyIdQs = req.query.propertyId ? String(req.query.propertyId) : '';
+    const isAllScope   = !propertyIdQs || propertyIdQs === 'ALL';
+
+    // Resolve the property scope. 'ALL' → active non-CDS properties (same rule
+    // as reservas-lucratividade + occupancy), which keeps the three endpoints
+    // consistent when the admin switches between Visão Geral and a single prop.
+    let properties;
+    if (isAllScope) {
+      properties = await prisma.property.findMany({
+        where:   { slug: { not: 'cabanas' }, active: true },
+        orderBy: { name: 'asc' },
+        select:  { id: true, slug: true, name: true },
+      });
+      if (properties.length === 0) return res.status(404).json({ error: 'Nenhuma propriedade ativa' });
+    } else {
+      const p = await prisma.property.findUnique({
+        where:  { id: propertyIdQs },
+        select: { id: true, slug: true, name: true },
+      });
+      if (!p) return res.status(404).json({ error: 'Propriedade não encontrada' });
+      properties = [p];
+    }
+    const propertyIds = properties.map(p => p.id);
+
+    const now         = new Date();
+    const in30Days    = new Date(Date.now() + 30 * 86400000);
+    const in7Days     = new Date(Date.now() + 7 * 86400000);
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+
+    // ── Attention feed — counts only; the UI links each into a detail page.
+    // Running these in parallel keeps the endpoint snappy (~5 cheap COUNTs).
+    const [requestedBookings, unclassifiedExpenses, staleContent, overdueInspections, unreadMessages] = await Promise.all([
+      prisma.booking.count({
+        where: { propertyId: { in: propertyIds }, status: 'REQUESTED' },
+      }),
+      prisma.expense.count({
+        where: { propertyId: { in: propertyIds }, category: 'A_CLASSIFICAR' },
+      }),
+      prisma.contentPost.count({
+        where: {
+          propertyId: { in: propertyIds },
+          stage: 'EM_REVISAO',
+          updatedAt: { lt: fortyEightHoursAgo },
+        },
+      }),
+      prisma.inspectionReport.count({
+        where: {
+          propertyId: { in: propertyIds },
+          status: 'DRAFT',
+          OR: [
+            { type: 'PRE_CHECKIN', booking: { checkIn:  { lt: now } } },
+            { type: 'CHECKOUT',    booking: { checkOut: { lt: now } } },
+          ],
+        },
+      }).catch(() => 0),   // InspectionReport is optional per install; guard silently
+      prisma.inboxMessage.count({
+        where: {
+          readAt: null,
+          direction: 'INBOUND',
+          conversation: { propertyId: { in: propertyIds } },
+        },
+      }).catch(() => 0),   // InboxMessage may not exist on older DBs; guard silently
+    ]);
+
+    const attention = {
+      requestedBookings,
+      unclassifiedExpenses,
+      staleContent,
+      overdueInspections,
+      unreadMessages,
+      total: requestedBookings + unclassifiedExpenses + staleContent + overdueInspections + unreadMessages,
+    };
+
+    // ── Forecast — receita comprometida próximos 30 dias.
+    // Confirmed bookings with checkIn in [now, now+30d]. Sum `totalAmount`.
+    // Excludes isInvoiceAggregate (monthly Booking.com payouts — not forward revenue).
+    const forecastBookings = await prisma.booking.findMany({
+      where: {
+        propertyId: { in: propertyIds },
+        status:     { in: ['CONFIRMED', 'PENDING'] },
+        isInvoiceAggregate: false,
+        checkIn:    { gte: now, lte: in30Days },
+      },
+      select: { totalAmount: true, checkIn: true },
+    });
+    const forecast30d = {
+      receita:             forecastBookings.reduce((s, b) => s + parseFloat(b.totalAmount?.toString() || '0'), 0),
+      bookings:            forecastBookings.length,
+      checkInsProximos7d:  forecastBookings.filter(b => new Date(b.checkIn) <= in7Days).length,
+    };
+
+    // ── Per-property breakdown (only meaningful in ALL scope).
+    // Single-prop callers already have their numbers via /financeiro; there's
+    // nothing to compare against, so we skip the work and return [].
+    let perProperty = [];
+    if (isAllScope) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      const totalDias  = monthEnd.getDate();
+
+      perProperty = await Promise.all(properties.map(async (p) => {
+        const [mtdBookings, upsells, expenses, monthBookings, hospedadosAgora, cabinCount] = await Promise.all([
+          prisma.booking.findMany({
+            where: { propertyId: p.id, status: REVENUE_STATUS, checkIn: { gte: monthStart, lte: monthEnd } },
+            select: { totalAmount: true, isInvoiceAggregate: true },
+          }),
+          prisma.bookingUpsell.findMany({
+            where: { booking: { propertyId: p.id, status: REVENUE_STATUS, checkIn: { gte: monthStart, lte: monthEnd } } },
+            select: { amount: true },
+          }),
+          prisma.expense.findMany({
+            where: { propertyId: p.id, date: { gte: monthStart, lte: monthEnd } },
+            select: { amount: true },
+          }),
+          prisma.booking.findMany({
+            where: {
+              propertyId: p.id, status: REVENUE_STATUS,
+              isInvoiceAggregate: false,
+              checkIn: { gte: monthStart, lte: monthEnd },
+            },
+            select: { checkIn: true, checkOut: true },
+          }),
+          prisma.booking.count({
+            where: {
+              propertyId: p.id,
+              status:     { in: ['CONFIRMED', 'PENDING'] },
+              isInvoiceAggregate: false,
+              checkIn:    { lte: now },
+              checkOut:   { gt: now },
+            },
+          }),
+          prisma.cabin.count({ where: { propertyId: p.id } }),
+        ]);
+
+        const receitaBase = mtdBookings.reduce((s, b) => s + parseFloat(b.totalAmount?.toString() || '0'), 0);
+        const upsellTot   = upsells.reduce((s, u) => s + parseFloat(u.amount?.toString() || '0'), 0);
+        const receitaMes  = receitaBase + upsellTot;
+        const despesasMes = expenses.reduce((s, e) => s + parseFloat(e.amount?.toString() || '0'), 0);
+        const resultado   = receitaMes - despesasMes;
+        const margemPct   = receitaMes > 0 ? Math.round((resultado / receitaMes) * 1000) / 10 : 0;
+
+        // Distinct-day occupancy — same formula as /financeiro so the numbers
+        // match when the admin drills into a property from the Visão Geral row.
+        const occupiedDays = new Set();
+        for (const b of monthBookings) {
+          const cur = new Date(b.checkIn);
+          while (cur < new Date(b.checkOut)) {
+            const d = cur.toISOString().split('T')[0];
+            if (cur >= monthStart && cur <= monthEnd) occupiedDays.add(d);
+            cur.setDate(cur.getDate() + 1);
+          }
+        }
+        const ocupacaoMesPct = cabinCount > 0 && totalDias > 0
+          ? Math.round((occupiedDays.size / totalDias) * 1000) / 10
+          : 0;
+
+        return {
+          id:                p.id,
+          slug:              p.slug,
+          name:              p.name,
+          receitaBrutaMes:   receitaMes,
+          despesasMes,
+          resultadoLiquidoMes: resultado,
+          margemPct,
+          ocupacaoMesPct,
+          hospedadosAgora,
+          cabinCount,
+        };
+      }));
+    }
+
+    res.json({
+      attention,
+      forecast30d,
+      perProperty,
+      scope: isAllScope ? 'ALL' : 'SINGLE',
+    });
+  } catch (err) {
+    console.error('[staff-portal] dashboard-summary error:', err);
+    res.status(500).json({ error: 'Erro ao carregar resumo do dashboard' });
   }
 });
 
