@@ -1704,6 +1704,27 @@ router.get('/reservas/:id/custos', requireRole('ADMIN'), async (req, res) => {
       : (feeRate > 0 ? Math.round(net * feeRate / (1 - feeRate) * 100) / 100 : 0);
     const commissionSource = booking.commissionAmount ? 'REAL' : (feeRate > 0 ? 'ESTIMADO' : 'N/A');
 
+    // Property-less booking (legacy data): skip property-specific cost queries
+    // and return commission-only breakdown. Expense.propertyId is required so
+    // Prisma would throw PrismaClientValidationError if we passed null.
+    if (!booking.propertyId) {
+      const custoTotal = taxaPlataforma;
+      return res.json({
+        net,
+        gross: booking.grossAmount ? parseFloat(booking.grossAmount.toString()) : null,
+        commission:       taxaPlataforma,
+        commissionSource,
+        commissionRate:   net > 0 ? Math.round(taxaPlataforma / (net + taxaPlataforma) * 10000) / 100 : 0,
+        custoLimpeza:     0,
+        limpezaSource:    'N/A',
+        custoFixo:        0,
+        custoTotal,
+        resultadoLiquido: net - custoTotal,
+        margem:           net > 0 ? Math.round((net - custoTotal) / net * 10000) / 100 : 0,
+        warning:          'Reserva sem propriedade vinculada — custos de limpeza e fixos não calculados',
+      });
+    }
+
     // Cleaning: look for SERVICOS_LIMPEZA expense near checkOut
     const checkOut = new Date(booking.checkOut);
     const cleaningWindow = {
