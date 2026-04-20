@@ -1,32 +1,33 @@
 'use strict';
 
 /**
- * READ-ONLY audit of the Booking table to find data-integrity issues before
- * Sprint Q Phase 2 attempts any merges. Produces three reports:
+ * READ-ONLY thorough audit — builds every plausible duplicate/upsell pair
+ * in the Booking table, regardless of whether the legacy `upsell-` tag was
+ * applied. Uses several signal families and rates each candidate pair
+ * with a 0–100 confidence score so the admin can review before merging.
  *
- *   1) ORPHANS — bookings whose propertyId is NULL or points to an inactive
- *      (legacy) property row. These are the "disappeared from RDI" rows.
+ * Reports:
+ *   1) Orphans — NULL or inactive propertyId
+ *   2) RDI legacy — stuck on inactive 'sitio' slug
+ *   3) Duplicate candidates — grouped HIGH / MEDIUM / LOW confidence
+ *   4) Triplets+ — any guest-cluster of 3+ overlapping bookings for same stay
  *
- *   2) UPSELL_DUPES — pairs of bookings that look like the same reservation
- *      across channels (e.g. one on Airbnb + one direct "upsell"). Detection:
- *        - same propertyId (or both orphan — matched later post-backfill)
- *        - overlapping night range (≥ 1 night of intersection)
- *        - similar guest name (first token + edit distance ≤ 2)
- *        - one source ∈ {AIRBNB, BOOKING_COM}, the other = DIRECT
- *        - OR the DIRECT row's externalId starts with "upsell-" (legacy tag)
+ * Detection signals (each adds points to the confidence score):
+ *   +30  phone match (E.164 normalized)
+ *   +25  email match (lowercased)
+ *   +20  exact checkIn + checkOut date match
+ *   +15  date ranges overlap ≥ 1 night
+ *   +15  first-4 chars of normalized name match (handles "Lina" vs "Lina Silva")
+ *   +10  Levenshtein ≤ 3 on accent-stripped full name
+ *   +10  externalId starts with "upsell-"
+ *   +10  source pattern OTA + DIRECT
+ *   -30  different source category AND no guest-identity signal matched
+ *   -20  non-overlapping nights (probably a repeat guest, not a duplicate)
  *
- *   3) CDS_LEAK — any booking surfaced via the "CDS proximas" filter whose
- *      propertyId is NOT the canonical CDS property. Tells us why Vinicius
- *      Dalmo appears on the CDS dashboard even though he's RDI.
+ * Threshold: ≥ 60 = HIGH (safe to auto-merge), 40–59 = MEDIUM (admin review),
+ *            25–39 = LOW (informational), < 25 = filtered out.
  *
- * Writes each report as JSON + a markdown summary under /tmp/. Caller can
- * scp / copy them out or cat them in the terminal.
- *
- * Usage (Railway one-off):
- *   railway ssh --service recanto-dos-ipes \
- *     "node scripts/audit-bookings-dedup.js > /tmp/audit-summary.md 2>&1 && cat /tmp/audit-summary.md"
- *
- * NEVER writes to the DB. Safe to re-run.
+ * NEVER mutates the DB.
  */
 
 const fs = require('fs');
@@ -35,15 +36,29 @@ const prisma = require('../lib/db');
 
 const OUT_DIR = '/tmp';
 
-// ── Utility: Levenshtein distance for fuzzy name matching ────────────────────
+// ── Text helpers ─────────────────────────────────────────────────────────────
+function stripAccents(s) {
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+function normalizeName(s) {
+  return stripAccents(s).toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+}
+function normalizePhone(p) {
+  if (!p) return '';
+  const d = String(p).replace(/\D/g, '');
+  if (!d) return '';
+  // Ignore country code differences — last 10 digits is our canonical key.
+  return d.slice(-10);
+}
+function normalizeEmail(e) {
+  return String(e || '').toLowerCase().trim();
+}
 function editDistance(a, b) {
-  a = String(a || '').toLowerCase();
-  b = String(b || '').toLowerCase();
+  a = String(a || ''); b = String(b || '');
   if (a === b) return 0;
   if (!a.length) return b.length;
   if (!b.length) return a.length;
-  const prev = new Array(b.length + 1);
-  const curr = new Array(b.length + 1);
+  const prev = new Array(b.length + 1), curr = new Array(b.length + 1);
   for (let j = 0; j <= b.length; j++) prev[j] = j;
   for (let i = 1; i <= a.length; i++) {
     curr[0] = i;
@@ -55,42 +70,83 @@ function editDistance(a, b) {
   }
   return prev[b.length];
 }
-
-function firstTwoTokens(name) {
-  return String(name || '').toLowerCase().trim().split(/\s+/).slice(0, 2).join(' ');
-}
-
 function nightsOverlap(a, b) {
-  const aIn  = new Date(a.checkIn).getTime();
+  const aIn = new Date(a.checkIn).getTime();
   const aOut = new Date(a.checkOut).getTime();
-  const bIn  = new Date(b.checkIn).getTime();
+  const bIn = new Date(b.checkIn).getTime();
   const bOut = new Date(b.checkOut).getTime();
   const start = Math.max(aIn, bIn);
-  const end   = Math.min(aOut, bOut);
+  const end = Math.min(aOut, bOut);
   return Math.max(0, Math.floor((end - start) / (24 * 60 * 60 * 1000)));
+}
+function ymd(d) { return d?.toISOString?.().slice(0, 10); }
+
+// ── Pair scoring ─────────────────────────────────────────────────────────────
+function scorePair(a, b) {
+  const reasons = [];
+  let score = 0;
+
+  // identity signals
+  const phoneA = normalizePhone(a.guestPhone);
+  const phoneB = normalizePhone(b.guestPhone);
+  const phoneMatch = phoneA && phoneB && phoneA === phoneB;
+  if (phoneMatch) { score += 30; reasons.push('phone match'); }
+
+  const emailA = normalizeEmail(a.guestEmail);
+  const emailB = normalizeEmail(b.guestEmail);
+  const emailMatch = emailA && emailB && emailA === emailB;
+  if (emailMatch) { score += 25; reasons.push('email match'); }
+
+  // date signals
+  const sameDates = ymd(a.checkIn) === ymd(b.checkIn) && ymd(a.checkOut) === ymd(b.checkOut);
+  if (sameDates) { score += 20; reasons.push('exact same dates'); }
+  const overlapN = nightsOverlap(a, b);
+  if (overlapN >= 1 && !sameDates) { score += 15; reasons.push(`${overlapN} nights overlap`); }
+  if (overlapN === 0) { score -= 20; reasons.push('no overlap — probably repeat guest'); }
+
+  // name signals
+  const nameA = normalizeName(a.guestName);
+  const nameB = normalizeName(b.guestName);
+  if (nameA && nameB) {
+    const first4A = nameA.slice(0, 4);
+    const first4B = nameB.slice(0, 4);
+    if (first4A === first4B) { score += 15; reasons.push(`name first-4 match (${first4A})`); }
+    const dist = editDistance(nameA, nameB);
+    if (dist <= 3 && first4A !== first4B) { score += 10; reasons.push(`name fuzzy (edit=${dist})`); }
+  }
+
+  // channel pattern
+  const aIsOTA = a.source === 'AIRBNB' || a.source === 'BOOKING_COM';
+  const bIsOTA = b.source === 'AIRBNB' || b.source === 'BOOKING_COM';
+  const aIsDirect = a.source === 'DIRECT';
+  const bIsDirect = b.source === 'DIRECT';
+  const isOtaDirect = (aIsOTA && bIsDirect) || (aIsDirect && bIsOTA);
+  if (isOtaDirect) { score += 10; reasons.push('OTA+DIRECT'); }
+  // cross-OTA duplicate (Airbnb + Booking.com for the same stay)
+  if (aIsOTA && bIsOTA && a.source !== b.source) { score += 5; reasons.push('cross-OTA'); }
+
+  // upsell legacy tag
+  const aUpsell = typeof a.externalId === 'string' && a.externalId.startsWith('upsell-');
+  const bUpsell = typeof b.externalId === 'string' && b.externalId.startsWith('upsell-');
+  if (aUpsell || bUpsell) { score += 10; reasons.push('externalId upsell- tag'); }
+
+  // penalty: different source categories AND no identity match → probably unrelated
+  if (a.source !== b.source && !phoneMatch && !emailMatch && !sameDates && overlapN < 1) {
+    score -= 30;
+    reasons.push('different sources, no identity signal');
+  }
+
+  return { score, reasons };
 }
 
 async function main() {
   const [properties, bookings] = await Promise.all([
-    prisma.property.findMany({
-      select: { id: true, slug: true, name: true, active: true },
-    }),
+    prisma.property.findMany({ select: { id: true, slug: true, name: true, active: true } }),
     prisma.booking.findMany({
       select: {
-        id: true,
-        propertyId: true,
-        guestName: true,
-        guestPhone: true,
-        guestEmail: true,
-        checkIn: true,
-        checkOut: true,
-        nights: true,
-        source: true,
-        status: true,
-        totalAmount: true,
-        externalId: true,
-        notes: true,
-        createdAt: true,
+        id: true, propertyId: true, guestName: true, guestPhone: true, guestEmail: true,
+        checkIn: true, checkOut: true, nights: true, source: true, status: true,
+        totalAmount: true, externalId: true, notes: true, createdAt: true,
         isInvoiceAggregate: true,
       },
       orderBy: { checkIn: 'asc' },
@@ -98,201 +154,191 @@ async function main() {
   ]);
 
   const propertyMap = new Map(properties.map(p => [p.id, p]));
-  const cdsProperty = properties.find(p => p.slug === 'cabanas-da-serra' && p.active)
-                    || properties.find(p => p.slug === 'cabanas' && p.active);
   const rdiProperty = properties.find(p => p.slug === 'recanto-dos-ipes' && p.active);
+  const cdsProperty = properties.find(p => p.slug === 'cabanas-da-serra' && p.active);
 
-  // ── 1) ORPHANS ─────────────────────────────────────────────────────────────
+  // ── 1) Orphans + RDI legacy ────────────────────────────────────────────────
   const orphans = [];
+  const rdiLegacy = [];
   for (const b of bookings) {
-    if (!b.propertyId) {
-      orphans.push({ ...b, reason: 'propertyId is NULL' });
-      continue;
-    }
+    if (!b.propertyId) { orphans.push({ ...b, reason: 'propertyId NULL' }); continue; }
     const prop = propertyMap.get(b.propertyId);
-    if (!prop) {
-      orphans.push({ ...b, reason: `propertyId ${b.propertyId} not found in Property table` });
-      continue;
-    }
-    if (!prop.active) {
-      orphans.push({ ...b, reason: `property ${prop.slug} is inactive (legacy row)` });
-    }
+    if (!prop) { orphans.push({ ...b, reason: `propertyId ${b.propertyId} not in Property table` }); continue; }
+    if (prop.slug === 'sitio' && !prop.active) { rdiLegacy.push({ ...b, slug: prop.slug }); continue; }
+    if (!prop.active) orphans.push({ ...b, reason: `property ${prop.slug} inactive` });
   }
 
-  // ── 2) UPSELL_DUPES ────────────────────────────────────────────────────────
-  const dupes = [];
-  for (let i = 0; i < bookings.length; i++) {
-    for (let j = i + 1; j < bookings.length; j++) {
-      const a = bookings[i];
-      const b = bookings[j];
+  // ── 2) All-pairs scoring ──────────────────────────────────────────────────
+  const nonAggregate = bookings.filter(b => !b.isInvoiceAggregate);
+  const candidates = [];
+  for (let i = 0; i < nonAggregate.length; i++) {
+    for (let j = i + 1; j < nonAggregate.length; j++) {
+      const a = nonAggregate[i];
+      const b = nonAggregate[j];
+      const { score, reasons } = scorePair(a, b);
+      if (score < 25) continue;
 
-      // Skip aggregate invoice placeholders
-      if (a.isInvoiceAggregate || b.isInvoiceAggregate) continue;
+      // Pick canonical "keep" = OTA if exactly one is OTA, otherwise older
+      // booking by createdAt (the OTA usually came first in practice).
+      const aIsOTA = a.source === 'AIRBNB' || a.source === 'BOOKING_COM';
+      const bIsOTA = b.source === 'AIRBNB' || b.source === 'BOOKING_COM';
+      let keep, merge;
+      if (aIsOTA && !bIsOTA) { keep = a; merge = b; }
+      else if (bIsOTA && !aIsOTA) { keep = b; merge = a; }
+      else if (a.createdAt <= b.createdAt) { keep = a; merge = b; }
+      else { keep = b; merge = a; }
 
-      // Source pattern: one OTA + one DIRECT
-      const aIsOTA    = a.source === 'AIRBNB' || a.source === 'BOOKING_COM';
-      const bIsOTA    = b.source === 'AIRBNB' || b.source === 'BOOKING_COM';
-      const aIsDirect = a.source === 'DIRECT';
-      const bIsDirect = b.source === 'DIRECT';
-      const isPairPattern = (aIsOTA && bIsDirect) || (aIsDirect && bIsOTA);
-
-      // Legacy convention: upsell-only bookings have externalId like 'upsell-<...>'
-      const aUpsellTag = typeof a.externalId === 'string' && a.externalId.startsWith('upsell-');
-      const bUpsellTag = typeof b.externalId === 'string' && b.externalId.startsWith('upsell-');
-
-      if (!isPairPattern && !aUpsellTag && !bUpsellTag) continue;
-
-      // Same property (both null counts as "same" for post-backfill grouping)
-      if (a.propertyId !== b.propertyId) continue;
-
-      // Overlapping nights
-      if (nightsOverlap(a, b) < 1) continue;
-
-      // Fuzzy name match — first two tokens, edit distance ≤ 2
-      const nameDist = editDistance(firstTwoTokens(a.guestName), firstTwoTokens(b.guestName));
-      if (nameDist > 2) continue;
-
-      const ota    = aIsOTA ? a : (bIsOTA ? b : null);
-      const direct = aIsDirect ? a : (bIsDirect ? b : null);
-      dupes.push({
-        keep_id:       ota ? ota.id : a.id,   // keep the OTA row as the canonical booking
-        merge_id:      direct ? direct.id : b.id,
-        keep_source:   ota ? ota.source : a.source,
-        merge_source:  direct ? direct.source : b.source,
-        guestName:     a.guestName,
-        checkIn:       a.checkIn?.toISOString?.().slice(0, 10),
-        checkOut:      a.checkOut?.toISOString?.().slice(0, 10),
-        propertyId:    a.propertyId,
-        propertySlug:  propertyMap.get(a.propertyId)?.slug || null,
-        keep_amount:   ota?.totalAmount?.toString?.(),
-        merge_amount:  direct?.totalAmount?.toString?.(),
-        nameDistance:  nameDist,
-        reason:        aUpsellTag || bUpsellTag
-          ? 'externalId tagged upsell-'
-          : 'OTA+DIRECT pattern, overlapping nights, similar name',
+      candidates.push({
+        score,
+        confidence: score >= 60 ? 'HIGH' : (score >= 40 ? 'MEDIUM' : 'LOW'),
+        reasons,
+        keep_id: keep.id,
+        keep_source: keep.source,
+        keep_guest: keep.guestName,
+        keep_phone: keep.guestPhone,
+        keep_email: keep.guestEmail,
+        keep_dates: `${ymd(keep.checkIn)} → ${ymd(keep.checkOut)}`,
+        keep_amount: keep.totalAmount?.toString?.(),
+        merge_id: merge.id,
+        merge_source: merge.source,
+        merge_guest: merge.guestName,
+        merge_phone: merge.guestPhone,
+        merge_email: merge.guestEmail,
+        merge_dates: `${ymd(merge.checkIn)} → ${ymd(merge.checkOut)}`,
+        merge_amount: merge.totalAmount?.toString?.(),
+        propertyId: a.propertyId,
+        propertySlug: propertyMap.get(a.propertyId)?.slug || null,
       });
     }
   }
 
-  // ── 3) CDS_LEAK ────────────────────────────────────────────────────────────
-  // Bookings with propertyId NOT belonging to an active CDS row but whose
-  // guestName or notes suggest they'd land on the CDS dashboard. Since
-  // there's no channel that hardcodes a CDS-vs-RDI filter in the reservas
-  // feed, the canonical check is: which bookings currently have a propertyId
-  // that resolves to an inactive "cabanas" row? Those are false CDS reservas.
-  const cdsLeak = bookings
-    .filter(b => {
-      const prop = propertyMap.get(b.propertyId);
-      // Leak = booking attributed to an INACTIVE 'cabanas' legacy row, OR
-      // propertyId points to something that isn't the canonical CDS but is
-      // showing up because of the active:true filter being too loose.
-      return prop && prop.slug === 'cabanas' && !prop.active;
-    })
-    .map(b => ({
-      id: b.id,
-      guestName: b.guestName,
-      checkIn: b.checkIn?.toISOString?.().slice(0, 10),
-      source: b.source,
-      propertyId: b.propertyId,
-      propertySlug: propertyMap.get(b.propertyId)?.slug,
-    }));
+  candidates.sort((a, b) => b.score - a.score);
 
-  // Also flag: any booking assigned to RDI's legacy inactive 'sitio' row.
-  const rdiLegacy = bookings
-    .filter(b => {
-      const prop = propertyMap.get(b.propertyId);
-      return prop && prop.slug === 'sitio' && !prop.active;
-    })
-    .map(b => ({
-      id: b.id,
-      guestName: b.guestName,
-      checkIn: b.checkIn?.toISOString?.().slice(0, 10),
-      source: b.source,
-      propertyId: b.propertyId,
-      propertySlug: propertyMap.get(b.propertyId)?.slug,
-    }));
-
-  // ── Write reports ──────────────────────────────────────────────────────────
-  fs.writeFileSync(path.join(OUT_DIR, 'audit-orphans.json'),       JSON.stringify(orphans,   null, 2));
-  fs.writeFileSync(path.join(OUT_DIR, 'audit-upsell-dupes.json'),  JSON.stringify(dupes,     null, 2));
-  fs.writeFileSync(path.join(OUT_DIR, 'audit-cds-leak.json'),      JSON.stringify(cdsLeak,   null, 2));
-  fs.writeFileSync(path.join(OUT_DIR, 'audit-rdi-legacy.json'),    JSON.stringify(rdiLegacy, null, 2));
-
-  // Markdown summary (goes to stdout so caller sees it)
-  console.log('# Booking data audit — 2026-04-20');
-  console.log();
-  console.log(`Total bookings: **${bookings.length}**`);
-  console.log(`Properties:`);
-  for (const p of properties) {
-    console.log(`  - ${p.slug} (${p.id}) active=${p.active}`);
+  // ── 3) Guest clusters of 3+ (potential triples) ───────────────────────────
+  // Group by normalized-name OR phone, find clusters with ≥3 members whose
+  // date windows overlap each other.
+  const groups = new Map();
+  for (const b of nonAggregate) {
+    const keys = new Set();
+    const name = normalizeName(b.guestName);
+    if (name.length >= 4) keys.add('n:' + name.slice(0, 6));
+    const phone = normalizePhone(b.guestPhone);
+    if (phone) keys.add('p:' + phone);
+    const email = normalizeEmail(b.guestEmail);
+    if (email) keys.add('e:' + email);
+    for (const k of keys) {
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(b);
+    }
   }
+  const triples = [];
+  for (const [key, list] of groups) {
+    if (list.length < 3) continue;
+    // keep only if any pair inside overlaps
+    let anyOverlap = false;
+    for (let i = 0; i < list.length && !anyOverlap; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        if (nightsOverlap(list[i], list[j]) >= 1) { anyOverlap = true; break; }
+      }
+    }
+    if (!anyOverlap) continue;
+    triples.push({
+      groupKey: key,
+      rows: list.map(b => ({
+        id: b.id, source: b.source, guestName: b.guestName,
+        checkIn: ymd(b.checkIn), checkOut: ymd(b.checkOut),
+        totalAmount: b.totalAmount?.toString?.(),
+      })),
+    });
+  }
+
+  // ── Write reports ─────────────────────────────────────────────────────────
+  fs.writeFileSync(path.join(OUT_DIR, 'audit-orphans.json'),     JSON.stringify(orphans,    null, 2));
+  fs.writeFileSync(path.join(OUT_DIR, 'audit-rdi-legacy.json'),  JSON.stringify(rdiLegacy,  null, 2));
+  fs.writeFileSync(path.join(OUT_DIR, 'audit-candidates.json'),  JSON.stringify(candidates, null, 2));
+  fs.writeFileSync(path.join(OUT_DIR, 'audit-triples.json'),     JSON.stringify(triples,    null, 2));
+
+  // ── Summary ───────────────────────────────────────────────────────────────
+  console.log('# Booking data audit (thorough) — 2026-04-20');
+  console.log();
+  console.log(`Bookings: **${bookings.length}** total, ${nonAggregate.length} non-aggregate pair-scored`);
+  console.log(`Properties: ${properties.map(p => `${p.slug}(${p.active ? 'active' : 'inactive'})`).join(', ')}`);
   console.log();
 
-  console.log(`## 1) Orphans — ${orphans.length} rows`);
-  console.log(`Bookings with NULL propertyId or pointing to an inactive property.`);
-  console.log();
-  if (orphans.length === 0) {
-    console.log('_None._');
-  } else {
+  console.log(`## 1) Orphans — ${orphans.length}`);
+  if (orphans.length === 0) { console.log('_None._'); }
+  else {
     console.log('| id | guest | checkIn | source | reason |');
     console.log('|---|---|---|---|---|');
-    for (const o of orphans.slice(0, 40)) {
-      console.log(`| ${o.id.slice(-6)} | ${o.guestName} | ${o.checkIn?.toISOString?.().slice(0, 10) ?? '?'} | ${o.source} | ${o.reason} |`);
-    }
-    if (orphans.length > 40) console.log(`| … | _+${orphans.length - 40} more_ | | | |`);
+    for (const o of orphans) console.log(`| ${o.id.slice(-6)} | ${o.guestName} | ${ymd(o.checkIn)} | ${o.source} | ${o.reason} |`);
   }
   console.log();
 
-  console.log(`## 2) Upsell-duplicate candidates — ${dupes.length} pairs`);
-  console.log(`These pairs look like the same reservation across channels.`);
-  console.log(`Recommendation: keep the OTA row, merge DIRECT into it as a BookingUpsell.`);
+  console.log(`## 2) RDI legacy — ${rdiLegacy.length}`);
+  if (rdiLegacy.length === 0) { console.log('_None._'); }
+  else {
+    console.log('| id | guest | checkIn | source |');
+    console.log('|---|---|---|---|');
+    for (const r of rdiLegacy) console.log(`| ${r.id.slice(-6)} | ${r.guestName} | ${ymd(r.checkIn)} | ${r.source} |`);
+  }
   console.log();
-  if (dupes.length === 0) {
-    console.log('_None detected._');
-  } else {
-    console.log('| keep (OTA) | merge (direct) | guest | dates | keep R$ | merge R$ | reason |');
+
+  const high   = candidates.filter(c => c.confidence === 'HIGH');
+  const medium = candidates.filter(c => c.confidence === 'MEDIUM');
+  const low    = candidates.filter(c => c.confidence === 'LOW');
+
+  console.log(`## 3) Duplicate candidates — ${candidates.length} pairs`);
+  console.log(`HIGH=${high.length} · MEDIUM=${medium.length} · LOW=${low.length}`);
+  console.log();
+
+  console.log(`### HIGH confidence (score ≥ 60) — safe auto-merge`);
+  if (!high.length) console.log('_None._');
+  else {
+    console.log('| # | score | keep | merge | guest | dates | R$ keep | R$ merge | signals |');
+    console.log('|---|---|---|---|---|---|---|---|---|');
+    high.forEach((c, i) => console.log(
+      `| ${i+1} | ${c.score} | \`${c.keep_id.slice(-6)}\` ${c.keep_source} | \`${c.merge_id.slice(-6)}\` ${c.merge_source} | ${c.keep_guest || c.merge_guest} | ${c.keep_dates} / ${c.merge_dates} | ${c.keep_amount} | ${c.merge_amount} | ${c.reasons.join('; ')} |`
+    ));
+  }
+  console.log();
+
+  console.log(`### MEDIUM confidence (40–59) — needs admin review`);
+  if (!medium.length) console.log('_None._');
+  else {
+    console.log('| # | score | keep | merge | guest (keep/merge) | dates | signals |');
     console.log('|---|---|---|---|---|---|---|');
-    for (const d of dupes) {
-      console.log(`| \`${d.keep_id.slice(-6)}\` (${d.keep_source}) | \`${d.merge_id.slice(-6)}\` (${d.merge_source}) | ${d.guestName} | ${d.checkIn} → ${d.checkOut} | ${d.keep_amount} | ${d.merge_amount} | ${d.reason} |`);
-    }
+    medium.forEach((c, i) => console.log(
+      `| ${i+1} | ${c.score} | \`${c.keep_id.slice(-6)}\` ${c.keep_source} | \`${c.merge_id.slice(-6)}\` ${c.merge_source} | ${c.keep_guest} / ${c.merge_guest} | ${c.keep_dates} / ${c.merge_dates} | ${c.reasons.join('; ')} |`
+    ));
   }
   console.log();
 
-  console.log(`## 3) CDS leak — ${cdsLeak.length} bookings`);
-  console.log(`Bookings attributed to the inactive legacy 'cabanas' row that still`);
-  console.log(`show on the CDS dashboard.`);
-  console.log();
-  if (cdsLeak.length === 0) {
-    console.log("_None — Vinicius Dalmo must be showing for a different reason. Check /financeiro/cds endpoint filter or the dashboard's proximas fetch._");
-  } else {
-    console.log('| id | guest | checkIn | source |');
-    console.log('|---|---|---|---|');
-    for (const c of cdsLeak) {
-      console.log(`| ${c.id.slice(-6)} | ${c.guestName} | ${c.checkIn} | ${c.source} |`);
-    }
+  console.log(`### LOW confidence (25–39) — informational only`);
+  if (!low.length) console.log('_None._');
+  else {
+    console.log('| # | score | keep | merge | guest (keep/merge) | dates | signals |');
+    console.log('|---|---|---|---|---|---|---|');
+    low.forEach((c, i) => console.log(
+      `| ${i+1} | ${c.score} | \`${c.keep_id.slice(-6)}\` ${c.keep_source} | \`${c.merge_id.slice(-6)}\` ${c.merge_source} | ${c.keep_guest} / ${c.merge_guest} | ${c.keep_dates} / ${c.merge_dates} | ${c.reasons.join('; ')} |`
+    ));
   }
   console.log();
 
-  console.log(`## 4) RDI legacy attribution — ${rdiLegacy.length} bookings`);
-  console.log(`Bookings stuck on the inactive 'sitio' row instead of the active 'recanto-dos-ipes'.`);
-  console.log();
-  if (rdiLegacy.length === 0) {
-    console.log('_None._');
-  } else {
-    console.log('| id | guest | checkIn | source |');
-    console.log('|---|---|---|---|');
-    for (const r of rdiLegacy.slice(0, 30)) {
-      console.log(`| ${r.id.slice(-6)} | ${r.guestName} | ${r.checkIn} | ${r.source} |`);
+  console.log(`## 4) Guest clusters of 3+ — ${triples.length}`);
+  if (!triples.length) console.log('_None — no guest has 3+ overlapping bookings._');
+  else {
+    for (const t of triples) {
+      console.log(`**Cluster \`${t.groupKey}\`:**`);
+      for (const r of t.rows) console.log(`  - \`${r.id.slice(-6)}\` ${r.source} · ${r.guestName} · ${r.checkIn} → ${r.checkOut} · R$${r.totalAmount}`);
+      console.log();
     }
-    if (rdiLegacy.length > 30) console.log(`| … | _+${rdiLegacy.length - 30} more_ | | |`);
   }
-  console.log();
 
   console.log(`## Canonical property IDs`);
-  console.log(`- RDI (active): \`${rdiProperty?.id}\` slug=\`${rdiProperty?.slug}\``);
-  console.log(`- CDS (active): \`${cdsProperty?.id}\` slug=\`${cdsProperty?.slug}\``);
+  console.log(`- RDI: \`${rdiProperty?.id}\` slug=\`${rdiProperty?.slug}\``);
+  console.log(`- CDS: \`${cdsProperty?.id}\` slug=\`${cdsProperty?.slug}\``);
   console.log();
-  console.log(`Full JSON reports written to: ${OUT_DIR}/audit-*.json`);
+  console.log(`JSON reports: ${OUT_DIR}/audit-*.json`);
 }
 
 main()
