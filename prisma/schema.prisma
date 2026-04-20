@@ -894,17 +894,25 @@ enum MessageDirection {
 // ── AI Content Agent (SP5) ───────────────────────────────────────────────────
 
 model BrandContentConfig {
-  id              String   @id @default(cuid())
-  brand           Brand
-  propertyId      String
-  property        Property @relation(fields: [propertyId], references: [id])
-  voiceNotes      String?  @db.Text
-  upcomingThemes  String?  @db.Text
-  pillarMix       Json?    // { experiencia: 30, destino: 20, ... }
-  postsPerWeek    Int      @default(5)
-  postingSchedule Json?    // [{ day: "MON", time: "10:00", platform: "INSTAGRAM" }]
-  defaultHashtags String?
-  updatedAt       DateTime @updatedAt
+  id               String   @id @default(cuid())
+  brand            Brand
+  propertyId       String
+  property         Property @relation(fields: [propertyId], references: [id])
+  voiceNotes       String?  @db.Text
+  upcomingThemes   String?  @db.Text
+  pillarMix        Json?    // { experiencia: 30, destino: 20, ... }
+  postsPerWeek     Int      @default(5)
+  postingSchedule  Json?    // [{ day: "MON", time: "10:00", platform: "INSTAGRAM" }]
+  defaultHashtags  String?
+  // Google Drive folder URL containing the brand's photo library. When set,
+  // the weekly content agent picks the best image per post from this folder
+  // (via Drive API v3 + Claude filename match). Folder must be shared
+  // "anyone with the link can view" so the public GOOGLE_DRIVE_API_KEY works.
+  imageLibraryUrl  String?
+  // Opt-in: when true AND imageLibraryUrl has no good match, the agent
+  // will fall back to AI image generation. Default false keeps cost bounded.
+  aiImageFallback  Boolean  @default(false)
+  updatedAt        DateTime @updatedAt
 
   @@unique([brand, propertyId])
 }

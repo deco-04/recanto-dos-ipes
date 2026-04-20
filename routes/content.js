@@ -14,6 +14,7 @@ const { createWeeklyPackage, regeneratePost, createImprovedAlternative, createRd
 const { schedulePost, cancelScheduledPost }   = require('../lib/ghl-social');
 const { sendPushToRole } = require('../lib/push');
 const { requireStaff, requireAdmin } = require('../lib/staff-auth-middleware');
+const { slugForBrand, parseGerarBody } = require('../lib/content-gerar-helpers');
 
 const router = express.Router();
 
@@ -314,16 +315,15 @@ router.delete('/:id', requireStaff, requireAdmin, async (req, res) => {
 
 // ── GET /conteudo/config/:brand — read brand config ───────────────────────────
 router.get('/config/:brand', requireStaff, async (req, res) => {
-  const { brand } = req.params;
-  if (!['RDI', 'RDS', 'CDS'].includes(brand)) {
-    return res.status(400).json({ error: 'Brand inválida' });
-  }
+  const slug = slugForBrand(req.params.brand);
+  if (!slug) return res.status(400).json({ error: 'Brand inválida' });
+
   try {
-    const property = await prisma.property.findFirst({ where: { active: true } });
+    const property = await prisma.property.findFirst({ where: { slug, active: true } });
     const config   = await prisma.brandContentConfig.findFirst({
-      where: { brand, propertyId: property?.id },
+      where: { brand: req.params.brand, propertyId: property?.id },
     });
-    res.json(config || { brand, postsPerWeek: 5 });
+    res.json(config || { brand: req.params.brand, postsPerWeek: 5 });
   } catch (err) {
     res.status(500).json({ error: 'Erro ao carregar configuração' });
   }
@@ -331,10 +331,8 @@ router.get('/config/:brand', requireStaff, async (req, res) => {
 
 // ── PUT /conteudo/config/:brand — write brand config ─────────────────────────
 router.put('/config/:brand', requireStaff, requireAdmin, async (req, res) => {
-  const { brand } = req.params;
-  if (!['RDI', 'RDS', 'CDS'].includes(brand)) {
-    return res.status(400).json({ error: 'Brand inválida' });
-  }
+  const slug = slugForBrand(req.params.brand);
+  if (!slug) return res.status(400).json({ error: 'Brand inválida' });
 
   const schema = z.object({
     voiceNotes:      z.string().max(2000).optional(),
@@ -343,18 +341,24 @@ router.put('/config/:brand', requireStaff, requireAdmin, async (req, res) => {
     postsPerWeek:    z.number().int().min(1).max(20).optional(),
     postingSchedule: z.array(z.any()).optional(),
     defaultHashtags: z.string().max(500).optional(),
+    imageLibraryUrl: z.string().url().nullable().optional().or(z.literal('')),
+    aiImageFallback: z.boolean().optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
 
+  // Normalize empty string → null for the nullable URL field
+  const data = { ...parsed.data };
+  if (data.imageLibraryUrl === '') data.imageLibraryUrl = null;
+
   try {
-    const property = await prisma.property.findFirst({ where: { active: true } });
-    if (!property) return res.status(500).json({ error: 'No active property' });
+    const property = await prisma.property.findFirst({ where: { slug, active: true } });
+    if (!property) return res.status(400).json({ error: `Propriedade "${slug}" não está ativa` });
 
     const config = await prisma.brandContentConfig.upsert({
-      where:  { brand_propertyId: { brand, propertyId: property.id } },
-      update: parsed.data,
-      create: { brand, propertyId: property.id, ...parsed.data },
+      where:  { brand_propertyId: { brand: req.params.brand, propertyId: property.id } },
+      update: data,
+      create: { brand: req.params.brand, propertyId: property.id, ...data },
     });
 
     res.json(config);
@@ -365,20 +369,28 @@ router.put('/config/:brand', requireStaff, requireAdmin, async (req, res) => {
 });
 
 // ── POST /conteudo/gerar-agora/:brand — manual trigger ────────────────────────
+// Body (optional):
+//   { contentTypes?: ContentType[], count?: number }
+// Both fields are sanitized by parseGerarBody before reaching the agent.
 router.post('/gerar-agora/:brand', requireStaff, requireAdmin, async (req, res) => {
   const { brand } = req.params;
-  if (!['RDI', 'RDS', 'CDS'].includes(brand)) {
-    return res.status(400).json({ error: 'Brand inválida' });
-  }
+  const slug = slugForBrand(brand);
+  if (!slug) return res.status(400).json({ error: 'Brand inválida' });
 
   try {
-    const property = await prisma.property.findFirst({ where: { active: true } });
-    if (!property) return res.status(500).json({ error: 'No active property' });
+    // D1: pick the property that matches the brand, not "first active". Prevents
+    // CDS posts from silently attaching to the RDI property (and vice versa).
+    const property = await prisma.property.findFirst({ where: { slug, active: true } });
+    if (!property) return res.status(400).json({ error: `Propriedade "${slug}" não está ativa` });
 
-    res.json({ ok: true, message: 'Gerando…' }); // respond immediately
+    // D2: accept an optional channel + count filter so the admin can request
+    // "just one BLOG" or "only Instagram" instead of the full weekly mix.
+    const { contentTypes, count } = parseGerarBody(req.body);
+
+    res.json({ ok: true, message: 'Gerando…', brand, propertyId: property.id, contentTypes, count });
 
     // Run in background
-    createWeeklyPackage(brand, property.id)
+    createWeeklyPackage(brand, property.id, { contentTypes, count })
       .then(posts => {
         sendPushToRole('ADMIN', {
           title: `Conteúdo ${brand} gerado ✨`,
