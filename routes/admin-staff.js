@@ -725,10 +725,29 @@ router.post('/pricing-suggestions/flash', async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.errors });
 
-  const { propertyId, startDate, endDate, pricePerNight, name } = parsed.data;
+  const { propertyId: rawPropertyId, startDate, endDate, pricePerNight, name } = parsed.data;
   const tier = deriveTierFromPrice(pricePerNight);
 
   try {
+    // Resolve propertyId: if legacy hardcoded fallback ('prop-rdi') or the ID
+    // doesn't match a real Property row, look up by brand. The staff app
+    // currently falls through to 'prop-rdi' when session.selectedPropertyId
+    // is 'ALL' or missing — keep the endpoint usable in that case.
+    let propertyId = rawPropertyId;
+    const exists = await prisma.property.findUnique({ where: { id: propertyId }, select: { id: true } });
+    if (!exists) {
+      const fallbackBrand = rawPropertyId === 'prop-rds' ? 'RDS'
+                         : rawPropertyId === 'prop-cds' ? 'CDS'
+                         : 'RDI';
+      const resolved = await prisma.property.findFirst({
+        where: { brand: fallbackBrand },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
+      if (!resolved) return res.status(400).json({ error: `Propriedade '${rawPropertyId}' não encontrada e brand ${fallbackBrand} não tem propriedade cadastrada` });
+      propertyId = resolved.id;
+    }
+
     const created = await prisma.seasonalPricing.create({
       data: {
         propertyId,
