@@ -10,7 +10,7 @@
 const express = require('express');
 const { z }   = require('zod');
 const prisma  = require('../lib/db');
-const { createWeeklyPackage, regeneratePost } = require('../lib/conteudo-agent');
+const { createWeeklyPackage, regeneratePost, createImprovedAlternative, createRdiBlogPost } = require('../lib/conteudo-agent');
 const { schedulePost, cancelScheduledPost }   = require('../lib/ghl-social');
 const { sendPushToRole } = require('../lib/push');
 const { requireStaff, requireAdmin } = require('../lib/staff-auth-middleware');
@@ -20,32 +20,36 @@ const router = express.Router();
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function serializePost(p) {
   return {
-    id:          p.id,
-    brand:       p.brand,
-    title:       p.title,
-    body:        p.body,
-    contentType: p.contentType,
-    pillar:      p.pillar,
-    stage:       p.stage,
-    aiGenerated: p.aiGenerated,
-    ghlPostId:   p.ghlPostId,
+    id:           p.id,
+    brand:        p.brand,
+    title:        p.title,
+    body:         p.body,
+    contentType:  p.contentType,
+    pillar:       p.pillar,
+    stage:        p.stage,
+    aiGenerated:  p.aiGenerated,
+    ghlPostId:    p.ghlPostId,
     scheduledFor: p.scheduledFor,
     publishedAt:  p.publishedAt,
-    mediaUrls:   p.mediaUrls,
-    imagePrompt: p.imagePrompt ?? null,
-    createdAt:   p.createdAt,
-    updatedAt:   p.updatedAt,
-    comments:    p.comments?.map(c => ({
-      id:       c.id,
-      body:     c.body,
-      staffId:  c.staffId,
-      name:     c.staff?.name ?? null,
+    mediaUrls:    p.mediaUrls,
+    imagePrompt:  p.imagePrompt   ?? null,
+    feedbackNotes: p.feedbackNotes ?? null,
+    parentPostId: p.parentPostId  ?? null,
+    createdAt:    p.createdAt,
+    updatedAt:    p.updatedAt,
+    comments:     p.comments?.map(c => ({
+      id:        c.id,
+      body:      c.body,
+      staffId:   c.staffId,
+      name:      c.staff?.name ?? null,
       createdAt: c.createdAt,
     })) ?? [],
   };
 }
 
-// ── GET /conteudo/pending-count — count of posts in GERADO or EM_REVISAO ────────
+const ALL_STAGES = ['GERADO', 'EM_REVISAO', 'APROVADO', 'AGENDADO', 'PUBLICADO', 'AJUSTE_NECESSARIO', 'REJEITADO'];
+
+// ── GET /conteudo/pending-count — count of posts needing attention ───────────────
 router.get('/pending-count', requireStaff, async (req, res) => {
   try {
     const property = await prisma.property.findFirst({ where: { active: true } });
@@ -53,7 +57,8 @@ router.get('/pending-count', requireStaff, async (req, res) => {
     const count = await prisma.contentPost.count({
       where: {
         propertyId: property.id,
-        stage: { in: ['GERADO', 'EM_REVISAO'] },
+        // Includes rejection/adjustment stages so badge stays red until resolved
+        stage: { in: ['GERADO', 'EM_REVISAO', 'AJUSTE_NECESSARIO', 'REJEITADO'] },
       },
     });
     res.json({ count });
@@ -83,10 +88,9 @@ router.get('/', requireStaff, async (req, res) => {
       },
     });
 
-    // Group by stage
-    const stages = ['GERADO', 'EM_REVISAO', 'APROVADO', 'AGENDADO', 'PUBLICADO'];
+    // Group by all stages including rejection/adjustment
     const grouped = Object.fromEntries(
-      stages.map(s => [s, posts.filter(p => p.stage === s).map(serializePost)])
+      ALL_STAGES.map(s => [s, posts.filter(p => p.stage === s).map(serializePost)])
     );
 
     res.json(grouped);
@@ -99,12 +103,13 @@ router.get('/', requireStaff, async (req, res) => {
 // ── PATCH /conteudo/:id — update body/stage; auto-schedule on APROVADO ─────────
 router.patch('/:id', requireStaff, async (req, res) => {
   const schema = z.object({
-    title:       z.string().max(200).optional(),
-    body:        z.string().optional(),
-    stage:       z.enum(['GERADO', 'EM_REVISAO', 'APROVADO', 'AGENDADO', 'PUBLICADO']).optional(),
+    title:        z.string().max(200).optional(),
+    body:         z.string().optional(),
+    stage:        z.enum(['GERADO', 'EM_REVISAO', 'APROVADO', 'AGENDADO', 'PUBLICADO', 'AJUSTE_NECESSARIO', 'REJEITADO']).optional(),
     scheduledFor: z.string().datetime().optional(),
-    mediaUrls:   z.array(z.string()).optional(),
-    imagePrompt: z.string().optional(),
+    mediaUrls:    z.array(z.string()).optional(),
+    imagePrompt:  z.string().optional(),
+    feedbackNotes: z.string().max(2000).optional(), // admin feedback for rejection/adjustment
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
@@ -116,12 +121,56 @@ router.patch('/:id', requireStaff, async (req, res) => {
     const data = { ...parsed.data };
     if (data.scheduledFor) data.scheduledFor = new Date(data.scheduledFor);
 
-    // On PUBLICADO → set publishedAt if not already set
+    // ── On PUBLICADO → set publishedAt if not already set ────────────────────
     if (parsed.data.stage === 'PUBLICADO' && post.stage !== 'PUBLICADO' && !post.publishedAt) {
       data.publishedAt = new Date();
     }
 
-    // On APROVADO → schedule to GHL Social Planner
+    // ── On AJUSTE_NECESSARIO or REJEITADO → save feedback + auto-generate alternative ──
+    const isRejectionStage = parsed.data.stage === 'AJUSTE_NECESSARIO' || parsed.data.stage === 'REJEITADO';
+    if (isRejectionStage && post.stage !== parsed.data.stage) {
+      const feedback = parsed.data.feedbackNotes || '';
+      if (feedback) data.feedbackNotes = feedback;
+
+      // Persist stage change first so we respond quickly
+      const updated = await prisma.contentPost.update({
+        where:   { id: req.params.id },
+        data,
+        include: { comments: { include: { staff: { select: { name: true } } } } },
+      });
+
+      // Auto-generate an improved alternative in background (only if feedback given)
+      if (feedback) {
+        createImprovedAlternative(req.params.id, feedback)
+          .then(alt => {
+            sendPushToRole('ADMIN', {
+              title: 'Alternativa gerada 🔄',
+              body:  `Nova versão de "${post.title}" aguarda revisão`,
+              type:  'CONTENT_ALTERNATIVE_READY',
+              data:  { postId: alt.id, parentPostId: req.params.id },
+            }).catch(() => {});
+          })
+          .catch(e => console.error('[content] createImprovedAlternative error:', e.message));
+      }
+
+      return res.json(serializePost(updated));
+    }
+
+    // ── On APROVADO for BLOG content → publish immediately, skip GHL ─────────
+    if (parsed.data.stage === 'APROVADO' && post.stage !== 'APROVADO' && post.contentType === 'BLOG') {
+      data.stage       = 'PUBLICADO';
+      data.publishedAt = new Date();
+
+      const updated = await prisma.contentPost.update({
+        where:   { id: req.params.id },
+        data,
+        include: { comments: { include: { staff: { select: { name: true } } } } },
+      });
+
+      return res.json(serializePost(updated));
+    }
+
+    // ── On APROVADO for non-BLOG content → schedule to GHL Social Planner ────
     if (parsed.data.stage === 'APROVADO' && post.stage !== 'APROVADO') {
       const property = await prisma.property.findFirst({ where: { active: true } });
       const config   = await prisma.brandContentConfig.findFirst({
@@ -165,7 +214,7 @@ router.patch('/:id', requireStaff, async (req, res) => {
       return res.json(response);
     }
 
-    // Cancel GHL post if admin moves back from AGENDADO
+    // ── Cancel GHL post if admin moves back from AGENDADO ────────────────────
     if (post.stage === 'AGENDADO' && parsed.data.stage && parsed.data.stage !== 'AGENDADO' && parsed.data.stage !== 'PUBLICADO') {
       if (post.ghlPostId) {
         await cancelScheduledPost(post.ghlPostId);
@@ -195,6 +244,20 @@ router.post('/:id/regenerar', requireStaff, async (req, res) => {
   } catch (err) {
     console.error('[content] regenerar error:', err);
     res.status(500).json({ error: err.message || 'Erro ao regenerar post' });
+  }
+});
+
+// ── POST /conteudo/:id/alternativa — manually trigger an improved alternative ────
+// Used by the staff app "Gerar alternativa" button on rejected/flagged cards.
+router.post('/:id/alternativa', requireStaff, async (req, res) => {
+  const { feedback } = req.body;
+  if (!feedback?.trim()) return res.status(400).json({ error: 'feedback é obrigatório' });
+  try {
+    const alt = await createImprovedAlternative(req.params.id, feedback);
+    res.json(serializePost({ ...alt, comments: [] }));
+  } catch (err) {
+    console.error('[content] alternativa error:', err);
+    res.status(500).json({ error: err.message || 'Erro ao criar alternativa' });
   }
 });
 
@@ -328,6 +391,32 @@ router.post('/gerar-agora/:brand', requireStaff, requireAdmin, async (req, res) 
   } catch (err) {
     console.error('[content] gerar-agora error:', err);
     res.status(500).json({ error: 'Erro ao gerar conteúdo' });
+  }
+});
+
+// ── POST /conteudo/gerar-blog-rdi — manual trigger for RDI SEO blog post ─────
+router.post('/gerar-blog-rdi', requireStaff, requireAdmin, async (req, res) => {
+  try {
+    const property = await prisma.property.findFirst({
+      where: { active: true, type: 'SITIO' },
+    });
+    if (!property) return res.status(500).json({ error: 'No active SITIO property' });
+
+    res.json({ ok: true, message: 'Gerando post de blog…' }); // respond immediately
+
+    createRdiBlogPost(property.id)
+      .then(post => {
+        sendPushToRole('ADMIN', {
+          title: 'Blog RDI gerado ✍️',
+          body:  `"${post.title}" aguarda revisão`,
+          type:  'CONTENT_BLOG_READY',
+          data:  { postId: post.id },
+        }).catch(() => {});
+      })
+      .catch(e => console.error('[content] gerar-blog-rdi error:', e.message));
+  } catch (err) {
+    console.error('[content] gerar-blog-rdi error:', err);
+    res.status(500).json({ error: 'Erro ao gerar blog' });
   }
 });
 

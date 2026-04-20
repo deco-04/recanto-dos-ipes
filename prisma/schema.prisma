@@ -925,6 +925,8 @@ model ContentPost {
   publishedAt  DateTime?
   mediaUrls    Json?
   imagePrompt  String?        @db.Text
+  feedbackNotes String?       @db.Text  // admin feedback when moved to AJUSTE_NECESSARIO or REJEITADO
+  parentPostId String?        // original post ID when this is a regenerated alternative
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
@@ -932,6 +934,7 @@ model ContentPost {
 
   @@index([brand, stage])
   @@index([propertyId])
+  @@index([parentPostId])
 }
 
 model ContentComment {
@@ -976,6 +979,8 @@ enum ContentStage {
   APROVADO
   AGENDADO
   PUBLICADO
+  AJUSTE_NECESSARIO
+  REJEITADO
 }
 
 // ── Obra Management (Phase 5) ─────────────────────────────────────────────────

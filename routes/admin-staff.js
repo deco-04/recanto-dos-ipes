@@ -51,11 +51,11 @@ async function fetchStaffWithProperties(where) {
 }
 
 // GET /api/admin/staff/properties — list all active properties (for invite form
-// + property settings page that reads googleReviewUrl)
+// + property settings page that reads googleReviewUrl + WiFi credentials)
 router.get('/properties', async (_req, res) => {
   const properties = await prisma.property.findMany({
     where: { active: true },
-    select: { id: true, name: true, slug: true, googleReviewUrl: true },
+    select: { id: true, name: true, slug: true, googleReviewUrl: true, accessInfo: true },
     orderBy: { name: 'asc' },
   });
   return res.json(properties);
@@ -752,22 +752,48 @@ router.post('/pricing-suggestions/flash', async (req, res) => {
 router.patch('/properties/:id', async (req, res) => {
   const schema = z.object({
     googleReviewUrl: z.string().url().nullable().optional().or(z.literal('')),
+    wifiSsid:        z.string().max(64).nullable().optional(),
+    wifiPassword:    z.string().max(128).nullable().optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.errors });
 
-  // Normalize empty string to null
-  const data = {
-    ...(parsed.data.googleReviewUrl !== undefined && {
-      googleReviewUrl: parsed.data.googleReviewUrl || null,
-    }),
-  };
-
   try {
+    // Build scalar field updates
+    const data = {};
+
+    if (parsed.data.googleReviewUrl !== undefined) {
+      data.googleReviewUrl = parsed.data.googleReviewUrl || null;
+    }
+
+    // WiFi fields: merge into property.accessInfo.wifi (preserve other accessInfo keys)
+    const hasWifi = parsed.data.wifiSsid !== undefined || parsed.data.wifiPassword !== undefined;
+    if (hasWifi) {
+      const current = await prisma.property.findUnique({
+        where:  { id: req.params.id },
+        select: { accessInfo: true },
+      });
+      if (!current) return res.status(404).json({ error: 'Propriedade não encontrada' });
+
+      const existing    = (current.accessInfo && typeof current.accessInfo === 'object') ? current.accessInfo : {};
+      const existingWifi = existing.wifi || {};
+
+      data.accessInfo = {
+        ...existing,
+        wifi: {
+          ...existingWifi,
+          ...(parsed.data.wifiSsid     !== undefined && { ssid:     parsed.data.wifiSsid     ?? existingWifi.ssid }),
+          ...(parsed.data.wifiPassword !== undefined && { password: parsed.data.wifiPassword ?? existingWifi.password }),
+        },
+      };
+    }
+
     const property = await prisma.property.update({
       where: { id: req.params.id },
       data,
+      select: { id: true, name: true, slug: true, googleReviewUrl: true, accessInfo: true },
     });
+
     res.json(property);
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'Propriedade não encontrada' });
