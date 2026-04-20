@@ -170,11 +170,70 @@ async function main() {
 
   // ── 2) All-pairs scoring ──────────────────────────────────────────────────
   const nonAggregate = bookings.filter(b => !b.isInvoiceAggregate);
+
+  // Pre-pass: upsell externalId linkage (strongest signal).
+  // The app's convention is `upsell-<PARENT_EXTERNAL_ID>-<SERVICE_DATE>` on
+  // the DIRECT booking. When the parent externalId points to an actual OTA
+  // booking in the same dataset, that's a high-confidence pair REGARDLESS of
+  // date overlap (covers post-stay add-ons like Lina Ferreira Fernandes's
+  // Feb 10-11 direct linked to her Feb 7-8 Airbnb stay).
+  const byExternalId = new Map();
+  for (const b of nonAggregate) {
+    if (b.externalId && !b.externalId.startsWith('upsell-')) {
+      byExternalId.set(b.externalId, b);
+    }
+  }
+  const forcedPairs = new Map();  // merge_id → { keep, merge, reasons }
+  for (const b of nonAggregate) {
+    if (!b.externalId || !b.externalId.startsWith('upsell-')) continue;
+    // externalId pattern: upsell-<PARENT_ID>-<YYYYMMDD>
+    const withoutPrefix = b.externalId.slice('upsell-'.length);
+    const lastDash = withoutPrefix.lastIndexOf('-');
+    const parentExtId = lastDash > 0 ? withoutPrefix.slice(0, lastDash) : withoutPrefix;
+    const parent = byExternalId.get(parentExtId);
+    if (!parent) continue;
+    forcedPairs.set(b.id, {
+      keep: parent,
+      merge: b,
+      reasons: [`externalId linkage: "${b.externalId}" → parent "${parentExtId}"`],
+    });
+  }
+
   const candidates = [];
+  // Emit forced pairs first (score 100, HIGH)
+  for (const [, { keep, merge, reasons }] of forcedPairs) {
+    candidates.push({
+      score: 100,
+      confidence: 'HIGH',
+      reasons,
+      keep_id: keep.id,
+      keep_source: keep.source,
+      keep_guest: keep.guestName,
+      keep_phone: keep.guestPhone,
+      keep_email: keep.guestEmail,
+      keep_dates: `${ymd(keep.checkIn)} → ${ymd(keep.checkOut)}`,
+      keep_amount: keep.totalAmount?.toString?.(),
+      merge_id: merge.id,
+      merge_source: merge.source,
+      merge_guest: merge.guestName,
+      merge_phone: merge.guestPhone,
+      merge_email: merge.guestEmail,
+      merge_dates: `${ymd(merge.checkIn)} → ${ymd(merge.checkOut)}`,
+      merge_amount: merge.totalAmount?.toString?.(),
+      propertyId: merge.propertyId,
+      propertySlug: propertyMap.get(merge.propertyId)?.slug || null,
+    });
+  }
+  // Skip already-paired IDs in the generic scoring pass
+  const forcedMergeIds = new Set(forcedPairs.keys());
+  const forcedKeepIds  = new Set(Array.from(forcedPairs.values()).map(p => p.keep.id));
   for (let i = 0; i < nonAggregate.length; i++) {
     for (let j = i + 1; j < nonAggregate.length; j++) {
       const a = nonAggregate[i];
       const b = nonAggregate[j];
+      // Skip pairs already handled by the forced-pair pass above.
+      if (forcedMergeIds.has(a.id) || forcedMergeIds.has(b.id)) continue;
+      if (forcedKeepIds.has(a.id) && forcedMergeIds.has(b.id)) continue;
       const { score, reasons } = scorePair(a, b);
       if (score < 25) continue;
 
