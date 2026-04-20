@@ -3263,10 +3263,28 @@ router.get('/financeiro/cds', requireRole('ADMIN'), async (req, res) => {
 //   - Fixed costs: (ENERGIA+INTERNET+CONDOMINIO+IMPOSTOS) for check-in month ÷ bookings that month
 router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (req, res) => {
   try {
-    const prop = await prisma.property.findFirst({
-      where: { slug: { not: 'cabanas' }, active: true },
-    });
-    if (!prop) return res.status(404).json({ error: 'Propriedade não encontrada' });
+    // Accept ?propertyId to scope:
+    //   - a specific id  → single-property (classic path)
+    //   - 'ALL' / missing → cross-property (Visão Geral drill-downs). Restricted
+    //     to active non-CDS properties, since CDS is pre-operational and would
+    //     contribute only noise.
+    const propertyIdQs = req.query.propertyId;
+    const isAllScope   = !propertyIdQs || propertyIdQs === 'ALL';
+
+    let props = [];
+    if (!isAllScope) {
+      const single = await prisma.property.findUnique({ where: { id: propertyIdQs } });
+      if (!single) return res.status(404).json({ error: 'Propriedade não encontrada' });
+      props = [single];
+    } else {
+      props = await prisma.property.findMany({
+        where:   { slug: { not: 'cabanas' }, active: true },
+        orderBy: { name: 'asc' },
+      });
+      if (props.length === 0) return res.status(404).json({ error: 'Nenhuma propriedade ativa' });
+    }
+    const propIds  = props.map(p => p.id);
+    const propById = Object.fromEntries(props.map(p => [p.id, p]));
 
     // Airbnb avg 3.498% measured across 57 bookings (backfill-airbnb-commission.js).
     // Booking.com 13.00% exact from all 14 invoices.
@@ -3275,38 +3293,42 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
 
     const [bookings, cleaningExps] = await Promise.all([
       prisma.booking.findMany({
-        where:   { propertyId: prop.id, status: REVENUE_STATUS },
+        where:   { propertyId: { in: propIds }, status: REVENUE_STATUS },
         orderBy: { checkIn: 'desc' },
         select:  { id: true, guestName: true, guestPhone: true, checkIn: true, checkOut: true,
                    nights: true, guestCount: true, source: true, totalAmount: true,
-                   grossAmount: true, commissionAmount: true, isInvoiceAggregate: true },
+                   grossAmount: true, commissionAmount: true, isInvoiceAggregate: true,
+                   propertyId: true, externalId: true,
+                   upsells: { select: { id: true, description: true, amount: true, receivedAt: true } } },
       }),
       prisma.expense.findMany({
-        where:   { propertyId: prop.id, category: 'SERVICOS_LIMPEZA' },
-        select:  { date: true, amount: true },
+        where:   { propertyId: { in: propIds }, category: 'SERVICOS_LIMPEZA' },
+        select:  { propertyId: true, date: true, amount: true },
         orderBy: { date: 'asc' },
       }),
     ]);
 
-    // Cache monthly fixed costs and booking counts to avoid N+1 queries
+    // Cache monthly fixed costs and booking counts per-property to avoid N+1 queries.
+    // Keys are `${propertyId}-${year}-${month}` so Visão Geral stays accurate
+    // (mixing properties into one cache key would cross-contaminate allocations).
     const fixedCache = {};
     const countCache = {};
 
-    async function monthlyFixed(year, month) {
-      const k = `${year}-${month}`;
+    async function monthlyFixed(propertyId, year, month) {
+      const k = `${propertyId}-${year}-${month}`;
       if (fixedCache[k] !== undefined) return fixedCache[k];
       const s = new Date(year, month - 1, 1);
       const e = new Date(year, month, 0, 23, 59, 59);
       const r = await prisma.expense.aggregate({
-        where: { propertyId: prop.id, category: { in: FIXED_CATS }, date: { gte: s, lte: e } },
+        where: { propertyId, category: { in: FIXED_CATS }, date: { gte: s, lte: e } },
         _sum:  { amount: true },
       });
       fixedCache[k] = parseFloat(r._sum.amount || 0);
       return fixedCache[k];
     }
 
-    async function monthlyBookings(year, month) {
-      const k = `${year}-${month}`;
+    async function monthlyBookings(propertyId, year, month) {
+      const k = `${propertyId}-${year}-${month}`;
       if (countCache[k] !== undefined) return countCache[k];
       const s = new Date(year, month - 1, 1);
       const e = new Date(year, month, 0, 23, 59, 59);
@@ -3314,7 +3336,7 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
       // and would distort per-booking fixed-cost allocation if counted.
       countCache[k] = await prisma.booking.count({
         where: {
-          propertyId: prop.id, status: REVENUE_STATUS,
+          propertyId, status: REVENUE_STATUS,
           checkIn: { gte: s, lte: e },
           isInvoiceAggregate: false,
         },
@@ -3324,7 +3346,10 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
 
     const now = new Date();
 
-    // Historical average cleaning cost = total SERVICOS_LIMPEZA ÷ past individual (non-aggregate) bookings
+    // Historical average cleaning cost = total SERVICOS_LIMPEZA ÷ past individual (non-aggregate) bookings.
+    // Computed across scope (single property or all) — for the ALL path this is
+    // a blended average used only as a fallback when an exact expense match is
+    // missing, which the UI flags as 'ESTIMADO'.
     const totalCleaningAmount = cleaningExps.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
     const pastBookingCount    = bookings.filter(
       b => !b.isInvoiceAggregate && new Date(b.checkOut).getTime() < now.getTime()
@@ -3341,6 +3366,7 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
       // isInvoiceAggregate: explicit field set by reconciliation script (not nights===0 heuristic)
       const isAggregate    = !!b.isInvoiceAggregate;
       const feeRate        = PLATFORM_FEES[source] ?? 0;
+      const bookingProp    = propById[b.propertyId];
 
       // Commission: use actual stored value when available (from Booking.com extranet screenshots).
       // Fallback: estimate from net using correct formula — commission = net × rate / (1 − rate).
@@ -3364,9 +3390,12 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
         custoLimpezaFonte = 'N/A_AGGREGATE';
         custoFixo         = 0;
       } else {
-        // Try to match actual cleaning expense: checkout window -1 day to +4 days
+        // Try to match actual cleaning expense: checkout window -1 day to +4 days.
+        // In Visão Geral (cross-property) mode also require the expense is from
+        // the booking's own property — otherwise we'd borrow a neighbor's cleaning.
         const coMs = new Date(b.checkOut).getTime();
         const cleaningMatch = cleaningExps.find(e => {
+          if (e.propertyId !== b.propertyId) return false;
           const diff = new Date(e.date).getTime() - coMs;
           return diff >= -86400000 && diff <= 4 * 86400000;
         });
@@ -3377,8 +3406,8 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
         // Fixed cost allocation by check-in month (excludes aggregates from denominator)
         const ci = new Date(b.checkIn);
         const [fixed, count] = await Promise.all([
-          monthlyFixed(ci.getFullYear(), ci.getMonth() + 1),
-          monthlyBookings(ci.getFullYear(), ci.getMonth() + 1),
+          monthlyFixed(b.propertyId, ci.getFullYear(), ci.getMonth() + 1),
+          monthlyBookings(b.propertyId, ci.getFullYear(), ci.getMonth() + 1),
         ]);
         custoFixo = count > 0 ? Math.round((fixed / count) * 100) / 100 : 0;
       }
@@ -3391,10 +3420,20 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
       const coTs = new Date(b.checkOut).getTime();
       const status = now < ciTs ? 'FUTURE' : now > coTs ? 'PAST' : 'CURRENT';
 
+      // Upsell total (Sprint Q merged the legacy direct-booking rows into
+      // their OTA parent as BookingUpsell rows). Surface both the total and
+      // the raw list so the drawer can show each line.
+      const upsellList  = Array.isArray(b.upsells) ? b.upsells : [];
+      const upsellTotal = upsellList.reduce((s, u) => s + parseFloat(u.amount?.toString?.() || '0'), 0);
+
       results.push({
         id:               b.id,
+        propertyId:       b.propertyId,
+        propertySlug:     bookingProp?.slug || null,
+        propertyName:     bookingProp?.name || null,
         guestName:        b.guestName,
         guestPhone:       b.guestPhone || null,
+        externalId:       b.externalId || null,
         checkIn:          b.checkIn,
         checkOut:         b.checkOut,
         nights:           b.nights || 0,
@@ -3413,10 +3452,20 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
         resultadoLiquido,
         margem,
         avgCleaningCost,
+        upsells:             upsellList.map(u => ({ id: u.id, description: u.description, amount: parseFloat(u.amount?.toString?.() || '0'), receivedAt: u.receivedAt })),
+        upsellTotal,
       });
     }
 
-    res.json({ reservas: results });
+    res.json({
+      reservas: results,
+      // Single-property scope still returns `property` for backwards compatibility
+      // with the existing TabReservas view. Cross-scope also returns `properties[]`
+      // so the drawer can render per-row brand chips without a second fetch.
+      property:   props.length === 1 ? { id: props[0].id, slug: props[0].slug, name: props[0].name } : null,
+      properties: props.map(p => ({ id: p.id, slug: p.slug, name: p.name })),
+      scope:      isAllScope ? 'ALL' : 'SINGLE',
+    });
   } catch (err) {
     console.error('[staff-portal] financeiro/reservas-lucratividade error:', err);
     res.status(500).json({ error: 'Erro ao calcular lucratividade por reserva' });
