@@ -19,7 +19,11 @@ const { slugForBrand, parseGerarBody } = require('../lib/content-gerar-helpers')
 const router = express.Router();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function serializePost(p) {
+// serializePost optionally accepts a second arg `parentTitle` so the board UI
+// can render "↻ alternativa de <parentTitle>" without a second round-trip. The
+// ContentPost model defines parentPostId as a bare string (no Prisma relation),
+// so the caller resolves the title separately and passes it in.
+function serializePost(p, parentTitle = null) {
   return {
     id:           p.id,
     brand:        p.brand,
@@ -36,6 +40,7 @@ function serializePost(p) {
     imagePrompt:  p.imagePrompt   ?? null,
     feedbackNotes: p.feedbackNotes ?? null,
     parentPostId: p.parentPostId  ?? null,
+    parentTitle:  parentTitle,
     createdAt:    p.createdAt,
     updatedAt:    p.updatedAt,
     comments:     p.comments?.map(c => ({
@@ -46,6 +51,38 @@ function serializePost(p) {
       createdAt: c.createdAt,
     })) ?? [],
   };
+}
+
+/**
+ * Builds a parentPostId → parentTitle lookup from a flat posts array. Used by
+ * the grouped GET handler so we resolve every parent in a single DB round-trip
+ * instead of N+1 queries as the kanban grows.
+ */
+async function buildParentTitleMap(posts) {
+  const parentIds = [...new Set(posts.map(p => p.parentPostId).filter(Boolean))];
+  if (parentIds.length === 0) return {};
+  // If a parent is already in the current page we can use it directly; only
+  // miss-through to DB for older parents the board isn't currently showing.
+  const haveTitle = Object.fromEntries(posts.map(p => [p.id, p.title]));
+  const missingIds = parentIds.filter(id => !haveTitle[id]);
+  if (missingIds.length > 0) {
+    const parents = await prisma.contentPost.findMany({
+      where:  { id: { in: missingIds } },
+      select: { id: true, title: true },
+    });
+    for (const { id, title } of parents) haveTitle[id] = title;
+  }
+  // Narrow the map to just the parent ids callers asked about.
+  return Object.fromEntries(parentIds.map(id => [id, haveTitle[id] ?? null]));
+}
+
+async function parentTitleFor(post) {
+  if (!post.parentPostId) return null;
+  const parent = await prisma.contentPost.findUnique({
+    where:  { id: post.parentPostId },
+    select: { title: true },
+  });
+  return parent?.title ?? null;
 }
 
 const ALL_STAGES = ['GERADO', 'EM_REVISAO', 'APROVADO', 'AGENDADO', 'PUBLICADO', 'AJUSTE_NECESSARIO', 'REJEITADO'];
@@ -89,9 +126,17 @@ router.get('/', requireStaff, async (req, res) => {
       },
     });
 
+    // Resolve parent titles once so every serializePost call gets it for free.
+    const parentTitles = await buildParentTitleMap(posts);
+
     // Group by all stages including rejection/adjustment
     const grouped = Object.fromEntries(
-      ALL_STAGES.map(s => [s, posts.filter(p => p.stage === s).map(serializePost)])
+      ALL_STAGES.map(s => [
+        s,
+        posts
+          .filter(p => p.stage === s)
+          .map(p => serializePost(p, p.parentPostId ? parentTitles[p.parentPostId] ?? null : null)),
+      ])
     );
 
     res.json(grouped);
@@ -154,7 +199,7 @@ router.patch('/:id', requireStaff, async (req, res) => {
           .catch(e => console.error('[content] createImprovedAlternative error:', e.message));
       }
 
-      return res.json(serializePost(updated));
+      return res.json(serializePost(updated, await parentTitleFor(updated)));
     }
 
     // ── On APROVADO for BLOG content → publish immediately, skip GHL ─────────
@@ -168,7 +213,7 @@ router.patch('/:id', requireStaff, async (req, res) => {
         include: { comments: { include: { staff: { select: { name: true } } } } },
       });
 
-      return res.json(serializePost(updated));
+      return res.json(serializePost(updated, await parentTitleFor(updated)));
     }
 
     // ── On APROVADO for non-BLOG content → schedule to GHL Social Planner ────
@@ -210,7 +255,7 @@ router.patch('/:id', requireStaff, async (req, res) => {
         include: { comments: { include: { staff: { select: { name: true } } } } },
       });
 
-      const response = serializePost(updated);
+      const response = serializePost(updated, await parentTitleFor(updated));
       if (ghlFailed) response.ghlError = true;
       return res.json(response);
     }
@@ -229,7 +274,7 @@ router.patch('/:id', requireStaff, async (req, res) => {
       include: { comments: { include: { staff: { select: { name: true } } } } },
     });
 
-    res.json(serializePost(updated));
+    res.json(serializePost(updated, await parentTitleFor(updated)));
   } catch (err) {
     console.error('[content] PATCH error:', err);
     res.status(500).json({ error: err.message || 'Erro ao atualizar post' });
@@ -241,7 +286,9 @@ router.post('/:id/regenerar', requireStaff, async (req, res) => {
   const { feedback } = req.body;
   try {
     const updated = await regeneratePost(req.params.id, feedback);
-    res.json(serializePost({ ...updated, comments: [] }));
+    // Regenerated posts always carry parentPostId — resolve title so the
+    // ContentCard can render "↻ alternativa de <parent>" without a refetch.
+    res.json(serializePost({ ...updated, comments: [] }, await parentTitleFor(updated)));
   } catch (err) {
     console.error('[content] regenerar error:', err);
     res.status(500).json({ error: err.message || 'Erro ao regenerar post' });
@@ -255,7 +302,7 @@ router.post('/:id/alternativa', requireStaff, async (req, res) => {
   if (!feedback?.trim()) return res.status(400).json({ error: 'feedback é obrigatório' });
   try {
     const alt = await createImprovedAlternative(req.params.id, feedback);
-    res.json(serializePost({ ...alt, comments: [] }));
+    res.json(serializePost({ ...alt, comments: [] }, await parentTitleFor(alt)));
   } catch (err) {
     console.error('[content] alternativa error:', err);
     res.status(500).json({ error: err.message || 'Erro ao criar alternativa' });
