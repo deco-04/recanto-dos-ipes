@@ -345,7 +345,13 @@ router.put('/config/:brand', requireStaff, requireAdmin, async (req, res) => {
     aiImageFallback: z.boolean().optional(),
   });
   const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
+  if (!parsed.success) {
+    // Surface the exact Zod issue list so the admin knows what's wrong rather
+    // than seeing a generic "Dados inválidos". Cost: leaks the field name,
+    // which is fine for authenticated admins.
+    console.error('[content] PUT config zod fail:', JSON.stringify(parsed.error.errors));
+    return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.errors });
+  }
 
   // Normalize empty string → null for the nullable URL field
   const data = { ...parsed.data };
@@ -353,7 +359,10 @@ router.put('/config/:brand', requireStaff, requireAdmin, async (req, res) => {
 
   try {
     const property = await prisma.property.findFirst({ where: { slug, active: true } });
-    if (!property) return res.status(400).json({ error: `Propriedade "${slug}" não está ativa` });
+    if (!property) {
+      console.error(`[content] PUT config no active property for slug "${slug}" (brand=${req.params.brand})`);
+      return res.status(400).json({ error: `Propriedade "${slug}" não está ativa` });
+    }
 
     const config = await prisma.brandContentConfig.upsert({
       where:  { brand_propertyId: { brand: req.params.brand, propertyId: property.id } },
@@ -363,8 +372,11 @@ router.put('/config/:brand', requireStaff, requireAdmin, async (req, res) => {
 
     res.json(config);
   } catch (err) {
-    console.error('[content] PUT config error:', err);
-    res.status(500).json({ error: 'Erro ao salvar configuração' });
+    console.error('[content] PUT config upsert error:', err?.code, err?.message, err?.meta);
+    res.status(500).json({
+      error:   'Erro ao salvar configuração',
+      details: { code: err?.code, message: err?.message },
+    });
   }
 });
 
