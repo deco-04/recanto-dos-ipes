@@ -18,6 +18,12 @@ const { toE164 } = require('../lib/phone');
 const ghlClient  = require('../lib/ghl-client');
 const { computeOccupancy } = require('../lib/occupancy');
 
+// Bookings counted as "realized revenue": CONFIRMED (upcoming or in-progress) and
+// COMPLETED (past, auto-transitioned by the 02:00 cron). Excludes REQUESTED
+// (unconfirmed), CANCELLED, PENDING. Use this status filter in every revenue /
+// occupancy / KPI query so past stays don't drop out of the financials.
+const REVENUE_STATUS = { in: ['CONFIRMED', 'COMPLETED'] };
+
 const router = express.Router();
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
@@ -164,20 +170,28 @@ function serializeBooking(b) {
 }
 
 // ── GET /api/staff/reservas ─────────────────────────────────────────────────
+// Query params:
+//   propertyId  optional — scope to one property. "ALL" or omitted = all properties.
+//   page, limit pagination
 router.get('/reservas', requireRole('ADMIN'), async (req, res) => {
   try {
     const page  = Math.max(1, parseInt(req.query.page)  || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
     const skip  = (page - 1) * limit;
+    const propertyId = req.query.propertyId;
+
+    // Only narrow when a real property id was passed (not "ALL" or missing).
+    const where = (propertyId && propertyId !== 'ALL') ? { propertyId } : {};
 
     const [bookings, total] = await Promise.all([
       prisma.booking.findMany({
+        where,
         orderBy: { checkIn: 'desc' },
         skip,
         take: limit,
         include: { user: { select: { name: true } }, upsells: true },
       }),
-      prisma.booking.count(),
+      prisma.booking.count({ where }),
     ]);
 
     res.json({
@@ -211,6 +225,36 @@ router.get('/reservas/:id', requireRole('ADMIN', 'GOVERNANTA'), async (req, res)
   } catch (err) {
     console.error('[staff-portal] reserva/:id error:', err);
     res.status(500).json({ error: 'Erro ao buscar reserva' });
+  }
+});
+
+// ── DELETE /api/staff/reservas/:id ──────────────────────────────────────────
+// Admin-only. Use for duplicates or reservations added by mistake. This is a
+// hard delete (cascade-safe because BookingUpsell has onDelete: Cascade set in
+// the Prisma schema). For actual cancellations, prefer status=CANCELLED so the
+// booking stays visible in "Oportunidades perdidas" KPIs.
+router.delete('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const existing = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, guestName: true, externalId: true, source: true },
+    });
+    if (!existing) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    // Upsells cascade-delete via the Prisma schema relation. Remove any
+    // guest-list + upsell rows explicitly first for databases that may not
+    // have cascades set (defensive).
+    await prisma.$transaction([
+      prisma.bookingUpsell.deleteMany({ where: { bookingId: existing.id } }),
+      prisma.bookingGuest.deleteMany({ where: { bookingId: existing.id } }),
+      prisma.booking.delete({ where: { id: existing.id } }),
+    ]);
+
+    console.log(`[staff-portal] admin deleted booking ${existing.id} (${existing.guestName || existing.externalId}) via staff=${req.staff.id}`);
+    res.json({ ok: true, deletedId: existing.id });
+  } catch (err) {
+    console.error('[staff-portal] DELETE /reservas/:id error:', err);
+    res.status(500).json({ error: 'Erro ao excluir reserva' });
   }
 });
 
@@ -389,10 +433,14 @@ router.post('/reservas', requireRole('ADMIN'), async (req, res) => {
 
 // ── GET /api/staff/financeiro ────────────────────────────────────────────────
 // period: 'today' | 'week' | 'month' (default: 'month')
+// propertyId: optional — scope to one property. "ALL" or omitted = all properties.
 router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
   try {
     const now = new Date();
     const period = req.query.period || 'month';
+    const propertyId = req.query.propertyId;
+    // Only narrow when a real property id was passed (not "ALL" or missing).
+    const propertyScope = (propertyId && propertyId !== 'ALL') ? { propertyId } : {};
 
     let start, end, periodoLabel;
     if (period === 'today') {
@@ -420,21 +468,38 @@ router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
     const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
     const totalDias  = monthEnd.getDate();
 
-    const [bookings, prevBookings, upsells] = await Promise.all([
+    const [bookings, prevBookings, upsells, expenses] = await Promise.all([
       prisma.booking.findMany({
-        where: { status: 'CONFIRMED', checkIn: { gte: start, lte: end } },
+        where: { ...propertyScope, status: REVENUE_STATUS, checkIn: { gte: start, lte: end } },
         select: { totalAmount: true, source: true, checkIn: true, checkOut: true, nights: true, isInvoiceAggregate: true },
       }),
       prisma.booking.findMany({
-        where: { status: 'CONFIRMED', checkIn: { gte: prevStart, lte: prevEnd } },
+        where: { ...propertyScope, status: REVENUE_STATUS, checkIn: { gte: prevStart, lte: prevEnd } },
         select: { totalAmount: true },
       }),
       // Include upsell revenue in faturamento
       prisma.bookingUpsell.findMany({
-        where: { booking: { status: 'CONFIRMED', checkIn: { gte: start, lte: end } } },
+        where: { booking: { ...propertyScope, status: REVENUE_STATUS, checkIn: { gte: start, lte: end } } },
         select: { amount: true },
       }),
+      // All expenses landing in this period (cleaning, supplies, utilities, etc.)
+      prisma.expense.findMany({
+        where: { ...propertyScope, date: { gte: start, lte: end } },
+        select: { amount: true, category: true },
+      }),
     ]);
+
+    // Cancellations: track as "lost opportunities" separately from revenue.
+    // `totalAmount` on a cancelled booking represents the revenue that would
+    // have been earned — summed here as `oportunidadePerdida`.
+    const cancelledBookings = await prisma.booking.findMany({
+      where: { ...propertyScope, status: 'CANCELLED', checkIn: { gte: start, lte: end } },
+      select: { totalAmount: true },
+    });
+    const canceladasCount = cancelledBookings.length;
+    const oportunidadePerdida = cancelledBookings.reduce(
+      (s, b) => s + parseFloat(b.totalAmount?.toString() || '0'), 0,
+    );
 
     const upsellRevenue = upsells.reduce((s, u) => s + parseFloat(u.amount.toString()), 0);
     const faturamentoBase = bookings.reduce((s, b) => s + parseFloat(b.totalAmount?.toString() || '0'), 0);
@@ -451,7 +516,7 @@ router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
 
     // Occupancy always based on current calendar month
     const monthBookings = period === 'month' ? bookings : await prisma.booking.findMany({
-      where: { status: 'CONFIRMED', checkIn: { gte: monthStart, lte: monthEnd } },
+      where: { ...propertyScope, status: REVENUE_STATUS, checkIn: { gte: monthStart, lte: monthEnd } },
       select: { checkIn: true, checkOut: true },
     });
     const occupied = new Set();
@@ -480,7 +545,7 @@ router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
     // 6-month history: single batch query then group in-memory
     const histStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
     const histBookings = await prisma.booking.findMany({
-      where: { status: 'CONFIRMED', checkIn: { gte: histStart, lte: monthEnd } },
+      where: { ...propertyScope, status: REVENUE_STATUS, checkIn: { gte: histStart, lte: monthEnd } },
       select: { totalAmount: true, checkIn: true },
     });
     const monthMap = {};
@@ -498,10 +563,17 @@ router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
     }
     const porMes = Object.values(monthMap);
 
+    const despesasTotal = expenses.reduce((s, e) => s + parseFloat(e.amount.toString()), 0);
+    const resultadoLiquido = faturamentoTotal - despesasTotal;
+
     res.json({
       periodo: periodoLabel,
       faturamentoTotal,
       upsellRevenue: upsellRevenue || null,
+      despesasTotal,
+      resultadoLiquido,
+      canceladasCount,
+      oportunidadePerdida,
       variacaoPct,
       qtdReservas,
       diariamedia,
@@ -1600,7 +1672,7 @@ router.get('/reservas/:id/custos', requireRole('ADMIN'), async (req, res) => {
       prisma.booking.count({
         where: {
           propertyId: booking.propertyId,
-          status: 'CONFIRMED',
+          status: REVENUE_STATUS,
           checkIn: { gte: monthStart, lte: monthEnd },
           isInvoiceAggregate: false,
         },
@@ -2326,7 +2398,7 @@ async function generateBriefing(property) {
       select: { status: true, guestName: true, nights: true },
     }),
     prisma.booking.findMany({
-      where:  { propertyId: property.id, status: 'CONFIRMED', checkIn: { gte: now, lte: threeDaysAhead } },
+      where:  { propertyId: property.id, status: REVENUE_STATUS, checkIn: { gte: now, lte: threeDaysAhead } },
       select: { guestName: true, checkIn: true, guestCount: true },
     }),
     prisma.serviceTicket.findMany({
@@ -2563,7 +2635,7 @@ function buildComparePeriod(period, compare) {
 async function getKPIs(propertyId, start, end) {
   const [bookings, expenses] = await Promise.all([
     prisma.booking.findMany({
-      where: { propertyId, status: 'CONFIRMED', checkIn: { gte: start, lte: end } },
+      where: { propertyId, status: REVENUE_STATUS, checkIn: { gte: start, lte: end } },
       select: { totalAmount: true, grossAmount: true, commissionAmount: true,
                 source: true, nights: true, isInvoiceAggregate: true },
     }),
@@ -2809,13 +2881,13 @@ router.get('/financeiro/dre', requireRole('ADMIN'), async (req, res) => {
       getKPIs(prop.id, cs, ce),
       // All-time upsell total (PIX add-ons on top of OTA bookings)
       prisma.booking.aggregate({
-        where: { propertyId: prop.id, status: 'CONFIRMED', source: 'DIRECT', externalId: { startsWith: 'upsell-' } },
+        where: { propertyId: prop.id, status: REVENUE_STATUS, source: 'DIRECT', externalId: { startsWith: 'upsell-' } },
         _sum:   { totalAmount: true },
         _count: true,
       }),
       // All-time total revenue (for upsell % calculation)
       prisma.booking.aggregate({
-        where: { propertyId: prop.id, status: 'CONFIRMED' },
+        where: { propertyId: prop.id, status: REVENUE_STATUS },
         _sum: { totalAmount: true },
       }),
     ]);
@@ -2828,7 +2900,7 @@ router.get('/financeiro/dre', requireRole('ADMIN'), async (req, res) => {
       const me = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
       const [bks, exps] = await Promise.all([
         prisma.booking.aggregate({
-          where: { propertyId: prop.id, status: 'CONFIRMED', checkIn: { gte: ms, lte: me } },
+          where: { propertyId: prop.id, status: REVENUE_STATUS, checkIn: { gte: ms, lte: me } },
           _sum: { totalAmount: true },
         }),
         prisma.expense.aggregate({
@@ -3068,7 +3140,7 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
 
     const [bookings, cleaningExps] = await Promise.all([
       prisma.booking.findMany({
-        where:   { propertyId: prop.id, status: 'CONFIRMED' },
+        where:   { propertyId: prop.id, status: REVENUE_STATUS },
         orderBy: { checkIn: 'desc' },
         select:  { id: true, guestName: true, guestPhone: true, checkIn: true, checkOut: true,
                    nights: true, guestCount: true, source: true, totalAmount: true,
@@ -3107,7 +3179,7 @@ router.get('/financeiro/reservas-lucratividade', requireRole('ADMIN'), async (re
       // and would distort per-booking fixed-cost allocation if counted.
       countCache[k] = await prisma.booking.count({
         where: {
-          propertyId: prop.id, status: 'CONFIRMED',
+          propertyId: prop.id, status: REVENUE_STATUS,
           checkIn: { gte: s, lte: e },
           isInvoiceAggregate: false,
         },

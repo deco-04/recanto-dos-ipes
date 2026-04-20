@@ -4,39 +4,145 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Solicitação Recebida — Sítio Recanto dos Ipês</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,700&family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/sri-design.css">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <style>
-    body { background: #F7F7F2; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
-    .card { background: white; border-radius: 20px; padding: 32px 28px; max-width: 420px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
-    .icon-wrap { width: 64px; height: 64px; background: #FEF3C7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 32px; }
-    h1 { font-size: 22px; font-weight: 800; color: #261C15; text-align: center; margin: 0 0 8px; }
-    .subtitle { font-size: 14px; color: #6B6B6B; text-align: center; margin: 0 0 28px; line-height: 1.5; }
-    .steps { background: #FEF9EE; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
-    .steps p { margin: 0 0 4px; font-size: 12px; font-weight: 700; color: #92400E; text-transform: uppercase; letter-spacing: 0.5px; }
-    .step { display: flex; gap: 12px; align-items: flex-start; margin-top: 12px; }
-    .step-num { width: 24px; height: 24px; min-width: 24px; background: #FEF3C7; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #92400E; }
-    .step-text { font-size: 13px; color: #78350F; line-height: 1.5; padding-top: 2px; }
-    .summary { background: #F7F7F2; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+    body {
+      background: var(--cream-100);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font-family: 'Nunito', system-ui, sans-serif;
+    }
+    .card {
+      background: white;
+      border-radius: var(--radius-xl);
+      padding: 36px 32px;
+      max-width: 440px;
+      width: 100%;
+      box-shadow: var(--shadow-warm-lg);
+      border: 1px solid var(--border-subtle);
+    }
+    .icon-wrap {
+      width: 64px;
+      height: 64px;
+      background: rgba(197,216,109,0.15);
+      border: 1.5px solid var(--border-warm);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 28px;
+    }
+    .eyebrow {
+      font-family: var(--font-display);
+      font-size: 0.75rem;
+      font-weight: 400;
+      font-style: italic;
+      letter-spacing: 0.08em;
+      color: var(--gold-500);
+      text-align: center;
+      display: block;
+      margin-bottom: 6px;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--forest-800);
+      text-align: center;
+      margin: 0 0 6px;
+      line-height: 1.25;
+    }
+    .status-line {
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 13.5px;
+      color: var(--gold-500);
+      text-align: center;
+      margin: 0 0 24px;
+      line-height: 1.5;
+    }
+    .steps {
+      background: var(--cream-200);
+      border: 1px solid var(--border-warm);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .steps-label {
+      font-family: var(--font-serif);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--forest-700);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin: 0 0 10px;
+    }
+    .step { display: flex; gap: 12px; align-items: flex-start; margin-top: 10px; }
+    .step-num {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      background: var(--gold-400);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--forest-900);
+    }
+    .step-text { font-size: 13px; color: var(--forest-600); line-height: 1.55; padding-top: 3px; }
+    .summary {
+      background: var(--cream-100);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 20px;
+    }
     .summary-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
-    .summary-row .label { color: #6B6B6B; }
-    .summary-row .value { font-weight: 600; color: #261C15; }
-    .summary-row.total { border-top: 1px solid #E5E7EB; margin-top: 8px; padding-top: 8px; }
-    .summary-row.total .value { font-size: 15px; font-weight: 700; }
-    .contact { background: #F0FDF4; border-radius: 10px; padding: 12px; text-align: center; font-size: 12px; color: #14532D; line-height: 1.6; }
-    .contact a { color: #2B7929; font-weight: 600; text-decoration: none; }
-    .brand { display: block; width: 64px; height: auto; margin: 0 auto 24px; }
+    .summary-row .label { color: var(--stone-500); }
+    .summary-row .value { font-weight: 600; color: var(--forest-800); }
+    .summary-row.total { border-top: 1px solid var(--border-subtle); margin-top: 10px; padding-top: 10px; }
+    .summary-row.total .label { font-family: var(--font-serif); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--forest-700); }
+    .summary-row.total .value { font-size: 16px; font-weight: 700; color: var(--forest-800); }
+    .contact {
+      background: rgba(107,138,45,0.07);
+      border: 1px solid rgba(107,138,45,0.18);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      text-align: center;
+      font-size: 12.5px;
+      color: var(--forest-700);
+      line-height: 1.65;
+    }
+    .contact a {
+      color: var(--verde);
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .contact a:hover { color: var(--verde-dark); }
+    .brand { display: block; width: 72px; height: auto; margin: 0 auto 28px; }
   </style>
 </head>
 <body>
   <div class="card">
     <img src="/brand/sri-mark-color.svg" alt="Sítio Recanto dos Ipês" class="brand">
     <div class="icon-wrap">⏳</div>
+    <span class="eyebrow">Sítio Recanto dos Ipês</span>
     <h1>Solicitação recebida!</h1>
-    <p class="subtitle">Já recebemos seu pedido de reserva.<br>Nossa equipe confirma em breve.</p>
+    <p class="status-line">Já recebemos seu pedido de reserva.<br>Nossa equipe confirma em breve.</p>
 
     <div class="steps">
-      <p>O que acontece agora?</p>
+      <p class="steps-label">O que acontece agora?</p>
       <div class="step">
         <div class="step-num">1</div>
         <div class="step-text">Nossa equipe analisa sua solicitação em até <strong>24 horas</strong>.</div>
