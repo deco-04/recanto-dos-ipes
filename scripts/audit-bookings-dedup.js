@@ -263,7 +263,7 @@ async function main() {
   console.log(`show on the CDS dashboard.`);
   console.log();
   if (cdsLeak.length === 0) {
-    console.log('_None — Vinicius Dalmo must be showing for a different reason. Check /financeiro/cds endpoint filter or the dashboard\\'s proximas fetch._');
+    console.log("_None — Vinicius Dalmo must be showing for a different reason. Check /financeiro/cds endpoint filter or the dashboard's proximas fetch._");
   } else {
     console.log('| id | guest | checkIn | source |');
     console.log('|---|---|---|---|');
