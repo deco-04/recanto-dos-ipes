@@ -187,6 +187,19 @@ const VALID_BOOKING_STATUSES = new Set([
  *   - `status` accepts string, comma-joined string, or array. Unknown values
  *     are silently dropped so a typo doesn't crash the endpoint.
  */
+/**
+ * Build the Prisma `where` fragment that scopes financial queries to a single
+ * property, or returns an open scope ({}) when no propertyId is provided or
+ * when the caller passes the sentinel 'ALL'.
+ *
+ * Pure function so we can pin the invariant under unit test without spinning
+ * up Express or Prisma. If this helper ever produces an identical scope for
+ * two distinct propertyIds, the RDI/CDS data-leakage regression is back.
+ */
+function buildPropertyScope(propertyId) {
+  return (propertyId && propertyId !== 'ALL') ? { propertyId } : {};
+}
+
 function buildReservasWhere({ propertyId, status } = {}) {
   const where = {};
 
@@ -545,7 +558,7 @@ router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
     const period = req.query.period || 'month';
     const propertyId = req.query.propertyId;
     // Only narrow when a real property id was passed (not "ALL" or missing).
-    const propertyScope = (propertyId && propertyId !== 'ALL') ? { propertyId } : {};
+    const propertyScope = buildPropertyScope(propertyId);
 
     let start, end, periodoLabel;
     if (period === 'today') {
@@ -4066,9 +4079,55 @@ router.get('/dashboard-summary', requireRole('ADMIN'), async (req, res) => {
   }
 });
 
+// ── GET /api/staff/_diag/property-data-summary ───────────────────────────────
+// ADMIN-only debug endpoint. Returns a row per active Property with booking
+// count (REVENUE_STATUS only), expense count (all), and total revenue. Used
+// to diagnose the "RDI and CDS dashboards show the same data" report — lets
+// the admin compare per-property row counts side-by-side to distinguish a
+// real data-leakage bug from a genuinely empty pre-launch property.
+router.get('/_diag/property-data-summary', requireRole('ADMIN'), async (req, res) => {
+  try {
+    const properties = await prisma.property.findMany({
+      where:  { active: true },
+      select: { id: true, slug: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+
+    const rows = await Promise.all(properties.map(async (p) => {
+      const [bookingCount, expenseCount, revenueAgg] = await Promise.all([
+        prisma.booking.count({
+          where: { propertyId: p.id, status: REVENUE_STATUS },
+        }),
+        prisma.expense.count({
+          where: { propertyId: p.id },
+        }),
+        prisma.booking.aggregate({
+          where: { propertyId: p.id, status: REVENUE_STATUS },
+          _sum: { totalAmount: true },
+        }),
+      ]);
+      const totalRevenue = parseFloat(revenueAgg._sum.totalAmount?.toString() || '0');
+      return {
+        id:            p.id,
+        slug:          p.slug,
+        name:          p.name,
+        bookingCount,
+        expenseCount,
+        totalRevenue,
+      };
+    }));
+
+    res.json(rows);
+  } catch (err) {
+    console.error('[staff-portal] _diag/property-data-summary error:', err);
+    res.status(500).json({ error: 'Erro ao gerar resumo diagnóstico' });
+  }
+});
+
 // Export generateBriefing under a stable name for the cron job.
 // The cron calls this directly to avoid an internal HTTP round-trip.
 module.exports = router;
 module.exports.generateBriefingForCron = generateBriefing;
-// Exposed for unit tests (pure function, no side effects).
+// Exposed for unit tests (pure functions, no side effects).
 module.exports.buildReservasWhere = buildReservasWhere;
+module.exports.buildPropertyScope = buildPropertyScope;
