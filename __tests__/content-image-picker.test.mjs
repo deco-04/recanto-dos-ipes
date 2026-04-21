@@ -180,4 +180,71 @@ describe('makeAttachImageToPost', () => {
     const attach = build();
     expect(await attach({ post, folderId: 'FOLDER' })).toBeNull();
   });
+
+  // ── AI-image fallback (Sprint D A1) ───────────────────────────────────────
+  // attach should call aiFallback when (a) folderId is null, (b) the Drive
+  // folder has no images, (c) Claude picks NONE, or (d) Drive throws.
+  describe('aiFallback path', () => {
+    it('calls aiFallback when folderId is missing', async () => {
+      const aiFallback = vi.fn().mockResolvedValue('https://cdn/example/ai.png');
+      const attach = build({ aiFallback });
+      const url = await attach({ post, folderId: null });
+      expect(aiFallback).toHaveBeenCalledWith({ post });
+      expect(url).toBe('https://cdn/example/ai.png');
+    });
+
+    it('calls aiFallback when the folder is empty', async () => {
+      driveClient.listFolderImages.mockResolvedValue([]);
+      const aiFallback = vi.fn().mockResolvedValue('https://cdn/ai.png');
+      const attach = build({ aiFallback });
+      expect(await attach({ post, folderId: 'FOLDER' })).toBe('https://cdn/ai.png');
+      expect(aiFallback).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls aiFallback when Claude picks NONE', async () => {
+      driveClient.listFolderImages.mockResolvedValue([
+        { id: 'f1', name: 'pool.jpg', mimeType: 'image/jpeg' },
+      ]);
+      claudeClient.messages.create.mockResolvedValue({
+        content: [{ type: 'text', text: 'NONE' }],
+      });
+      const aiFallback = vi.fn().mockResolvedValue('https://cdn/ai.png');
+      const attach = build({ aiFallback });
+      expect(await attach({ post, folderId: 'FOLDER' })).toBe('https://cdn/ai.png');
+    });
+
+    it('calls aiFallback when Drive throws', async () => {
+      driveClient.listFolderImages.mockRejectedValue(new Error('Drive 403'));
+      const aiFallback = vi.fn().mockResolvedValue('https://cdn/ai.png');
+      const attach = build({ aiFallback });
+      expect(await attach({ post, folderId: 'FOLDER' })).toBe('https://cdn/ai.png');
+    });
+
+    it('does NOT call aiFallback when Drive picked + saved a real photo', async () => {
+      driveClient.listFolderImages.mockResolvedValue([
+        { id: 'f1', name: 'pool.jpg', mimeType: 'image/jpeg' },
+      ]);
+      claudeClient.messages.create.mockResolvedValue({
+        content: [{ type: 'text', text: 'pool.jpg' }],
+      });
+      driveClient.downloadImage.mockResolvedValue(Buffer.from([1]));
+      const aiFallback = vi.fn();
+      const attach = build({ aiFallback });
+      const url = await attach({ post, folderId: 'FOLDER' });
+      expect(url).toMatch(/\/uploads\/content\/RDI\/p1\.jpg$/);
+      expect(aiFallback).not.toHaveBeenCalled();
+    });
+
+    it('returns null when aiFallback also fails (no url, no throw)', async () => {
+      const aiFallback = vi.fn().mockResolvedValue(null);
+      const attach = build({ aiFallback });
+      expect(await attach({ post, folderId: null })).toBeNull();
+    });
+
+    it('swallows aiFallback throws and returns null', async () => {
+      const aiFallback = vi.fn().mockRejectedValue(new Error('OpenAI down'));
+      const attach = build({ aiFallback });
+      expect(await attach({ post, folderId: null })).toBeNull();
+    });
+  });
 });
