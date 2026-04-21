@@ -2156,6 +2156,18 @@ router.post('/reservas/:id/confirmar', requireRole('ADMIN'), async (req, res) =>
       : sendBookingConfirmation;
     confirmFn({ booking: confirmed }).catch(e => console.error('[mailer] confirm email error:', e.message));
     notifyBookingConfirmed(confirmed).catch(e => console.error('[ghl] confirm webhook error:', e.message));
+
+    // Auto-WA to the guest — fires booking_confirmed template (Meta-approved)
+    // and mirrors the message into the conversation thread via InboxMessage.
+    // Best-effort; log errors but never fail the /confirmar response.
+    const { sendBookingConfirmedWA } = require('../lib/whatsapp');
+    const confirmedProp = await prisma.property.findUnique({
+      where: { id: confirmed.propertyId || 'x' },
+      select: { name: true },
+    }).catch(() => null);
+    sendBookingConfirmedWA(confirmed, confirmedProp)
+      .catch(e => console.error('[wa] confirm WA error:', e.message));
+
     if (confirmed.userId) {
       const checkInDate = confirmed.checkIn.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
       sendPushToUser(confirmed.userId, {
@@ -2219,6 +2231,13 @@ router.post('/reservas/:id/recusar', requireRole('ADMIN'), async (req, res) => {
       .catch(e => console.error('[mailer] decline email error:', e.message));
     notifyBookingDeclined(declined)
       .catch(e => console.error('[ghl] decline webhook error:', e.message));
+
+    // Auto-WA to the guest — fires booking_declined template with the
+    // admin's typed reason and mirrors it into the conversation thread.
+    const { sendBookingDeclinedWA } = require('../lib/whatsapp');
+    sendBookingDeclinedWA(declined)
+      .catch(e => console.error('[wa] decline WA error:', e.message));
+
     if (declined.userId) {
       sendPushToUser(declined.userId, {
         title: 'Atualização sobre sua reserva',
