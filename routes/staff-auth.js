@@ -49,17 +49,32 @@ function serializeStaff(staff) {
   };
 }
 
-// Helper: fetch staff with properties
-async function findStaffWithProperties(where) {
-  return prisma.staffMember.findUnique({
-    where,
-    include: {
-      properties: {
-        include: { property: { select: { id: true, name: true, slug: true } } },
+// Helper: fetch staff with properties. Takes an optional prisma client so
+// tests can inject a stub (sibling tests follow the same DI pattern — see
+// lib/content-history.js).
+//
+// Production callers use the default export (no argument) which binds to
+// the real singleton.
+function makeFindStaffWithProperties(prismaClient) {
+  return async function findStaffWithProperties(where) {
+    return prismaClient.staffMember.findUnique({
+      where,
+      include: {
+        properties: {
+          // Exclude assignments pointing to inactive properties (e.g.
+          // legacy duplicates soft-deleted during the 2026-04-21
+          // consolidation). Without this filter the PropertyPicker
+          // renders duplicate rows (2× RDI, 2× CDS) because legacy slugs
+          // shared display names with their canonical replacements.
+          where:   { property: { active: true } },
+          include: { property: { select: { id: true, name: true, slug: true } } },
+        },
       },
-    },
-  });
+    });
+  };
 }
+
+const findStaffWithProperties = makeFindStaffWithProperties(prisma);
 
 // POST /api/staff/auth/login — email + senha
 router.post('/login', authLimiter, async (req, res) => {
@@ -526,3 +541,5 @@ router.get('/inbox-settings', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.findStaffWithProperties = findStaffWithProperties;
+module.exports.makeFindStaffWithProperties = makeFindStaffWithProperties;
