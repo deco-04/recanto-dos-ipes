@@ -888,4 +888,105 @@ router.post('/sync-pricing-now', requireAdmin, async (req, res) => {
   }
 });
 
+// ── Bulk-apply cleaning fee to current-month expenses ─────────────────────────
+//
+// POST /api/admin/staff/expenses/bulk-apply-cleaning
+// Body: { propertyId: string, month: 'YYYY-MM', amount: number }
+//
+// Updates every Expense row matching category=SERVICOS_LIMPEZA, propertyId,
+// and date within the given month → sets amount = new value. Only touches
+// the amount field; description/payee/supplier are left alone.
+//
+// Also exposes GET /api/admin/staff/expenses/cleaning-count?propertyId=…&month=YYYY-MM
+// so the UI can render "Apply to N expenses" without loading them all.
+//
+// Factory pattern (matches makeRequestAccessHandler) so tests can stub prisma
+// without touching a live DB.
+
+const BULK_CLEANING_SCHEMA = z.object({
+  propertyId: z.string().min(1),
+  month:      z.string().regex(/^\d{4}-\d{2}$/, { message: 'Formato esperado: YYYY-MM' }),
+  amount:     z.number().nonnegative(),
+});
+
+function monthBounds(monthStr) {
+  // monthStr is validated as YYYY-MM. Return [start, endExclusive] as UTC Dates.
+  const [year, month] = monthStr.split('-').map(Number);
+  const start = new Date(Date.UTC(year, month - 1, 1));
+  const end   = new Date(Date.UTC(year, month, 1)); // first of next month
+  return { start, end };
+}
+
+function makeBulkApplyCleaningHandler({ prisma: prismaDep } = {}) {
+  const p = prismaDep || prisma;
+  return async function bulkApplyCleaning(req, res) {
+    const parsed = BULK_CLEANING_SCHEMA.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.errors });
+    }
+    const { propertyId, month, amount } = parsed.data;
+    const { start, end } = monthBounds(month);
+
+    try {
+      const where = {
+        propertyId,
+        category: 'SERVICOS_LIMPEZA',
+        date: { gte: start, lt: end },
+      };
+
+      const before = await p.expense.findMany({
+        where,
+        select: { id: true, amount: true },
+      });
+
+      const previousTotal = before.reduce((sum, e) => sum + Number(e.amount), 0);
+
+      const result = await p.expense.updateMany({
+        where,
+        data:  { amount },
+      });
+
+      return res.json({
+        updated:       result.count,
+        previousTotal: Number(previousTotal.toFixed(2)),
+        newTotal:      Number((result.count * amount).toFixed(2)),
+      });
+    } catch (err) {
+      console.error('[admin-staff] POST bulk-apply-cleaning error:', err);
+      return res.status(500).json({ error: 'Erro ao aplicar taxa de limpeza' });
+    }
+  };
+}
+
+function makeCleaningCountHandler({ prisma: prismaDep } = {}) {
+  const p = prismaDep || prisma;
+  return async function cleaningCount(req, res) {
+    const propertyId = String(req.query.propertyId || '');
+    const month      = String(req.query.month || '');
+    if (!propertyId || !/^\d{4}-\d{2}$/.test(month)) {
+      return res.status(400).json({ error: 'propertyId e month=YYYY-MM são obrigatórios' });
+    }
+    const { start, end } = monthBounds(month);
+    try {
+      const count = await p.expense.count({
+        where: {
+          propertyId,
+          category: 'SERVICOS_LIMPEZA',
+          date: { gte: start, lt: end },
+        },
+      });
+      return res.json({ count });
+    } catch (err) {
+      console.error('[admin-staff] GET cleaning-count error:', err);
+      return res.status(500).json({ error: 'Erro ao contar despesas' });
+    }
+  };
+}
+
+router.post('/expenses/bulk-apply-cleaning', makeBulkApplyCleaningHandler());
+router.get('/expenses/cleaning-count',       makeCleaningCountHandler());
+
 module.exports = router;
+module.exports.makeBulkApplyCleaningHandler = makeBulkApplyCleaningHandler;
+module.exports.makeCleaningCountHandler     = makeCleaningCountHandler;
+module.exports.monthBounds                  = monthBounds;
