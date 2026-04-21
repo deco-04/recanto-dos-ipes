@@ -13,11 +13,13 @@
     body {
       background: var(--cream-100);
       min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 24px;
+      padding-bottom: max(24px, env(safe-area-inset-bottom, 24px));
       font-family: 'Nunito', system-ui, sans-serif;
     }
     .card {

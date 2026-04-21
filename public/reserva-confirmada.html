@@ -156,9 +156,10 @@
 
         <!-- Step 1: email -->
         <div id="acc-step-email">
-          <input id="acc-email" type="email" placeholder="seu@email.com"
-            class="w-full border-2 border-beige-dark rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold transition-colors mb-3"
-            autocomplete="email"/>
+          <label for="acc-email" class="sr-only">E-mail</label>
+          <input id="acc-email" type="email" inputmode="email" placeholder="seu@email.com"
+            class="w-full border-2 border-beige-dark rounded-xl px-4 py-3 text-base focus:outline-none focus:border-gold transition-colors mb-3"
+            autocomplete="email" autocapitalize="off" spellcheck="false"/>
           <p id="acc-email-error" class="hidden text-red-500 text-xs mb-2"></p>
           <button onclick="accSendCode()"
             class="w-full bg-forest hover:bg-forest-light text-white font-bold py-3 rounded-xl transition-colors text-sm">
@@ -170,7 +171,8 @@
         <!-- Step 2: OTP -->
         <div id="acc-step-otp" class="hidden">
           <p class="text-xs text-stone mb-3">Código enviado para <strong id="acc-sent-to" class="text-forest"></strong></p>
-          <input id="acc-code" type="text" inputmode="numeric" maxlength="6" placeholder="_ _ _ _ _ _"
+          <label for="acc-code" class="sr-only">Código de verificação (6 dígitos)</label>
+          <input id="acc-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="_ _ _ _ _ _"
             class="w-full border-2 border-beige-dark rounded-xl px-4 py-3 text-2xl font-bold tracking-widest text-center focus:outline-none focus:border-gold transition-colors mb-3"
             autocomplete="one-time-code"/>
           <p id="acc-code-error" class="hidden text-red-500 text-xs mb-2"></p>

@@ -759,8 +759,10 @@ a.bg-forest,
 /* ── WhatsApp Floating Button ─────────────────────────────────────────────── */
 .wa-float {
   position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
+  /* Respect iOS home-indicator safe area — falls back gracefully on browsers
+     that don't support env() by using the first max() arg. */
+  bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem));
+  right: max(1.5rem, env(safe-area-inset-right, 1.5rem));
   z-index: 9000;
   display: flex;
   align-items: center;
@@ -770,6 +772,9 @@ a.bg-forest,
   font-family: var(--font-sans);
   font-size: 0.8125rem;
   font-weight: 700;
+  /* Touch target: min 44×44 even in icon-only mobile variant. */
+  min-width: 44px;
+  min-height: 44px;
   padding: 0.625rem 1rem 0.625rem 0.75rem;
   border-radius: 999px;
   box-shadow: 0 4px 18px rgba(37, 211, 102, 0.45);
@@ -787,5 +792,33 @@ a.bg-forest,
 }
 @media (max-width: 640px) {
   .wa-float span.wa-label { display: none; }
-  .wa-float { padding: 0.75rem; border-radius: 50%; }
+  .wa-float {
+    padding: 0;
+    border-radius: 50%;
+    /* Exactly 48×48 round button on phones — guaranteed thumb-sized. */
+    width: 48px;
+    height: 48px;
+    justify-content: center;
+  }
+}
+
+/* ── Responsive safety net ────────────────────────────────────────────────── */
+/* Prevent images with intrinsic widths > viewport from causing horizontal
+   scroll on mobile. Plain <img> tags across the site don't set max-width. */
+img { max-width: 100%; height: auto; }
+
+/* iOS Safari zooms on input focus if font-size < 16px. Force 16px on all
+   public-facing form controls on small screens so the viewport doesn't jump. */
+@media (max-width: 640px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="number"],
+  input[type="date"],
+  input[type="password"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }

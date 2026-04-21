@@ -278,6 +278,16 @@
     /* Mobile menu */
     #mobile-menu { transition: max-height 0.4s ease, opacity 0.3s; max-height: 0; opacity: 0; overflow: hidden; }
     #mobile-menu.open { max-height: 700px; opacity: 1; }
+
+    /* Hero: use dynamic viewport height on mobile to avoid Android URL-bar jump.
+       Browsers without dvh support (older Safari) fall back to the existing
+       min-h-screen (100vh) from Tailwind. */
+    @supports (height: 100dvh) {
+      #inicio { min-height: 100dvh; }
+    }
+
+    /* Prevent horizontal overflow sitewide — defensive rule for ≤375px phones. */
+    html, body { overflow-x: hidden; }
   </style>
 </head>
 
