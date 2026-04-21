@@ -167,6 +167,9 @@ function serializeBooking(b) {
     isInvoiceAggregate: b.isInvoiceAggregate || false,
     otaTaskId: b.otaTaskId || null,
     createdAt: b.createdAt?.toISOString() || null,
+    // Exposed so the vistoria form can resolve the booking's property (type +
+    // cabins) independently of the staff's cookie-selected context.
+    propertyId: b.propertyId || null,
   };
 }
 
@@ -2454,12 +2457,21 @@ router.get('/piscina/programacao', requireRole('ADMIN', 'PISCINEIRO'), async (_r
 
 // ── Inventário (AmenitiesItem) ────────────────────────────────────────────────
 
-// GET /api/staff/propriedade — active property type + cabin list (for form context)
-router.get('/propriedade', async (_req, res) => {
+// GET /api/staff/propriedade — property type + cabin list (for form context)
+//
+// By default returns the currently-active property (cookie-derived context).
+// When called with ?propertyId=<id>, returns that specific property — needed
+// by the vistoria form which must render the BOOKING's property (type +
+// cabins) rather than the staff's currently-selected one. Without this
+// override the Governanta saw a CDS cabin selector while completing an RDI
+// checkout vistoria because her cookie resolved to CDS.
+router.get('/propriedade', async (req, res) => {
   try {
+    const propertyId = typeof req.query.propertyId === 'string' ? req.query.propertyId : null;
+    const where = propertyId ? { id: propertyId } : { active: true };
     const property = await prisma.property.findFirst({
-      where:  { active: true },
-      select: { id: true, name: true, type: true, cabins: { where: { active: true }, select: { id: true, name: true, slug: true }, orderBy: { name: 'asc' } } },
+      where,
+      select: { id: true, name: true, slug: true, type: true, cabins: { where: { active: true }, select: { id: true, name: true, slug: true }, orderBy: { name: 'asc' } } },
     });
     if (!property) return res.status(404).json({ error: 'Propriedade não encontrada' });
     res.json(property);
