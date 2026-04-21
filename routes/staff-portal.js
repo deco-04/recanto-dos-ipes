@@ -321,6 +321,22 @@ router.get('/reservas/:id', requireRole('ADMIN', 'GOVERNANTA'), async (req, res)
     });
     if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
     const data = serializeBooking(booking);
+
+    // Vistoria refs — lets the staff Reserva card flip the "+ Checkout"
+    // button to "Ver relatório" once the report exists.
+    const inspections = await prisma.inspectionReport.findMany({
+      where:  { bookingId: booking.id },
+      select: { id: true, type: true, status: true },
+    });
+    const pre = inspections.find((i) => i.type === 'PRE_CHECKIN');
+    const chk = inspections.find((i) => i.type === 'CHECKOUT');
+    data.inspections = {
+      preCheckinId:     pre?.id     || null,
+      preCheckinStatus: pre?.status || null,
+      checkoutId:       chk?.id     || null,
+      checkoutStatus:   chk?.status || null,
+    };
+
     // Strip PII for non-admin roles (GOVERNANTA needs check-in info but not contact/financial data)
     if (req.staff.role !== 'ADMIN') {
       delete data.guestEmail;
@@ -942,41 +958,60 @@ router.post('/vistorias', async (req, res) => {
       }
     }
 
-    const report = await prisma.inspectionReport.create({
-      data: {
-        bookingId,
-        propertyId: property.id,
-        staffId: req.staff.id,
-        type: tipo,
-        status: 'SUBMITTED',
-        signatureDataUrl: null,          // deprecated — no longer storing base64
-        signatureUrl: signatureUrl,
-        submittedAt: new Date(timestamp),
-        notes: observacaoGeral || null,
-        items: {
-          create: checklist.map((item) => ({
-            category: 'Checklist',
-            description: item.label,
-            status: item.status === 'PENDENTE' ? 'NAO_VERIFICADO' : item.status,
-            problemDescription: item.observacao || null,
-          })),
-        },
-        photos: {
-          create: photos.map((p) => ({
-            cloudinaryPublicId: p.publicId,
-            cloudinaryUrl: p.url,
-          })),
-        },
-        ...(videoId ? {
-          videos: {
-            create: [{
-              storagePath: videoId,
-              storageUrl: `${process.env.UPLOAD_PUBLIC_URL || 'http://localhost:3000'}/uploads/${videoId}`,
-            }],
+    // Auto-complete booking when a CHECKOUT vistoria is submitted. We only
+    // transition CONFIRMED → COMPLETED here (never overwrite CANCELLED or
+    // REFUNDED). The create + status update run in a single transaction so
+    // we can't end up with a submitted CHECKOUT and a stale CONFIRMED
+    // booking if the update fails.
+    const shouldAutoComplete = tipo === 'CHECKOUT' && booking.status === 'CONFIRMED';
+
+    const [report] = await prisma.$transaction([
+      prisma.inspectionReport.create({
+        data: {
+          bookingId,
+          propertyId: property.id,
+          staffId: req.staff.id,
+          type: tipo,
+          status: 'SUBMITTED',
+          signatureDataUrl: null,          // deprecated — no longer storing base64
+          signatureUrl: signatureUrl,
+          submittedAt: new Date(timestamp),
+          notes: observacaoGeral || null,
+          items: {
+            create: checklist.map((item) => ({
+              category: 'Checklist',
+              description: item.label,
+              status: item.status === 'PENDENTE' ? 'NAO_VERIFICADO' : item.status,
+              problemDescription: item.observacao || null,
+            })),
           },
-        } : {}),
-      },
-    });
+          photos: {
+            create: photos.map((p) => ({
+              cloudinaryPublicId: p.publicId,
+              cloudinaryUrl: p.url,
+            })),
+          },
+          ...(videoId ? {
+            videos: {
+              create: [{
+                storagePath: videoId,
+                storageUrl: `${process.env.UPLOAD_PUBLIC_URL || 'http://localhost:3000'}/uploads/${videoId}`,
+              }],
+            },
+          } : {}),
+        },
+      }),
+      ...(shouldAutoComplete ? [
+        prisma.booking.update({
+          where: { id: bookingId },
+          data:  { status: 'COMPLETED' },
+        }),
+      ] : []),
+    ]);
+
+    if (shouldAutoComplete) {
+      console.log(`[staff-portal] auto-completed booking ${bookingId} after CHECKOUT vistoria`);
+    }
 
     // Auto-create ServiceTicket for any PROBLEMA items
     const problemas = checklist.filter(
@@ -1095,8 +1130,14 @@ router.get('/vistorias/:id', async (req, res) => {
 
 // ── GET /api/staff/vistorias/:id/pdf ─────────────────────────────────────────
 router.get('/vistorias/:id/pdf', async (req, res) => {
+  const pdfLog = (stage, extra = {}) =>
+    console.log(`[staff-portal] vistoria PDF [${req.params.id}] ${stage}`,
+      Object.keys(extra).length ? extra : '');
+
+  let report;
   try {
-    const report = await prisma.inspectionReport.findUnique({
+    pdfLog('fetch:begin');
+    report = await prisma.inspectionReport.findUnique({
       where: { id: req.params.id },
       include: {
         staff: { select: { name: true } },
@@ -1107,8 +1148,29 @@ router.get('/vistorias/:id/pdf', async (req, res) => {
         videos: true,
       },
     });
-    if (!report) return res.status(404).json({ error: 'Vistoria não encontrada' });
+    pdfLog('fetch:done', {
+      found: !!report,
+      itemCount: report?.items?.length ?? 0,
+      photoCount: report?.photos?.length ?? 0,
+      videoCount: report?.videos?.length ?? 0,
+      hasSignature: !!report?.signatureUrl,
+      hasProperty: !!report?.property,
+      hasBooking: !!report?.booking,
+      hasStaff: !!report?.staff,
+    });
+  } catch (fetchErr) {
+    console.error('[staff-portal] vistoria PDF prisma fetch error:', fetchErr);
+    return res.status(500).json({ error: 'Erro ao carregar vistoria para PDF' });
+  }
+  if (!report) return res.status(404).json({ error: 'Vistoria não encontrada' });
 
+  // Defensive: Prisma returns [] for to-many relations, but guard anyway so a
+  // schema drift won't crash the PDF generator after headers are sent.
+  const items  = Array.isArray(report.items)  ? report.items  : [];
+  const photos = Array.isArray(report.photos) ? report.photos : [];
+  const videos = Array.isArray(report.videos) ? report.videos : [];
+
+  try {
     // Helper: resolve a storage URL to a Buffer for PDF embedding.
     // Prefers the thumbnail for photos (smaller, sufficient for PDF grid).
     async function resolveBuffer(storageUrl) {
@@ -1116,12 +1178,18 @@ router.get('/vistorias/:id/pdf', async (req, res) => {
       const { UPLOAD_DIR } = require('../lib/storage');
       const publicBase = process.env.UPLOAD_PUBLIC_URL || 'http://localhost:3000';
 
-      if (process.env.STORAGE_PROVIDER === 'r2') {
+      if (process.env.STORAGE_PROVIDER === 'r2' || /^https?:\/\//i.test(storageUrl)) {
         try {
           const res2 = await fetch(storageUrl, { signal: AbortSignal.timeout(5000) });
-          if (!res2.ok) return null;
+          if (!res2.ok) {
+            pdfLog('resolveBuffer:http-not-ok', { status: res2.status, url: storageUrl });
+            return null;
+          }
           return Buffer.from(await res2.arrayBuffer());
-        } catch { return null; }
+        } catch (e) {
+          pdfLog('resolveBuffer:fetch-error', { url: storageUrl, msg: e.message });
+          return null;
+        }
       }
 
       // Local storage — derive fs path from URL
@@ -1131,12 +1199,17 @@ router.get('/vistorias/:id/pdf', async (req, res) => {
           : storageUrl.replace(/^\/uploads\//, '');
         const fullPath = require('path').join(UPLOAD_DIR, relPath);
         return await require('fs').promises.readFile(fullPath);
-      } catch { return null; }
+      } catch (e) {
+        pdfLog('resolveBuffer:fs-error', { url: storageUrl, msg: e.message });
+        return null;
+      }
     }
 
     // Lazy-load pdfkit to avoid startup cost when not needed
+    pdfLog('pdfkit:load');
     const PDFDocument = require('pdfkit');
     const doc = new PDFDocument({ margin: 45, size: 'A4', autoFirstPage: true });
+    doc.on('error', (e) => console.error('[staff-portal] vistoria PDF pdfkit stream error:', e));
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
@@ -1173,20 +1246,24 @@ router.get('/vistorias/:id/pdf', async (req, res) => {
     doc.moveDown(0.5);
 
     // ── Checklist ────────────────────────────────────────────────────────────
+    pdfLog('render:checklist', { items: items.length });
     doc.fontSize(12).font('Helvetica-Bold').fillColor('#3D2B1A').text('Checklist');
     doc.moveDown(0.3);
     doc.font('Helvetica').fontSize(9).fillColor('black');
 
-    for (const item of report.items) {
+    for (const item of items) {
       const isProblema = item.status === 'PROBLEMA';
-      const statusLabel = item.status === 'OK' ? '✓ OK'
-        : item.status === 'PROBLEMA' ? '⚠ Problema'
-        : '– Pendente';
+      // NOTE: plain ASCII labels — PDFKit's built-in Helvetica uses WinAnsi
+      // encoding, which silently drops chars like ✓/⚠/↳ and can corrupt
+      // rendering depending on version. Keep it simple.
+      const statusLabel = item.status === 'OK' ? '[OK]'
+        : item.status === 'PROBLEMA' ? '[PROBLEMA]'
+        : '[PENDENTE]';
       doc.fillColor(isProblema ? '#b91c1c' : item.status === 'OK' ? '#15803d' : '#78716c');
-      doc.text(statusLabel, { continued: true, width: 70 });
-      doc.fillColor('black').text(`  ${item.description}`);
+      doc.text(statusLabel, { continued: true, width: 80 });
+      doc.fillColor('black').text(`  ${item.description || ''}`);
       if (item.problemDescription) {
-        doc.fillColor('#c45c2e').text(`    ↳ ${item.problemDescription}`).fillColor('black');
+        doc.fillColor('#c45c2e').text(`    -> ${item.problemDescription}`).fillColor('black');
       }
     }
 
@@ -1201,18 +1278,19 @@ router.get('/vistorias/:id/pdf', async (req, res) => {
     }
 
     // ── Video note ────────────────────────────────────────────────────────────
-    if (report.videos && report.videos.length > 0) {
+    if (videos.length > 0) {
       doc.moveDown(0.5);
       doc.fontSize(9).font('Helvetica').fillColor('#57534e')
-        .text(`🎥  Vídeo anexado ao relatório — acesse pelo aplicativo para visualizar.`)
+        .text(`Video anexado ao relatorio - acesse pelo aplicativo para visualizar.`)
         .fillColor('black');
     }
 
     // ── Photos ────────────────────────────────────────────────────────────────
-    if (report.photos.length > 0) {
+    if (photos.length > 0) {
+      pdfLog('render:photos:begin', { count: photos.length });
       doc.addPage();
       doc.fontSize(12).font('Helvetica-Bold').fillColor('#3D2B1A')
-        .text(`Fotos (${report.photos.length})`);
+        .text(`Fotos (${photos.length})`);
       doc.moveDown(0.4);
       doc.fillColor('black');
 
@@ -1225,7 +1303,7 @@ router.get('/vistorias/:id/pdf', async (req, res) => {
       let col = 0;
       let rowY = doc.y;
 
-      for (const photo of report.photos) {
+      for (const photo of photos) {
         // Use thumbnail if available (smaller/faster), fall back to original
         const src = photo.thumbnailUrl || photo.cloudinaryUrl;
         const buf = await resolveBuffer(src);
@@ -1240,12 +1318,14 @@ router.get('/vistorias/:id/pdf', async (req, res) => {
         const x = marginL + col * (imgW + gap);
         if (buf) {
           try {
-            doc.image(buf, x, rowY, { width: imgW, height: imgH, cover: [imgW, imgH], align: 'center', valign: 'center' });
-          } catch {
-            // Unsupported format — draw placeholder box
+            // Use `fit` (preserves aspect, fits within box) — `cover` + explicit
+            // width/height together is ambiguous in older pdfkit and can throw.
+            doc.image(buf, x, rowY, { fit: [imgW, imgH], align: 'center', valign: 'center' });
+          } catch (imgErr) {
+            pdfLog('render:photo:decode-error', { src, msg: imgErr.message });
             doc.rect(x, rowY, imgW, imgH).strokeColor('#d6d3d1').lineWidth(1).stroke();
             doc.fontSize(7).fillColor('#a8a29e')
-              .text('(imagem indisponível)', x + 5, rowY + imgH / 2 - 5, { width: imgW - 10, align: 'center' })
+              .text('(imagem indisponivel)', x + 5, rowY + imgH / 2 - 5, { width: imgW - 10, align: 'center' })
               .fillColor('black');
           }
         } else {
@@ -1261,10 +1341,12 @@ router.get('/vistorias/:id/pdf', async (req, res) => {
 
       // Advance cursor past last row
       doc.y = rowY + imgH + gap;
+      pdfLog('render:photos:done');
     }
 
     // ── Signature ────────────────────────────────────────────────────────────
     if (report.signatureUrl) {
+      pdfLog('render:signature:begin');
       doc.moveDown(0.5);
       doc.moveTo(doc.page.margins.left, doc.y).lineTo(doc.page.margins.left + pageW, doc.y)
         .strokeColor('#e7e5e4').stroke();
@@ -1275,25 +1357,34 @@ router.get('/vistorias/:id/pdf', async (req, res) => {
       const sigBuf = await resolveBuffer(report.signatureUrl);
       if (sigBuf) {
         try {
-          doc.image(sigBuf, doc.page.margins.left, doc.y, { height: 60, fit: [200, 60] });
+          // `fit` preserves aspect ratio inside a 200x60 box.
+          doc.image(sigBuf, doc.page.margins.left, doc.y, { fit: [200, 60] });
           doc.y += 70;
-        } catch {
-          doc.fontSize(8).fillColor('#a8a29e').text('(assinatura indisponível)').fillColor('black');
+        } catch (sigErr) {
+          pdfLog('render:signature:decode-error', { msg: sigErr.message });
+          doc.fontSize(8).fillColor('#a8a29e').text('(assinatura indisponivel)').fillColor('black');
         }
       } else {
-        doc.fontSize(8).fillColor('#a8a29e').text('(assinatura indisponível)').fillColor('black');
+        doc.fontSize(8).fillColor('#a8a29e').text('(assinatura indisponivel)').fillColor('black');
       }
     }
 
     // ── Footer ────────────────────────────────────────────────────────────────
     doc.moveDown(1.5);
     doc.fontSize(7).fillColor('#a8a29e')
-      .text(`Gerado em ${new Date().toLocaleString('pt-BR')} · ID ${report.id}`, { align: 'center' });
+      .text(`Gerado em ${new Date().toLocaleString('pt-BR')} - ID ${report.id}`, { align: 'center' });
 
+    pdfLog('render:done');
     doc.end();
   } catch (err) {
     console.error('[staff-portal] vistoria PDF error:', err);
-    if (!res.headersSent) res.status(500).json({ error: 'Erro ao gerar PDF' });
+    // Headers already sent once doc.pipe(res) fired — we can't send JSON
+    // anymore, so just destroy the socket so the client sees a clean failure.
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Erro ao gerar PDF' });
+    } else {
+      try { res.end(); } catch {}
+    }
   }
 });
 
