@@ -170,19 +170,62 @@ function serializeBooking(b) {
   };
 }
 
+// Recognised BookingStatus enum values. Kept here (not imported) so the pure
+// helper has no heavy dependencies and stays unit-testable.
+const VALID_BOOKING_STATUSES = new Set([
+  'PENDING', 'REQUESTED', 'CONFIRMED', 'CANCELLED', 'REFUNDED', 'COMPLETED',
+]);
+
+/**
+ * Build the Prisma `where` clause for GET /api/staff/reservas. Pure — takes
+ * query params, returns an object — so it can be unit-tested without Express.
+ *
+ * Guardrails:
+ *   - If no specific propertyId is passed (or "ALL"), we filter propertyId:
+ *     { not: null } so orphan bookings (legacy data or bugs upstream) don't
+ *     leak into the admin list.
+ *   - `status` accepts string, comma-joined string, or array. Unknown values
+ *     are silently dropped so a typo doesn't crash the endpoint.
+ */
+function buildReservasWhere({ propertyId, status } = {}) {
+  const where = {};
+
+  where.propertyId = (propertyId && propertyId !== 'ALL')
+    ? propertyId
+    : { not: null };
+
+  if (status !== undefined && status !== null && status !== '') {
+    const raw = Array.isArray(status)
+      ? status
+      : String(status).split(',');
+    const filtered = raw
+      .map(s => String(s).trim().toUpperCase())
+      .filter(s => VALID_BOOKING_STATUSES.has(s));
+    if (filtered.length === 1) where.status = filtered[0];
+    else if (filtered.length > 1) where.status = { in: filtered };
+    // empty filtered array → no status filter (same as unrecognized input)
+  }
+
+  return where;
+}
+
 // ── GET /api/staff/reservas ─────────────────────────────────────────────────
 // Query params:
-//   propertyId  optional — scope to one property. "ALL" or omitted = all properties.
-//   page, limit pagination
+//   propertyId  optional — scope to one property. "ALL" or omitted = all properties
+//               (but orphan propertyId=null rows are always excluded).
+//   status      optional — one value or comma-separated list, e.g. "REQUESTED"
+//               or "REQUESTED,CONFIRMED". Unknown values silently ignored.
+//   page, limit pagination (default 50, max 100 per page)
 router.get('/reservas', requireRole('ADMIN'), async (req, res) => {
   try {
     const page  = Math.max(1, parseInt(req.query.page)  || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
     const skip  = (page - 1) * limit;
-    const propertyId = req.query.propertyId;
 
-    // Only narrow when a real property id was passed (not "ALL" or missing).
-    const where = (propertyId && propertyId !== 'ALL') ? { propertyId } : {};
+    const where = buildReservasWhere({
+      propertyId: req.query.propertyId,
+      status:     req.query.status,
+    });
 
     const [bookings, total] = await Promise.all([
       prisma.booking.findMany({
@@ -4008,3 +4051,5 @@ router.get('/dashboard-summary', requireRole('ADMIN'), async (req, res) => {
 // The cron calls this directly to avoid an internal HTTP round-trip.
 module.exports = router;
 module.exports.generateBriefingForCron = generateBriefing;
+// Exposed for unit tests (pure function, no side effects).
+module.exports.buildReservasWhere = buildReservasWhere;
