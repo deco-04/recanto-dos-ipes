@@ -203,6 +203,23 @@ router.post('/intent', async (req, res) => {
 
     const propertyName = cabinRecord ? 'Cabanas da Serra' : 'Recanto dos Ipês';
 
+    // Resolve propertyId for non-cabin (SRI direct) bookings. Without this,
+    // the Booking row lands with propertyId=null and doesn't show in the staff
+    // app under any specific-property filter. SRI serves exactly one Property
+    // (slug='recanto-dos-ipes'); CDS bookings always pass cabinSlug and pick
+    // up propertyId from cabinRecord.propertyId below.
+    let sriPropertyId = null;
+    if (!cabinRecord) {
+      const sri = await prisma.property.findUnique({
+        where:  { slug: 'recanto-dos-ipes' },
+        select: { id: true },
+      });
+      sriPropertyId = sri?.id ?? null;
+      if (!sriPropertyId) {
+        console.warn('[bookings/intent] SRI property not found by slug=recanto-dos-ipes — booking will have propertyId=null');
+      }
+    }
+
     // Create Stripe PaymentIntent (stripe already loaded above for stale cleanup)
     const paymentIntent = await stripe.paymentIntents.create({
       amount:         Math.round(quote.totalAmount * 100), // cents
@@ -240,10 +257,9 @@ router.post('/intent', async (req, res) => {
         notes:                 data.notes || null,
         status:                'PENDING',
         source:                'DIRECT',
-        ...(cabinRecord ? {
-          cabinId:    cabinRecord.id,
-          propertyId: cabinRecord.propertyId,
-        } : {}),
+        ...(cabinRecord
+          ? { cabinId: cabinRecord.id, propertyId: cabinRecord.propertyId }
+          : sriPropertyId ? { propertyId: sriPropertyId } : {}),
       },
     });
 

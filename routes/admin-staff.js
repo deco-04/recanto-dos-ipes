@@ -736,15 +736,16 @@ router.post('/pricing-suggestions/flash', async (req, res) => {
     let propertyId = rawPropertyId;
     const exists = await prisma.property.findUnique({ where: { id: propertyId }, select: { id: true } });
     if (!exists) {
-      const fallbackBrand = rawPropertyId === 'prop-rds' ? 'RDS'
-                         : rawPropertyId === 'prop-cds' ? 'CDS'
-                         : 'RDI';
-      const resolved = await prisma.property.findFirst({
-        where: { brand: fallbackBrand },
-        orderBy: { createdAt: 'asc' },
+      // Property model has `slug` (not `brand`). Map legacy frontend fallbacks
+      // to the canonical slugs actually in the DB.
+      const fallbackSlug = rawPropertyId === 'prop-rds' ? 'recantos-da-serra'
+                        : rawPropertyId === 'prop-cds' ? 'cabanas-da-serra'
+                        :                                'recanto-dos-ipes';
+      const resolved = await prisma.property.findUnique({
+        where:  { slug: fallbackSlug },
         select: { id: true },
       });
-      if (!resolved) return res.status(400).json({ error: `Propriedade '${rawPropertyId}' não encontrada e brand ${fallbackBrand} não tem propriedade cadastrada` });
+      if (!resolved) return res.status(400).json({ error: `Propriedade '${rawPropertyId}' não encontrada e slug ${fallbackSlug} não tem propriedade cadastrada` });
       propertyId = resolved.id;
     }
 
