@@ -446,44 +446,73 @@ router.post('/request-recovery', async (req, res) => {
 });
 
 // POST /api/staff/auth/request-access — new person requests to be added to the system
-router.post('/request-access', async (req, res) => {
-  const parsed = z.object({
-    name:    z.string().min(2),
-    email:   z.string().email(),
-    phone:   z.string().optional(),
-    message: z.string().max(500).optional(),
-  }).safeParse(req.body);
+//
+// Persistence contract: writes to AccessRequest BEFORE firing notifications
+// so admins can review the request via /admin/equipe/solicitacoes even if
+// Gmail OAuth is broken (Sthefane Souza's 2026-04-21 request was silently
+// dropped because the notification email was the only record).
+//
+// Factored into a DI-friendly factory so the persistence contract can be
+// unit-tested with a stub Prisma client (see
+// __tests__/access-request.persistence.test.mjs).
+function makeRequestAccessHandler(deps) {
+  const {
+    prisma: prismaDep = prisma,
+    sendAdminNotification: sendAdminNotificationDep = sendAdminNotification,
+    sendPushToRole: sendPushToRoleDep = sendPushToRole,
+  } = deps || {};
 
-  if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
+  return async function requestAccessHandler(req, res) {
+    const parsed = z.object({
+      name:    z.string().min(2),
+      email:   z.string().email(),
+      phone:   z.string().optional(),
+      message: z.string().max(500).optional(),
+    }).safeParse(req.body);
 
-  const { name, email, phone, message } = parsed.data;
+    if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
 
-  try {
-    const lines = [
-      `Nome: ${name}`,
-      `E-mail: ${email}`,
-      phone ? `Telefone: ${phone}` : null,
-      message ? `\nMensagem: ${message}` : null,
-      `\nAcesse /admin/equipe para criar a conta e enviar o convite.`,
-    ].filter(Boolean).join('\n');
+    const { name, email, phone, message } = parsed.data;
 
-    await sendAdminNotification({
-      subject: `Nova solicitação de acesso à Central da Equipe — ${name}`,
-      text: lines,
-    }).catch(e => console.error('[staff-auth] request-access email error:', e.message));
+    // Persist FIRST so the request survives even if the email helper throws.
+    try {
+      await prismaDep.accessRequest.create({
+        data: { name, email, phone: phone ?? null, message: message ?? null },
+      });
+    } catch (e) {
+      console.error('[staff-auth] request-access persist error:', e.message);
+      // Continue — the notification email/push is a best-effort fallback.
+    }
 
-    sendPushToRole('ADMIN', {
-      title: 'Nova solicitação de acesso',
-      body:  `${name} quer entrar na Central da Equipe`,
-      type:  'STAFF_ACCESS_REQUEST',
-      data:  { name, email },
-    }).catch(e => console.error('[staff-auth] request-access push error:', e.message));
-  } catch (e) {
-    console.error('[staff-auth] request-access error:', e.message);
-  }
+    try {
+      const lines = [
+        `Nome: ${name}`,
+        `E-mail: ${email}`,
+        phone ? `Telefone: ${phone}` : null,
+        message ? `\nMensagem: ${message}` : null,
+        `\nAcesse /admin/equipe para criar a conta e enviar o convite.`,
+      ].filter(Boolean).join('\n');
 
-  return res.json({ ok: true });
-});
+      await sendAdminNotificationDep({
+        subject: `Nova solicitação de acesso à Central da Equipe — ${name}`,
+        text: lines,
+      }).catch(e => console.error('[staff-auth] request-access email error:', e.message));
+
+      sendPushToRoleDep('ADMIN', {
+        title: 'Nova solicitação de acesso',
+        body:  `${name} quer entrar na Central da Equipe`,
+        type:  'STAFF_ACCESS_REQUEST',
+        data:  { name, email },
+      }).catch(e => console.error('[staff-auth] request-access push error:', e.message));
+    } catch (e) {
+      console.error('[staff-auth] request-access error:', e.message);
+    }
+
+    return res.json({ ok: true });
+  };
+}
+
+router.post('/request-access', makeRequestAccessHandler());
 
 // PATCH /api/staff/auth/inbox-settings — save email signature and push toggle
 router.patch('/inbox-settings', async (req, res) => {
@@ -543,3 +572,4 @@ router.get('/inbox-settings', async (req, res) => {
 module.exports = router;
 module.exports.findStaffWithProperties = findStaffWithProperties;
 module.exports.makeFindStaffWithProperties = makeFindStaffWithProperties;
+module.exports.makeRequestAccessHandler = makeRequestAccessHandler;

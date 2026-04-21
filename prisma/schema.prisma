@@ -329,6 +329,7 @@ model StaffMember {
   obrasCreated     Obra[]             @relation("ObraCreator")
   obraUpdates      ObraUpdate[]       @relation("ObraUpdateAuthor")
   expensesCreated  Expense[]          @relation("ExpenseCreator")
+  handledAccessRequests AccessRequest[] @relation("AccessRequestHandler")
 }
 
 enum StaffRole {
@@ -342,6 +343,31 @@ enum FontSize {
   MD
   LG
   XL
+}
+
+// ── Access Requests ───────────────────────────────────────────────────────────
+// Persists "Solicitar acesso" form submissions so admins can approve/decline
+// from /admin/equipe/solicitacoes even if the notification email fails.
+enum AccessRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
+model AccessRequest {
+  id          String              @id @default(cuid())
+  name        String
+  email       String
+  phone       String?
+  message     String?
+  status      AccessRequestStatus @default(PENDING)
+  handledAt   DateTime?
+  handledById String?
+  handledBy   StaffMember?        @relation("AccessRequestHandler", fields: [handledById], references: [id])
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([status, createdAt])
 }
 
 model StaffPropertyAssignment {

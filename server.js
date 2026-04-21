@@ -294,6 +294,7 @@ app.use('/api/staff/auth',              staffCors, require('./routes/staff-auth'
 app.use('/api/staff/auth/webauthn',     staffCors, require('./routes/staff-webauthn'));
 app.use('/api/staff',                   staffCors, require('./routes/staff-portal'));
 app.use('/api/admin/staff', staffCors, require('./routes/admin-staff'));
+app.use('/api/staff/admin', staffCors, require('./routes/admin-access-requests'));
 app.use('/api/admin/obra',  staffCors, require('./routes/obra'));
 app.use('/api/uploads',     staffCors, require('./routes/uploads').router);
 app.use('/api/reviews',    require('./routes/reviews'));
