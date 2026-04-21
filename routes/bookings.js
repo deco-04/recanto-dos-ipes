@@ -143,6 +143,34 @@ router.post('/intent', async (req, res) => {
       }
     }
 
+    // Load Stripe up front so we can cancel orphan PIs during cleanup below
+    const stripe = require('../lib/stripe');
+
+    // Clean up any stale PENDING rows this same guest left behind for these
+    // exact dates. Happens when Stripe.confirmCardPayment() fails on the
+    // client (bad card, browser closed, network timeout) — the PENDING row
+    // was created here in a prior /intent call and would falsely block the
+    // retry for up to 30 min (until the stale-pending cron sweeps). Retrying
+    // must supersede the previous attempt, not stack on top of it.
+    const stale = await prisma.booking.findMany({
+      where: {
+        status:     'PENDING',
+        guestEmail,
+        checkIn:    inDate,
+        checkOut:   outDate,
+        ...(cabinRecord ? { cabinId: cabinRecord.id } : {}),
+      },
+      select: { id: true, stripePaymentIntentId: true },
+    });
+    for (const row of stale) {
+      if (row.stripePaymentIntentId) {
+        // Best-effort: Stripe will auto-expire unconfirmed PIs anyway, but
+        // cancelling immediately frees any pre-auth held on the card.
+        await stripe.paymentIntents.cancel(row.stripePaymentIntentId).catch(() => {});
+      }
+      await prisma.booking.delete({ where: { id: row.id } }).catch(() => {});
+    }
+
     // Atomically check availability (scoped to cabin when provided)
     const conflict = await prisma.$transaction(async tx => {
       // iCal-blocked dates only apply to SRI (no property scope on BlockedDate yet)
@@ -175,8 +203,7 @@ router.post('/intent', async (req, res) => {
 
     const propertyName = cabinRecord ? 'Cabanas da Serra' : 'Recanto dos Ipês';
 
-    // Create Stripe PaymentIntent
-    const stripe = require('../lib/stripe');
+    // Create Stripe PaymentIntent (stripe already loaded above for stale cleanup)
     const paymentIntent = await stripe.paymentIntents.create({
       amount:         Math.round(quote.totalAmount * 100), // cents
       currency:       'brl',
