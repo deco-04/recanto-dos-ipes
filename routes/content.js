@@ -15,8 +15,12 @@ const { schedulePost, cancelScheduledPost }   = require('../lib/ghl-social');
 const { sendPushToRole } = require('../lib/push');
 const { requireStaff, requireAdmin } = require('../lib/staff-auth-middleware');
 const { slugForBrand, parseGerarBody } = require('../lib/content-gerar-helpers');
+const { makeContentAnalytics } = require('../lib/content-analytics');
 
 const router = express.Router();
+
+// Factory-bound analytics summarizer — same Prisma the rest of this file uses.
+const contentAnalytics = makeContentAnalytics(prisma);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 // serializePost optionally accepts a second arg `parentTitle` so the board UI
@@ -86,6 +90,25 @@ async function parentTitleFor(post) {
 }
 
 const ALL_STAGES = ['GERADO', 'EM_REVISAO', 'APROVADO', 'AGENDADO', 'PUBLICADO', 'AJUSTE_NECESSARIO', 'REJEITADO'];
+
+// ── GET /conteudo/analytics — dashboard metrics for the kanban header ─────────
+// Query params:
+//   brand — optional (RDI|RDS|CDS); omit for cross-brand totals
+//   days  — optional window in days (default 90)
+router.get('/analytics', requireStaff, async (req, res) => {
+  try {
+    const brand = req.query.brand;
+    const days  = Math.min(365, Math.max(7, parseInt(req.query.days, 10) || 90));
+    if (brand && !['RDI', 'RDS', 'CDS'].includes(brand)) {
+      return res.status(400).json({ error: 'brand inválida' });
+    }
+    const data = await contentAnalytics({ brand, days });
+    res.json(data);
+  } catch (err) {
+    console.error('[content] GET /analytics error:', err);
+    res.status(500).json({ error: 'Erro ao calcular analytics' });
+  }
+});
 
 // ── GET /conteudo/pending-count — count of posts needing attention ───────────────
 router.get('/pending-count', requireStaff, async (req, res) => {

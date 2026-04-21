@@ -106,3 +106,49 @@ describe('seasonalHookForMonth', () => {
     }
   });
 });
+
+describe('buildWeeklyUserPrompt · topPillars performance block (Sprint D)', () => {
+  it('omits the performance block entirely when topPillars is empty', () => {
+    const p = buildWeeklyUserPrompt({
+      brand:        'RDI',
+      config:       { postsPerWeek: 5 },
+      seasonalHook: 'hook',
+      topPillars:   [],
+    });
+    expect(p).not.toMatch(/PERFORMANCE RECENTE/);
+  });
+
+  it('injects the top pillars list with approvalRate when provided', () => {
+    const p = buildWeeklyUserPrompt({
+      brand:        'RDI',
+      config:       { postsPerWeek: 5 },
+      seasonalHook: 'hook',
+      topPillars: [
+        { pillar: 'DESTINO',     approved: 8, total: 10, approvalRate: 80 },
+        { pillar: 'EXPERIENCIA', approved: 4, total: 10, approvalRate: 40 },
+      ],
+    });
+    expect(p).toMatch(/PERFORMANCE RECENTE/);
+    expect(p).toContain('DESTINO: 80% aprovados (8/10)');
+    expect(p).toContain('EXPERIENCIA: 40% aprovados (4/10)');
+    // Must also reinforce that configured mix still wins.
+    expect(p).toMatch(/sem violar o mix configurado/);
+  });
+
+  it('caps the list at 4 entries so the prompt stays readable', () => {
+    const topPillars = [
+      { pillar: 'A', approved: 5, total: 5, approvalRate: 100 },
+      { pillar: 'B', approved: 4, total: 5, approvalRate: 80 },
+      { pillar: 'C', approved: 3, total: 5, approvalRate: 60 },
+      { pillar: 'D', approved: 2, total: 5, approvalRate: 40 },
+      { pillar: 'E', approved: 1, total: 5, approvalRate: 20 },
+    ];
+    const p = buildWeeklyUserPrompt({
+      brand: 'RDI', config: { postsPerWeek: 5 },
+      seasonalHook: 'hook', topPillars,
+    });
+    expect(p).toMatch(/A: 100%/);
+    expect(p).toMatch(/D: 40%/);
+    expect(p).not.toMatch(/E: 20%/);
+  });
+});
