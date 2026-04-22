@@ -262,6 +262,10 @@ router.patch('/:id', requireStaff, async (req, res) => {
       let ghlPostId = null;
       let ghlFailed = false;
       try {
+        // `data.scheduledFor` may have been set above from req.body; merging
+        // {...post, ...data} ensures schedulePost sees the admin's chosen
+        // datetime (overriding the post's existing scheduledFor) and falls
+        // back to BrandContentConfig.postingSchedule otherwise.
         const id = await schedulePost({ ...post, ...data }, config);
         if (id) {
           ghlPostId = id;
