@@ -14,7 +14,7 @@ const { createWeeklyPackage, regeneratePost, createImprovedAlternative, createRd
 const { schedulePost, cancelScheduledPost }   = require('../lib/ghl-social');
 const { sendPushToRole } = require('../lib/push');
 const { requireStaff, requireAdmin } = require('../lib/staff-auth-middleware');
-const { slugForBrand, parseGerarBody } = require('../lib/content-gerar-helpers');
+const { slugForBrand, parseGerarBody, validateRejectionFeedback } = require('../lib/content-gerar-helpers');
 const { makeContentAnalytics } = require('../lib/content-analytics');
 const { pushBlogPostToRds } = require('../lib/sync-rds');
 
@@ -196,11 +196,17 @@ router.patch('/:id', requireStaff, async (req, res) => {
       data.publishedAt = new Date();
     }
 
-    // ── On AJUSTE_NECESSARIO or REJEITADO → save feedback + auto-generate alternative ──
+    // ── On AJUSTE_NECESSARIO or REJEITADO → require feedback + auto-generate alt ──
+    // Gap #5: previously feedback was optional; the auto-improvement was
+    // silently skipped when it was missing, leaving rejected posts dangling
+    // without a follow-up. Now required so createImprovedAlternative always
+    // runs and the kanban never has a "rejected with no path forward" card.
     const isRejectionStage = parsed.data.stage === 'AJUSTE_NECESSARIO' || parsed.data.stage === 'REJEITADO';
     if (isRejectionStage && post.stage !== parsed.data.stage) {
-      const feedback = parsed.data.feedbackNotes || '';
-      if (feedback) data.feedbackNotes = feedback;
+      const feedback = (parsed.data.feedbackNotes || '').trim();
+      const feedbackError = validateRejectionFeedback(parsed.data.stage, feedback);
+      if (feedbackError) return res.status(400).json({ error: feedbackError });
+      data.feedbackNotes = feedback;
 
       // Persist stage change first so we respond quickly
       const updated = await prisma.contentPost.update({
@@ -209,19 +215,18 @@ router.patch('/:id', requireStaff, async (req, res) => {
         include: { comments: { include: { staff: { select: { name: true } } } } },
       });
 
-      // Auto-generate an improved alternative in background (only if feedback given)
-      if (feedback) {
-        createImprovedAlternative(req.params.id, feedback)
-          .then(alt => {
-            sendPushToRole('ADMIN', {
-              title: 'Alternativa gerada 🔄',
-              body:  `Nova versão de "${post.title}" aguarda revisão`,
-              type:  'CONTENT_ALTERNATIVE_READY',
-              data:  { postId: alt.id, parentPostId: req.params.id },
-            }).catch(() => {});
-          })
-          .catch(e => console.error('[content] createImprovedAlternative error:', e.message));
-      }
+      // Auto-generate an improved alternative in background (feedback is now
+      // guaranteed by the guard above).
+      createImprovedAlternative(req.params.id, feedback)
+        .then(alt => {
+          sendPushToRole('ADMIN', {
+            title: 'Alternativa gerada 🔄',
+            body:  `Nova versão de "${post.title}" aguarda revisão`,
+            type:  'CONTENT_ALTERNATIVE_READY',
+            data:  { postId: alt.id, parentPostId: req.params.id },
+          }).catch(() => {});
+        })
+        .catch(e => console.error('[content] createImprovedAlternative error:', e.message));
 
       return res.json(serializePost(updated, await parentTitleFor(updated)));
     }

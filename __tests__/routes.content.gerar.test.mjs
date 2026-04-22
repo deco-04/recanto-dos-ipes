@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { slugForBrand, parseGerarBody } from '../lib/content-gerar-helpers.js';
+import { slugForBrand, parseGerarBody, validateRejectionFeedback } from '../lib/content-gerar-helpers.js';
 
 // These helpers are extracted from routes/content.js so the route handler
 // stays small and the decision logic (which property + which filter) is
@@ -52,5 +52,29 @@ describe('parseGerarBody', () => {
   it('leaves count undefined when not a number', () => {
     expect(parseGerarBody({ count: 'five' }).count).toBeUndefined();
     expect(parseGerarBody({ count: null }).count).toBeUndefined();
+  });
+});
+
+describe('validateRejectionFeedback', () => {
+  it('returns null for non-rejection stages regardless of feedback', () => {
+    expect(validateRejectionFeedback('APROVADO',  null)).toBeNull();
+    expect(validateRejectionFeedback('GERADO',    '')).toBeNull();
+    expect(validateRejectionFeedback('PUBLICADO', undefined)).toBeNull();
+  });
+
+  it('rejects AJUSTE_NECESSARIO without feedback', () => {
+    expect(validateRejectionFeedback('AJUSTE_NECESSARIO', null)).toMatch(/feedbackNotes/);
+    expect(validateRejectionFeedback('AJUSTE_NECESSARIO', '')).toMatch(/feedbackNotes/);
+    expect(validateRejectionFeedback('AJUSTE_NECESSARIO', '   \n  ')).toMatch(/feedbackNotes/);
+  });
+
+  it('rejects REJEITADO without feedback', () => {
+    expect(validateRejectionFeedback('REJEITADO', null)).toMatch(/feedbackNotes/);
+    expect(validateRejectionFeedback('REJEITADO', '   ')).toMatch(/feedbackNotes/);
+  });
+
+  it('accepts AJUSTE_NECESSARIO + REJEITADO when feedback is non-whitespace', () => {
+    expect(validateRejectionFeedback('AJUSTE_NECESSARIO', 'add more pool detail')).toBeNull();
+    expect(validateRejectionFeedback('REJEITADO',         'wrong angle')).toBeNull();
   });
 });
