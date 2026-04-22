@@ -312,6 +312,11 @@ app.use('/api/webhooks', staffCors, mensagensRouter);
 // WhatsApp Business Cloud API webhook (Meta → our server)
 app.use('/api/webhooks/whatsapp', require('./routes/whatsapp-webhook'));
 
+// GHL Social Planner — published callback (Gap #4)
+// Flips ContentPost.stage AGENDADO → PUBLICADO when GHL fires the workflow.
+const { createGhlSocialWebhookRouter } = require('./routes/ghl-social-webhook');
+app.use('/api/webhooks/ghl-social', createGhlSocialWebhookRouter({ prisma: require('./lib/db') }));
+
 // WhatsApp admin routes (templates + NPS data)
 app.use('/api/staff', staffCors, require('./routes/whatsapp-admin'));
 
