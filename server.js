@@ -292,6 +292,9 @@ app.use('/api/push',       require('./routes/push'));
 app.use('/api/dashboard',  require('./routes/dashboard'));
 app.use('/api/staff/auth',              staffCors, require('./routes/staff-auth'));
 app.use('/api/staff/auth/webauthn',     staffCors, require('./routes/staff-webauthn'));
+// Cron endpoints — must be mounted BEFORE /api/staff because the staff-portal
+// router gates every sub-path with requireStaff (JWT). Cron is secret-gated.
+app.use('/api/staff/cron',              require('./routes/cron'));
 app.use('/api/staff',                   staffCors, require('./routes/staff-portal'));
 app.use('/api/admin/staff', staffCors, require('./routes/admin-staff'));
 app.use('/api/staff/admin', staffCors, require('./routes/admin-access-requests'));
