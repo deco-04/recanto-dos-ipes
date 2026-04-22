@@ -33,8 +33,11 @@ describe('hasStrictPropertyAccess — booking property access control', () => {
     findFirst = vi.fn();
   });
 
-  function makePrisma(rows = []) {
+  function makePrisma(rows = [], { isRootAdmin = false } = {}) {
     return {
+      staffMember: {
+        findUnique: vi.fn(async () => ({ isRootAdmin })),
+      },
       staffPropertyAssignment: {
         findFirst: findFirst.mockImplementation(async ({ where }) => {
           return rows.find(
@@ -79,6 +82,20 @@ describe('hasStrictPropertyAccess — booking property access control', () => {
     expect(findFirst).not.toHaveBeenCalled();
   });
 
+  it('returns true for a root admin with NO property assignments (bypass wins)', async () => {
+    const prismaDep = makePrisma([], { isRootAdmin: true });
+    expect(await hasStrictPropertyAccess(STAFF_ID, PROP_CDS, { prisma: prismaDep })).toBe(true);
+  });
+
+  it('returns true for a root admin with a wrong-property assignment (bypass still wins)', async () => {
+    const prismaDep = makePrisma(
+      [{ staffId: STAFF_ID, propertyId: PROP_RDI }],
+      { isRootAdmin: true },
+    );
+    // Root admin assigned to RDI only must still be able to access a CDS booking.
+    expect(await hasStrictPropertyAccess(STAFF_ID, PROP_CDS, { prisma: prismaDep })).toBe(true);
+  });
+
   it('queries StaffPropertyAssignment by (staffId, propertyId) composite key', async () => {
     const prismaDep = makePrisma([{ staffId: STAFF_ID, propertyId: PROP_RDI }]);
     await hasStrictPropertyAccess(STAFF_ID, PROP_RDI, { prisma: prismaDep });
@@ -103,8 +120,11 @@ describe('confirmar/recusar — property access enforcement', () => {
 
   // Mini harness that exercises the exact guard the handler MUST have:
   // fetch booking → if (!hasStrictPropertyAccess(staffId, booking.propertyId)) return 403.
-  async function runGuard({ booking, staffId, assignments }) {
+  async function runGuard({ booking, staffId, assignments, isRootAdmin = false }) {
     const prismaDep = {
+      staffMember: {
+        findUnique: async () => ({ isRootAdmin }),
+      },
       staffPropertyAssignment: {
         findFirst: async ({ where }) =>
           assignments.find(

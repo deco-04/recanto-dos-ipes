@@ -323,6 +323,7 @@ model StaffMember {
   inboxMessages    InboxMessage[]
   emailSignature   String?
   inboxPushEnabled Boolean             @default(true)
+  isRootAdmin      Boolean             @default(false)
   contentComments  ContentComment[]
   ticketComments   TicketComment[]
   activityLogs     StaffActivityLog[]

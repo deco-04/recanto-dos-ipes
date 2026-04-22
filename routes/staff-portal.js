@@ -58,6 +58,18 @@ async function hasPropertyAccess(staffId, staffRole, propertyId) {
 // DI-friendly: callers may pass { prisma } to inject a stub (see tests).
 async function hasStrictPropertyAccess(staffId, propertyId, { prisma: prismaDep = prisma } = {}) {
   if (!propertyId) return false;
+
+  // Root-admin bypass (safety hatch added 2026-04-21): backstage operators
+  // with `isRootAdmin=true` on StaffMember skip the per-property check so
+  // they can confirm/decline bookings across every property regardless of
+  // StaffPropertyAssignment state. Default is false — existing admins keep
+  // the strict check unless explicitly promoted in the DB / seed.
+  const staff = await prismaDep.staffMember.findUnique({
+    where:  { id: staffId },
+    select: { isRootAdmin: true },
+  });
+  if (staff?.isRootAdmin) return true;
+
   const membership = await prismaDep.staffPropertyAssignment.findFirst({
     where: { staffId, propertyId },
   });
