@@ -16,6 +16,7 @@ const { sendPushToRole } = require('../lib/push');
 const { requireStaff, requireAdmin } = require('../lib/staff-auth-middleware');
 const { slugForBrand, parseGerarBody } = require('../lib/content-gerar-helpers');
 const { makeContentAnalytics } = require('../lib/content-analytics');
+const { pushBlogPostToRds } = require('../lib/sync-rds');
 
 const router = express.Router();
 
@@ -235,6 +236,18 @@ router.patch('/:id', requireStaff, async (req, res) => {
         data,
         include: { comments: { include: { staff: { select: { name: true } } } } },
       });
+
+      // Fire-and-forget: push BLOG post to the RDS public site (rds-website
+      // Articles table). Only RDI-brand posts map today — `pushBlogPostToRds`
+      // itself is a no-op when RDS_SYNC_SECRET is not configured, so other
+      // brands degrade gracefully without a feature flag here.
+      if (updated.brand === 'RDI') {
+        pushBlogPostToRds(updated)
+          .then(r => {
+            if (!r.ok) console.warn('[content] pushBlogPostToRds non-ok:', r.error || r.status);
+          })
+          .catch(e => console.error('[content] pushBlogPostToRds threw:', e.message));
+      }
 
       return res.json(serializePost(updated, await parentTitleFor(updated)));
     }
