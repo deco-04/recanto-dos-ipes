@@ -81,8 +81,12 @@ describe('request-access · persistence contract', () => {
     await handler(req, res);
 
     // Endpoint returns ok regardless of notification outcome (best-effort).
+    // Body now also includes structured `notifications` reporting — we
+    // assert ok + that the key exists; the exact shape is pinned by
+    // request-access.notifications.test.mjs.
     expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body.ok).toBe(true);
+    expect(res.body).toHaveProperty('notifications');
 
     // THE contract: the AccessRequest row was created.
     expect(stubs.prisma.accessRequest.create).toHaveBeenCalledTimes(1);

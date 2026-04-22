@@ -4283,7 +4283,7 @@ router.get('/dashboard-summary', requireRole('ADMIN'), async (req, res) => {
 
     // ── Attention feed — counts only; the UI links each into a detail page.
     // Running these in parallel keeps the endpoint snappy (~5 cheap COUNTs).
-    const [requestedBookings, unclassifiedExpenses, staleContent, overdueInspections, unreadMessages] = await Promise.all([
+    const [requestedBookings, unclassifiedExpenses, staleContent, overdueInspections, unreadMessages, pendingAccessRequests] = await Promise.all([
       prisma.booking.count({
         where: { propertyId: { in: propertyIds }, status: 'REQUESTED' },
       }),
@@ -4314,6 +4314,9 @@ router.get('/dashboard-summary', requireRole('ADMIN'), async (req, res) => {
           conversation: { propertyId: { in: propertyIds } },
         },
       }).catch(() => 0),   // InboxMessage may not exist on older DBs; guard silently
+      // Pending AccessRequest rows — cross-property (access is global, not per-
+      // property). Guarded because older DBs predate the 2026-04-21 migration.
+      prisma.accessRequest.count({ where: { status: 'PENDING' } }).catch(() => 0),
     ]);
 
     const attention = {
@@ -4322,7 +4325,8 @@ router.get('/dashboard-summary', requireRole('ADMIN'), async (req, res) => {
       staleContent,
       overdueInspections,
       unreadMessages,
-      total: requestedBookings + unclassifiedExpenses + staleContent + overdueInspections + unreadMessages,
+      pendingAccessRequests,
+      total: requestedBookings + unclassifiedExpenses + staleContent + overdueInspections + unreadMessages + pendingAccessRequests,
     };
 
     // ── Forecast — receita comprometida próximos 30 dias.

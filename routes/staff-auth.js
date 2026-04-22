@@ -484,31 +484,53 @@ function makeRequestAccessHandler(deps) {
       // Continue — the notification email/push is a best-effort fallback.
     }
 
-    try {
-      const lines = [
-        `Nome: ${name}`,
-        `E-mail: ${email}`,
-        phone ? `Telefone: ${phone}` : null,
-        message ? `\nMensagem: ${message}` : null,
-        `\nAcesse /admin/equipe para criar a conta e enviar o convite.`,
-      ].filter(Boolean).join('\n');
+    // Notification status reporting (2026-04-21): callers get back a
+    // concrete {email, push} status so the flakiness is visible without
+    // having to tail logs. 'sent' on success, 'failed' on thrown error,
+    // 'skipped' is reserved for a future "intentionally suppressed" case.
+    const notifications = { email: 'skipped', push: 'skipped' };
 
+    const lines = [
+      `Nome: ${name}`,
+      `E-mail: ${email}`,
+      phone ? `Telefone: ${phone}` : null,
+      message ? `\nMensagem: ${message}` : null,
+      `\nAcesse /admin/equipe para criar a conta e enviar o convite.`,
+    ].filter(Boolean).join('\n');
+
+    try {
       await sendAdminNotificationDep({
         subject: `Nova solicitação de acesso à Central da Equipe — ${name}`,
         text: lines,
-      }).catch(e => console.error('[staff-auth] request-access email error:', e.message));
+      });
+      notifications.email = 'sent';
+    } catch (e) {
+      notifications.email = 'failed';
+      // Gmail OAuth staleness is the recurring root cause — log a grep
+      // target so on-call finds the fix link without spelunking.
+      console.error(
+        '[staff-auth] access-request email skipped (Gmail OAuth stale — refresh at https://console.cloud.google.com):',
+        e.message,
+      );
+    }
 
-      sendPushToRoleDep('ADMIN', {
+    // Push is non-blocking and the more reliable surface (web-push does
+    // not depend on Gmail OAuth). Awaited here so we can report its
+    // outcome back to the caller.
+    try {
+      await sendPushToRoleDep('ADMIN', {
         title: 'Nova solicitação de acesso',
         body:  `${name} quer entrar na Central da Equipe`,
         type:  'STAFF_ACCESS_REQUEST',
         data:  { name, email },
-      }).catch(e => console.error('[staff-auth] request-access push error:', e.message));
+      });
+      notifications.push = 'sent';
     } catch (e) {
-      console.error('[staff-auth] request-access error:', e.message);
+      notifications.push = 'failed';
+      console.error('[staff-auth] request-access push error:', e.message);
     }
 
-    return res.json({ ok: true });
+    return res.json({ ok: true, notifications });
   };
 }
 
