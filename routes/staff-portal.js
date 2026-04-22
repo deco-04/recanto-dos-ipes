@@ -49,6 +49,21 @@ async function hasPropertyAccess(staffId, staffRole, propertyId) {
   return membership !== null;
 }
 
+// Stricter variant: does NOT short-circuit for ADMIN. Requires an explicit
+// StaffPropertyAssignment for (staffId, propertyId). Used by the
+// confirmar/recusar endpoints so an ADMIN assigned only to RDI cannot
+// confirm or decline a CDS booking. Falsy propertyId (orphan bookings)
+// short-circuits to false without a DB round-trip.
+//
+// DI-friendly: callers may pass { prisma } to inject a stub (see tests).
+async function hasStrictPropertyAccess(staffId, propertyId, { prisma: prismaDep = prisma } = {}) {
+  if (!propertyId) return false;
+  const membership = await prismaDep.staffPropertyAssignment.findFirst({
+    where: { staffId, propertyId },
+  });
+  return membership !== null;
+}
+
 router.use(requireStaff);
 router.use(portalLimiter);
 
@@ -2168,6 +2183,12 @@ router.post('/reservas/:id/confirmar', requireRole('ADMIN'), async (req, res) =>
   try {
     const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
     if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
+    // Property-level access control: even ADMINs must have an explicit
+    // assignment to the booking's property. An RDI-only admin cannot
+    // confirm a CDS booking.
+    if (!(await hasStrictPropertyAccess(req.staff.id, booking.propertyId))) {
+      return res.status(403).json({ error: 'Sem acesso à propriedade desta reserva.' });
+    }
     if (booking.status !== 'REQUESTED') {
       return res.status(400).json({ error: `Reserva está em status ${booking.status}, não pode ser confirmada` });
     }
@@ -2301,6 +2322,11 @@ router.post('/reservas/:id/recusar', requireRole('ADMIN'), async (req, res) => {
   try {
     const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
     if (!booking) return res.status(404).json({ error: 'Reserva não encontrada' });
+    // Same property-level gate as /confirmar — RDI-only admins cannot
+    // decline CDS bookings, etc.
+    if (!(await hasStrictPropertyAccess(req.staff.id, booking.propertyId))) {
+      return res.status(403).json({ error: 'Sem acesso à propriedade desta reserva.' });
+    }
     if (booking.status !== 'REQUESTED') {
       return res.status(400).json({ error: `Reserva está em status ${booking.status}, não pode ser recusada` });
     }
@@ -4231,6 +4257,7 @@ router.get('/_diag/property-data-summary', requireRole('ADMIN'), async (req, res
 // The cron calls this directly to avoid an internal HTTP round-trip.
 module.exports = router;
 module.exports.generateBriefingForCron = generateBriefing;
+module.exports.hasStrictPropertyAccess = hasStrictPropertyAccess;
 // Exposed for unit tests (pure functions, no side effects).
 module.exports.buildReservasWhere = buildReservasWhere;
 module.exports.buildPropertyScope = buildPropertyScope;
