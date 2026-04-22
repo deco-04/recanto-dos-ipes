@@ -1146,42 +1146,216 @@ router.get('/vistorias/:id', async (req, res) => {
   }
 });
 
+// ── Helpers for enriched vistoria PDF ───────────────────────────────────────
+// Stay-wide context (booking header, financials, contacts) is drawn BEFORE
+// the per-vistoria content so the single PDF becomes a consolidated record.
+function _fmtBRL(n) {
+  const v = Number(n) || 0;
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+function _maskEmail(email) {
+  if (!email || typeof email !== 'string') return '';
+  const [local, domain] = email.split('@');
+  if (!domain) return email;
+  const head = local.slice(0, 1);
+  return `${head}***@${domain}`;
+}
+function _maskPhone(phone) {
+  if (!phone || typeof phone !== 'string') return '';
+  // Keep country/area code + last 4 digits, mask middle.
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length < 6) return phone;
+  const last4 = digits.slice(-4);
+  // Best-effort Brazilian format: +55 (DD) *****-1234
+  if (digits.startsWith('55') && digits.length >= 12) {
+    const dd = digits.slice(2, 4);
+    return `+55 (${dd}) *****-${last4}`;
+  }
+  return `${digits.slice(0, 2)} *****-${last4}`;
+}
+function _sourceLabel(src) {
+  if (src === 'AIRBNB') return 'AIRBNB';
+  if (src === 'BOOKING_COM') return 'BOOKING.COM';
+  return 'DIRETO';
+}
+function _fmtDatePtBR(d) {
+  if (!d) return '';
+  try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return ''; }
+}
+
+function drawSectionRule(doc, pageW) {
+  doc.moveDown(0.4);
+  doc.moveTo(doc.page.margins.left, doc.y)
+    .lineTo(doc.page.margins.left + pageW, doc.y)
+    .strokeColor('#e7e5e4').stroke();
+  doc.moveDown(0.4);
+}
+
+function drawBookingHeader(doc, booking, pageW) {
+  if (!booking) return;
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#3D2B1A')
+    .text(booking.guestName || 'Hóspede');
+  doc.moveDown(0.2);
+
+  doc.fontSize(9).font('Helvetica').fillColor('black');
+  const nights = booking.nights ?? 0;
+  const adults = Math.max(0, (booking.guestCount ?? 0) -
+    ((booking.childrenUnder3 ?? 0) + (booking.children3to5 ?? 0) + (booking.childrenOver6 ?? 0)));
+  const kids = (booking.childrenUnder3 ?? 0) + (booking.children3to5 ?? 0) + (booking.childrenOver6 ?? 0);
+
+  if (booking.invoiceNumber) doc.text(`Reserva: ${booking.invoiceNumber}`);
+  if (booking.source)        doc.text(`Origem: ${_sourceLabel(booking.source)}`);
+  if (booking.property?.name) doc.text(`Propriedade: ${booking.property.name}`);
+  doc.text(`Check-in: ${_fmtDatePtBR(booking.checkIn)}   Check-out: ${_fmtDatePtBR(booking.checkOut)}   (${nights} noite${nights === 1 ? '' : 's'})`);
+  doc.text(`Hóspedes: ${booking.guestCount ?? 0}  (${adults} adulto${adults === 1 ? '' : 's'}${kids ? `, ${kids} criança${kids === 1 ? '' : 's'}` : ''})`);
+  if (booking.hasPet) {
+    doc.text(`Pet: sim${booking.petDescription ? ` — ${booking.petDescription}` : ''}`);
+  }
+  drawSectionRule(doc, pageW);
+}
+
+function drawFinancialSummary(doc, booking, pageW) {
+  if (!booking) return;
+  doc.fontSize(11).font('Helvetica-Bold').fillColor('#3D2B1A').text('Resumo Financeiro');
+  doc.moveDown(0.2);
+  doc.fontSize(9).font('Helvetica').fillColor('black');
+
+  const total    = Number(booking.totalAmount ?? 0);
+  const gross    = booking.grossAmount != null ? Number(booking.grossAmount) : null;
+  const commission = booking.commissionAmount != null ? Number(booking.commissionAmount) : null;
+  const nights   = booking.nights || 1;
+  const dailyRate = nights > 0 ? total / nights : total;
+  const upsells   = Array.isArray(booking.upsells) ? booking.upsells : [];
+  const upsellsTotal = upsells.reduce((s, u) => s + Number(u.amount || 0), 0);
+  const isOta = booking.source === 'AIRBNB' || booking.source === 'BOOKING_COM';
+
+  doc.text(`Valor total: ${_fmtBRL(total)}`);
+  doc.text(`Diária (média): ${_fmtBRL(dailyRate)}`);
+  if (isOta && gross != null) doc.text(`Valor bruto OTA: ${_fmtBRL(gross)}`);
+  if (isOta && commission != null) doc.text(`Comissão plataforma: ${_fmtBRL(commission)}`);
+
+  if (upsells.length > 0) {
+    doc.moveDown(0.2);
+    doc.font('Helvetica-Bold').text('Upsells:');
+    doc.font('Helvetica');
+    for (const u of upsells) {
+      doc.text(`  • ${u.description || 'Item'} — ${_fmtBRL(u.amount)}${u.receivedAt ? '' : ' (pendente)'}`);
+    }
+  }
+
+  // Net payout to property = totalAmount - commission (OTA) + upsells.
+  const net = total - (commission || 0) + upsellsTotal;
+  doc.moveDown(0.2);
+  doc.font('Helvetica-Bold').text(`Repasse líquido: ${_fmtBRL(net)}`);
+  doc.font('Helvetica');
+  drawSectionRule(doc, pageW);
+}
+
+function drawContactInfo(doc, booking, pageW) {
+  if (!booking) return;
+  doc.fontSize(11).font('Helvetica-Bold').fillColor('#3D2B1A').text('Contato');
+  doc.moveDown(0.2);
+  doc.fontSize(9).font('Helvetica').fillColor('black');
+  if (booking.guestPhone) doc.text(`Telefone: ${_maskPhone(booking.guestPhone)}`);
+  if (booking.guestEmail) doc.text(`Email: ${_maskEmail(booking.guestEmail)}`);
+  drawSectionRule(doc, pageW);
+}
+
 // ── GET /api/staff/vistorias/:id/pdf ─────────────────────────────────────────
+// Consolidated guest-stay document. By default includes both pre-checkin and
+// checkout vistorias (if both exist) plus booking/financial/contact context.
+// Pass ?type=CHECKOUT for the legacy single-vistoria (checkout-only) output.
 router.get('/vistorias/:id/pdf', async (req, res) => {
   const pdfLog = (stage, extra = {}) =>
     console.log(`[staff-portal] vistoria PDF [${req.params.id}] ${stage}`,
       Object.keys(extra).length ? extra : '');
 
-  let report;
+  const typeFilter = typeof req.query.type === 'string' ? req.query.type.toUpperCase() : null;
+
+  let primaryReport;
+  let reports = [];
+  let booking = null;
   try {
-    pdfLog('fetch:begin');
-    report = await prisma.inspectionReport.findUnique({
+    pdfLog('fetch:begin', { typeFilter });
+    // First fetch the requested vistoria to locate the booking.
+    primaryReport = await prisma.inspectionReport.findUnique({
       where: { id: req.params.id },
       include: {
         staff: { select: { name: true } },
-        booking: { select: { guestName: true, checkIn: true, checkOut: true } },
         property: { select: { name: true, slug: true } },
         items: true,
         photos: true,
         videos: true,
       },
     });
+    if (!primaryReport) {
+      return res.status(404).json({ error: 'Vistoria não encontrada' });
+    }
+
+    // Fetch booking with upsells + property in one round-trip.
+    booking = await prisma.booking.findUnique({
+      where: { id: primaryReport.bookingId },
+      include: {
+        property: { select: { name: true, slug: true } },
+        upsells: { orderBy: { createdAt: 'asc' } },
+      },
+    });
+
+    // Either consolidate both vistorias or honor ?type=CHECKOUT to keep old
+    // callers working. A non-CHECKOUT filter value is treated as "default".
+    if (typeFilter === 'CHECKOUT') {
+      reports = primaryReport.type === 'CHECKOUT' ? [primaryReport] : [];
+      if (reports.length === 0) {
+        // User asked for checkout but this endpoint was called with a
+        // pre-checkin id — try to find the checkout sibling for the same
+        // booking so the URL still produces something useful.
+        const sibling = await prisma.inspectionReport.findFirst({
+          where: { bookingId: primaryReport.bookingId, type: 'CHECKOUT' },
+          include: {
+            staff: { select: { name: true } },
+            property: { select: { name: true, slug: true } },
+            items: true,
+            photos: true,
+            videos: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (sibling) reports = [sibling];
+      }
+    } else {
+      // Default: both pre-checkin + checkout for this booking, if both exist.
+      const siblings = await prisma.inspectionReport.findMany({
+        where: { bookingId: primaryReport.bookingId },
+        include: {
+          staff: { select: { name: true } },
+          property: { select: { name: true, slug: true } },
+          items: true,
+          photos: true,
+          videos: true,
+        },
+        orderBy: [{ type: 'asc' }, { createdAt: 'asc' }],
+      });
+      // Order: PRE_CHECKIN first, then CHECKOUT. If a sibling list happens to
+      // miss the primary (shouldn't, but be defensive), fall back to primary.
+      const pre = siblings.filter(r => r.type === 'PRE_CHECKIN');
+      const out = siblings.filter(r => r.type === 'CHECKOUT');
+      reports = [...pre, ...out];
+      if (reports.length === 0) reports = [primaryReport];
+    }
+
     pdfLog('fetch:done', {
-      found: !!report,
-      itemCount: report?.items?.length ?? 0,
-      photoCount: report?.photos?.length ?? 0,
-      videoCount: report?.videos?.length ?? 0,
-      hasSignature: !!report?.signatureUrl,
-      hasProperty: !!report?.property,
-      hasBooking: !!report?.booking,
-      hasStaff: !!report?.staff,
+      reportCount: reports.length,
+      hasBooking: !!booking,
+      upsellCount: booking?.upsells?.length ?? 0,
     });
   } catch (fetchErr) {
     console.error('[staff-portal] vistoria PDF prisma fetch error:', fetchErr);
     return res.status(500).json({ error: 'Erro ao carregar vistoria para PDF' });
   }
-  if (!report) return res.status(404).json({ error: 'Vistoria não encontrada' });
+  if (reports.length === 0) return res.status(404).json({ error: 'Vistoria não encontrada' });
 
+  // Use the first (most relevant) report as the primary for header/filename.
+  const report = reports[0];
   // Defensive: Prisma returns [] for to-many relations, but guard anyway so a
   // schema drift won't crash the PDF generator after headers are sent.
   const items  = Array.isArray(report.items)  ? report.items  : [];
@@ -1236,7 +1410,12 @@ router.get('/vistorias/:id/pdf', async (req, res) => {
     );
     doc.pipe(res);
 
-    const tipoLabel = report.type === 'PRE_CHECKIN' ? 'Pré Check-in' : 'Checkout';
+    // Use the primary report to pick the top-of-document title. When both
+    // vistorias are consolidated the title says "Vistoria Consolidada".
+    const isConsolidated = reports.length > 1;
+    const tipoLabel = isConsolidated
+      ? 'Vistoria Consolidada'
+      : (report.type === 'PRE_CHECKIN' ? 'Pré Check-in' : 'Checkout');
     const dateStr = report.submittedAt
       ? new Date(report.submittedAt).toLocaleDateString('pt-BR', { dateStyle: 'full' })
       : new Date(report.createdAt).toLocaleDateString('pt-BR', { dateStyle: 'full' });
@@ -1252,140 +1431,170 @@ router.get('/vistorias/:id/pdf', async (req, res) => {
     doc.fillColor('black');
     doc.y = 100;
 
-    // ── Meta ─────────────────────────────────────────────────────────────────
-    doc.fontSize(10).font('Helvetica');
-    doc.text(`Propriedade: ${report.property?.name || 'Recantos da Serra'}`);
-    doc.text(`Responsável: ${report.staff?.name || 'Equipe'}`);
-    doc.text(`Hóspede: ${report.booking?.guestName || 'Não informado'}`);
-    doc.moveDown(0.5);
-    doc.moveTo(doc.page.margins.left, doc.y)
-      .lineTo(doc.page.margins.left + pageW, doc.y)
-      .strokeColor('#e7e5e4').stroke();
-    doc.moveDown(0.5);
-
-    // ── Checklist ────────────────────────────────────────────────────────────
-    pdfLog('render:checklist', { items: items.length });
-    doc.fontSize(12).font('Helvetica-Bold').fillColor('#3D2B1A').text('Checklist');
-    doc.moveDown(0.3);
-    doc.font('Helvetica').fontSize(9).fillColor('black');
-
-    for (const item of items) {
-      const isProblema = item.status === 'PROBLEMA';
-      // NOTE: plain ASCII labels — PDFKit's built-in Helvetica uses WinAnsi
-      // encoding, which silently drops chars like ✓/⚠/↳ and can corrupt
-      // rendering depending on version. Keep it simple.
-      const statusLabel = item.status === 'OK' ? '[OK]'
-        : item.status === 'PROBLEMA' ? '[PROBLEMA]'
-        : '[PENDENTE]';
-      doc.fillColor(isProblema ? '#b91c1c' : item.status === 'OK' ? '#15803d' : '#78716c');
-      doc.text(statusLabel, { continued: true, width: 80 });
-      doc.fillColor('black').text(`  ${item.description || ''}`);
-      if (item.problemDescription) {
-        doc.fillColor('#c45c2e').text(`    -> ${item.problemDescription}`).fillColor('black');
-      }
+    // ── Section A/B/C — Booking context (consolidated guest-stay document) ──
+    // Drawn once at the top so a single PDF captures everything about the
+    // stay; the per-vistoria checklists follow below.
+    if (booking) {
+      drawBookingHeader(doc, booking, pageW);
+      drawFinancialSummary(doc, booking, pageW);
+      drawContactInfo(doc, booking, pageW);
     }
 
-    // ── Notes ────────────────────────────────────────────────────────────────
-    if (report.notes) {
-      doc.moveDown(0.5);
-      doc.moveTo(doc.page.margins.left, doc.y).lineTo(doc.page.margins.left + pageW, doc.y)
-        .strokeColor('#e7e5e4').stroke();
-      doc.moveDown(0.5);
-      doc.fontSize(12).font('Helvetica-Bold').fillColor('#3D2B1A').text('Observações Gerais');
-      doc.font('Helvetica').fontSize(9).fillColor('black').text(report.notes);
-    }
+    // ── Per-vistoria sections ────────────────────────────────────────────────
+    // Inline helper that renders ONE vistoria (checklist → notes → videos →
+    // photos → signature). Kept inline so it closes over `doc`, `pdfLog`,
+    // `resolveBuffer`, `pageW`.
+    async function renderVistoria(r) {
+      const rItems  = Array.isArray(r.items)  ? r.items  : [];
+      const rPhotos = Array.isArray(r.photos) ? r.photos : [];
+      const rVideos = Array.isArray(r.videos) ? r.videos : [];
 
-    // ── Video note ────────────────────────────────────────────────────────────
-    if (videos.length > 0) {
-      doc.moveDown(0.5);
+      const sectionLabel = r.type === 'PRE_CHECKIN' ? 'Pré Check-in' : 'Checkout';
+      const rDateStr = r.submittedAt
+        ? new Date(r.submittedAt).toLocaleDateString('pt-BR', { dateStyle: 'full' })
+        : new Date(r.createdAt).toLocaleDateString('pt-BR', { dateStyle: 'full' });
+
+      // Vistoria section header
+      doc.fontSize(13).font('Helvetica-Bold').fillColor('#3D2B1A')
+        .text(`Vistoria — ${sectionLabel}`);
       doc.fontSize(9).font('Helvetica').fillColor('#57534e')
-        .text(`Video anexado ao relatorio - acesse pelo aplicativo para visualizar.`)
-        .fillColor('black');
-    }
-
-    // ── Photos ────────────────────────────────────────────────────────────────
-    if (photos.length > 0) {
-      pdfLog('render:photos:begin', { count: photos.length });
-      doc.addPage();
-      doc.fontSize(12).font('Helvetica-Bold').fillColor('#3D2B1A')
-        .text(`Fotos (${photos.length})`);
-      doc.moveDown(0.4);
+        .text(`Responsável: ${r.staff?.name || 'Equipe'}   •   ${rDateStr}`);
       doc.fillColor('black');
+      doc.moveDown(0.4);
 
-      const cols   = 2;
-      const gap    = 10;
-      const imgW   = (pageW - gap) / cols;
-      const imgH   = Math.round(imgW * 0.70); // ~4:3 aspect
-      const marginL = doc.page.margins.left;
+      // Checklist
+      pdfLog('render:checklist', { reportId: r.id, items: rItems.length });
+      doc.fontSize(12).font('Helvetica-Bold').fillColor('#3D2B1A').text('Checklist');
+      doc.moveDown(0.3);
+      doc.font('Helvetica').fontSize(9).fillColor('black');
 
-      let col = 0;
-      let rowY = doc.y;
+      for (const item of rItems) {
+        const isProblema = item.status === 'PROBLEMA';
+        // NOTE: plain ASCII labels — PDFKit's built-in Helvetica uses WinAnsi
+        // encoding, which silently drops chars like ✓/⚠/↳ and can corrupt
+        // rendering depending on version. Keep it simple.
+        const statusLabel = item.status === 'OK' ? '[OK]'
+          : item.status === 'PROBLEMA' ? '[PROBLEMA]'
+          : '[PENDENTE]';
+        doc.fillColor(isProblema ? '#b91c1c' : item.status === 'OK' ? '#15803d' : '#78716c');
+        doc.text(statusLabel, { continued: true, width: 80 });
+        doc.fillColor('black').text(`  ${item.description || ''}`);
+        if (item.problemDescription) {
+          doc.fillColor('#c45c2e').text(`    -> ${item.problemDescription}`).fillColor('black');
+        }
+      }
 
-      for (const photo of photos) {
-        // Use thumbnail if available (smaller/faster), fall back to original
-        const src = photo.thumbnailUrl || photo.cloudinaryUrl;
-        const buf = await resolveBuffer(src);
+      // Notes
+      if (r.notes) {
+        doc.moveDown(0.5);
+        doc.moveTo(doc.page.margins.left, doc.y).lineTo(doc.page.margins.left + pageW, doc.y)
+          .strokeColor('#e7e5e4').stroke();
+        doc.moveDown(0.5);
+        doc.fontSize(12).font('Helvetica-Bold').fillColor('#3D2B1A').text('Observações Gerais');
+        doc.font('Helvetica').fontSize(9).fillColor('black').text(r.notes);
+      }
 
-        // Add a new page when row would overflow
-        if (rowY + imgH > doc.page.height - doc.page.margins.bottom - 20) {
-          doc.addPage();
-          rowY = doc.page.margins.top;
-          col  = 0;
+      // Video note
+      if (rVideos.length > 0) {
+        doc.moveDown(0.5);
+        doc.fontSize(9).font('Helvetica').fillColor('#57534e')
+          .text(`Video anexado ao relatorio - acesse pelo aplicativo para visualizar.`)
+          .fillColor('black');
+      }
+
+      // Photos
+      if (rPhotos.length > 0) {
+        pdfLog('render:photos:begin', { reportId: r.id, count: rPhotos.length });
+        doc.addPage();
+        doc.fontSize(12).font('Helvetica-Bold').fillColor('#3D2B1A')
+          .text(`Fotos — ${sectionLabel} (${rPhotos.length})`);
+        doc.moveDown(0.4);
+        doc.fillColor('black');
+
+        const cols   = 2;
+        const gap    = 10;
+        const imgW   = (pageW - gap) / cols;
+        const imgH   = Math.round(imgW * 0.70); // ~4:3 aspect
+        const marginL = doc.page.margins.left;
+
+        let col = 0;
+        let rowY = doc.y;
+
+        for (const photo of rPhotos) {
+          // Use thumbnail if available (smaller/faster), fall back to original
+          const src = photo.thumbnailUrl || photo.cloudinaryUrl;
+          const buf = await resolveBuffer(src);
+
+          // Add a new page when row would overflow
+          if (rowY + imgH > doc.page.height - doc.page.margins.bottom - 20) {
+            doc.addPage();
+            rowY = doc.page.margins.top;
+            col  = 0;
+          }
+
+          const x = marginL + col * (imgW + gap);
+          if (buf) {
+            try {
+              doc.image(buf, x, rowY, { fit: [imgW, imgH], align: 'center', valign: 'center' });
+            } catch (imgErr) {
+              pdfLog('render:photo:decode-error', { src, msg: imgErr.message });
+              doc.rect(x, rowY, imgW, imgH).strokeColor('#d6d3d1').lineWidth(1).stroke();
+              doc.fontSize(7).fillColor('#a8a29e')
+                .text('(imagem indisponivel)', x + 5, rowY + imgH / 2 - 5, { width: imgW - 10, align: 'center' })
+                .fillColor('black');
+            }
+          } else {
+            doc.rect(x, rowY, imgW, imgH).strokeColor('#d6d3d1').lineWidth(1).stroke();
+          }
+
+          col++;
+          if (col >= cols) {
+            col  = 0;
+            rowY += imgH + gap;
+          }
         }
 
-        const x = marginL + col * (imgW + gap);
-        if (buf) {
+        // Advance cursor past last row
+        doc.y = rowY + imgH + gap;
+        pdfLog('render:photos:done', { reportId: r.id });
+      }
+
+      // Signature
+      if (r.signatureUrl) {
+        pdfLog('render:signature:begin', { reportId: r.id });
+        doc.moveDown(0.5);
+        doc.moveTo(doc.page.margins.left, doc.y).lineTo(doc.page.margins.left + pageW, doc.y)
+          .strokeColor('#e7e5e4').stroke();
+        doc.moveDown(0.5);
+        doc.fontSize(12).font('Helvetica-Bold').fillColor('#3D2B1A').text('Assinatura');
+        doc.moveDown(0.3);
+
+        const sigBuf = await resolveBuffer(r.signatureUrl);
+        if (sigBuf) {
           try {
-            // Use `fit` (preserves aspect, fits within box) — `cover` + explicit
-            // width/height together is ambiguous in older pdfkit and can throw.
-            doc.image(buf, x, rowY, { fit: [imgW, imgH], align: 'center', valign: 'center' });
-          } catch (imgErr) {
-            pdfLog('render:photo:decode-error', { src, msg: imgErr.message });
-            doc.rect(x, rowY, imgW, imgH).strokeColor('#d6d3d1').lineWidth(1).stroke();
-            doc.fontSize(7).fillColor('#a8a29e')
-              .text('(imagem indisponivel)', x + 5, rowY + imgH / 2 - 5, { width: imgW - 10, align: 'center' })
-              .fillColor('black');
+            doc.image(sigBuf, doc.page.margins.left, doc.y, { fit: [200, 60] });
+            doc.y += 70;
+          } catch (sigErr) {
+            pdfLog('render:signature:decode-error', { msg: sigErr.message });
+            doc.fontSize(8).fillColor('#a8a29e').text('(assinatura indisponivel)').fillColor('black');
           }
         } else {
-          doc.rect(x, rowY, imgW, imgH).strokeColor('#d6d3d1').lineWidth(1).stroke();
-        }
-
-        col++;
-        if (col >= cols) {
-          col  = 0;
-          rowY += imgH + gap;
-        }
-      }
-
-      // Advance cursor past last row
-      doc.y = rowY + imgH + gap;
-      pdfLog('render:photos:done');
-    }
-
-    // ── Signature ────────────────────────────────────────────────────────────
-    if (report.signatureUrl) {
-      pdfLog('render:signature:begin');
-      doc.moveDown(0.5);
-      doc.moveTo(doc.page.margins.left, doc.y).lineTo(doc.page.margins.left + pageW, doc.y)
-        .strokeColor('#e7e5e4').stroke();
-      doc.moveDown(0.5);
-      doc.fontSize(12).font('Helvetica-Bold').fillColor('#3D2B1A').text('Assinatura');
-      doc.moveDown(0.3);
-
-      const sigBuf = await resolveBuffer(report.signatureUrl);
-      if (sigBuf) {
-        try {
-          // `fit` preserves aspect ratio inside a 200x60 box.
-          doc.image(sigBuf, doc.page.margins.left, doc.y, { fit: [200, 60] });
-          doc.y += 70;
-        } catch (sigErr) {
-          pdfLog('render:signature:decode-error', { msg: sigErr.message });
           doc.fontSize(8).fillColor('#a8a29e').text('(assinatura indisponivel)').fillColor('black');
         }
-      } else {
-        doc.fontSize(8).fillColor('#a8a29e').text('(assinatura indisponivel)').fillColor('black');
       }
     }
+
+    // Render each vistoria; start checkout on a new page when consolidated so
+    // the two sections read cleanly.
+    for (let idx = 0; idx < reports.length; idx++) {
+      if (idx > 0) {
+        doc.addPage();
+      }
+      await renderVistoria(reports[idx]);
+    }
+
+    // Silence unused-var lint — legacy names kept for stable external diffs.
+    void items; void photos; void videos;
 
     // ── Footer ────────────────────────────────────────────────────────────────
     doc.moveDown(1.5);
@@ -4261,3 +4470,10 @@ module.exports.hasStrictPropertyAccess = hasStrictPropertyAccess;
 // Exposed for unit tests (pure functions, no side effects).
 module.exports.buildReservasWhere = buildReservasWhere;
 module.exports.buildPropertyScope = buildPropertyScope;
+// Vistoria PDF enrichment helpers — exported for unit tests.
+module.exports._vistoriaPdfInternals = {
+  maskEmail: _maskEmail,
+  maskPhone: _maskPhone,
+  sourceLabel: _sourceLabel,
+  fmtBRL: _fmtBRL,
+};
