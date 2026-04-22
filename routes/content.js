@@ -11,7 +11,7 @@ const express = require('express');
 const { z }   = require('zod');
 const prisma  = require('../lib/db');
 const { createWeeklyPackage, regeneratePost, createImprovedAlternative, createRdiBlogPost } = require('../lib/conteudo-agent');
-const { schedulePost, cancelScheduledPost }   = require('../lib/ghl-social');
+const { schedulePost, cancelScheduledPost, getPostStatus }   = require('../lib/ghl-social');
 const { sendPushToRole } = require('../lib/push');
 const { requireStaff, requireAdmin } = require('../lib/staff-auth-middleware');
 const { slugForBrand, parseGerarBody, validateRejectionFeedback } = require('../lib/content-gerar-helpers');
@@ -273,8 +273,41 @@ router.patch('/:id', requireStaff, async (req, res) => {
     }
 
     // ── Cancel GHL post if admin moves back from AGENDADO ────────────────────
+    // Gap #9: before issuing the cancel, ask GHL for the post's current
+    // status. If it already published, there's nothing to cancel — the
+    // correct reaction is to reconcile our DB (flip to PUBLICADO) and
+    // return 409 so the admin knows the rollback didn't happen.
+    //
+    // Fail-open on GHL unreachable: log and fall through to the optimistic
+    // cancel below, preserving the pre-#9 fault-tolerance (admin's rollback
+    // intent should not be blocked by a GHL outage).
     if (post.stage === 'AGENDADO' && parsed.data.stage && parsed.data.stage !== 'AGENDADO' && parsed.data.stage !== 'PUBLICADO') {
       if (post.ghlPostId) {
+        let ghlStatus = null;
+        try {
+          ghlStatus = await getPostStatus(post.ghlPostId);
+        } catch (e) {
+          console.warn('[content] getPostStatus failed — falling through to optimistic cancel:', e.message);
+        }
+
+        if (ghlStatus && ghlStatus.status === 'PUBLISHED') {
+          // GHL already published — reconcile local state and 409 the admin.
+          const reconciled = await prisma.contentPost.update({
+            where: { id: req.params.id },
+            data:  {
+              stage:       'PUBLICADO',
+              publishedAt: post.publishedAt || ghlStatus.publishedAt || new Date(),
+            },
+            include: POST_INCLUDE,
+          });
+          return res.status(409).json({
+            error: 'Post já foi publicado em GHL — não pode ser revertido',
+            post:  serializePost(reconciled),
+          });
+        }
+
+        // Not published (SCHEDULED / FAILED / UNKNOWN / GHL-unreachable) →
+        // proceed with the cancel as before.
         await cancelScheduledPost(post.ghlPostId);
         data.ghlPostId = null;
       }

@@ -45,7 +45,7 @@ GHL Social Planner (`lib/ghl-social.js` — Instagram/Facebook/GBP) · Google Dr
 | 6 | `parentPostId` is a bare string on `ContentPost` (no Prisma relation) — N+1 on parent titles for older posts; mitigated today by `buildParentTitleMap` but migration to a real FK would be cleaner | `prisma/schema.prisma:964` | Prisma relation migration + refactor | Medium | Deferred |
 | 7 | No retention policy for `ContentPost` rows — stages like PUBLICADO/REJEITADO accumulate indefinitely | — | Add `retention.js` sweep for posts >180d | Medium | Deferred |
 | 8 | `pushBlogPostToRds` is hardcoded to `brandSlug='sitio'`; RDS/CDS BLOG posts would silently land under RDI's slug if they ever used this path | `lib/sync-rds.js:88` | Map brand→slug once more brands onboard blogs | Small-but-premature | Deferred (not yet a live bug — only RDI publishes blogs today) |
-| 9 | `ghlPostId` on PATCH rollback from AGENDADO only cancels on GHL if set; no reconciliation if GHL reports the post was already published | `routes/content.js:288-293` | Read GHL status before canceling | Medium | Deferred |
+| 9 | `ghlPostId` on PATCH rollback from AGENDADO only cancels on GHL if set; no reconciliation if GHL reports the post was already published | `routes/content.js:288-293` | Read GHL status before canceling | Medium | FIXED — see commit body |
 
 ## Small fixes applied in this commit
 
