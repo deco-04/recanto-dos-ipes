@@ -1803,15 +1803,21 @@ router.post('/chamados', async (req, res) => {
 });
 
 // ── GET /api/staff/chamados ──────────────────────────────────────────────────
-// Returns open/in-progress service tickets for the active property.
+// Returns open/in-progress service tickets.
+// Query:
+//   propertyId  specific id, 'ALL', or missing → aggregates across properties.
+//
+// Fix 2 (2026-04-21): previously `findFirst({ active: true })` always narrowed
+// to whichever property sorted first — Visão Geral silently became a
+// single-property view. Now routes through buildPropertyScope so ALL and a
+// specific id behave consistently with /reservas + /financeiro.
 router.get('/chamados', async (req, res) => {
   try {
-    const property = await prisma.property.findFirst({ where: { active: true } });
-    if (!property) return res.status(500).json({ error: 'Propriedade não encontrada' });
+    const scope = buildPropertyScope(req.query.propertyId);
 
     const tickets = await prisma.serviceTicket.findMany({
       where: {
-        propertyId: property.id,
+        ...scope,
         status: { in: ['ABERTO', 'EM_ANDAMENTO'] },
       },
       include: {
