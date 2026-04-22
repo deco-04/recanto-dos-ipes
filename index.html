@@ -79,20 +79,61 @@
       "latitude": -19.515,
       "longitude": -43.74
     },
-    "telephone": "",
-    "priceRange": "$$",
+    "telephone": "+55 31 2391-6688",
+    "priceRange": "R$720–R$1.300 / noite",
     "currenciesAccepted": "BRL",
-    "paymentAccepted": "Airbnb, Pix, Transferência",
+    "paymentAccepted": "Airbnb, Pix, Transferência, Cartão",
     "checkinTime": "09:00",
     "checkoutTime": "17:00",
     "petsAllowed": true,
     "smokingAllowed": false,
     "numberOfRooms": 4,
     "numberOfBathroomsTotal": 3,
-    "occupancy": {
-      "@type": "QuantitativeValue",
-      "maxValue": 20
-    },
+    "identifier": [
+      { "@type": "PropertyValue", "propertyID": "slug", "value": "sitio-recanto-dos-ipes" },
+      { "@type": "PropertyValue", "propertyID": "airbnb-listing", "value": "recantodosipesmg" }
+    ],
+    "containsPlace": [
+      {
+        "@type": "Accommodation",
+        "additionalType": "https://schema.org/Suite",
+        "name": "Suíte Master",
+        "description": "Suíte com cama queen, banheiro privativo e enxoval completo.",
+        "occupancy": { "@type": "QuantitativeValue", "maxValue": 2 },
+        "bed": { "@type": "BedDetails", "typeOfBed": "Queen" },
+        "numberOfBathroomsTotal": 1,
+        "amenityFeature": [
+          { "@type": "LocationFeatureSpecification", "name": "Banheiro privativo", "value": true },
+          { "@type": "LocationFeatureSpecification", "name": "Ar condicionado", "value": true }
+        ]
+      },
+      {
+        "@type": "Accommodation",
+        "additionalType": "https://schema.org/Room",
+        "name": "Quarto Casal",
+        "description": "Cama queen, guarda-roupa e penteadeira — ideal para casais.",
+        "occupancy": { "@type": "QuantitativeValue", "maxValue": 2 },
+        "bed": { "@type": "BedDetails", "typeOfBed": "Queen" }
+      },
+      {
+        "@type": "Accommodation",
+        "additionalType": "https://schema.org/Room",
+        "name": "Quarto Solteiro",
+        "description": "2 camas de solteiro com enxoval completo.",
+        "occupancy": { "@type": "QuantitativeValue", "maxValue": 2 },
+        "bed": [
+          { "@type": "BedDetails", "typeOfBed": "Single", "numberOfBeds": 2 }
+        ]
+      },
+      {
+        "@type": "Accommodation",
+        "additionalType": "https://schema.org/Room",
+        "name": "Quarto Família",
+        "description": "Acomoda grupos maiores — camas adicionais sob demanda.",
+        "occupancy": { "@type": "QuantitativeValue", "maxValue": 6 },
+        "bed": { "@type": "BedDetails", "typeOfBed": "Double" }
+      }
+    ],
     "starRating": {
       "@type": "Rating",
       "ratingValue": "5"
@@ -114,19 +155,64 @@
       { "@type": "LocationFeatureSpecification", "name": "Ar condicionado",          "value": true },
       { "@type": "LocationFeatureSpecification", "name": "Estacionamento gratuito", "value": true }
     ],
-    "offers": {
-      "@type": "Offer",
-      "priceCurrency": "BRL",
-      "priceSpecification": {
-        "@type": "UnitPriceSpecification",
+    "makesOffer": [
+      {
+        "@type": "Offer",
+        "name": "Noite — temporada baixa",
         "priceCurrency": "BRL",
-        "unitText": "noite",
-        "description": "Consulte disponibilidade e valores atualizados no Airbnb"
+        "price": "720",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "BRL",
+          "price": "720",
+          "unitText": "noite"
+        },
+        "availability": "https://schema.org/InStock",
+        "url": "https://www.airbnb.com/h/recantodosipesmg"
       },
-      "availability": "https://schema.org/InStock",
-      "validFrom": "2025-01-01",
-      "url": "https://www.airbnb.com/h/recantodosipesmg"
-    },
+      {
+        "@type": "Offer",
+        "name": "Noite — fim de semana",
+        "priceCurrency": "BRL",
+        "price": "850",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "BRL",
+          "price": "850",
+          "unitText": "noite"
+        },
+        "availability": "https://schema.org/InStock",
+        "url": "https://www.airbnb.com/h/recantodosipesmg"
+      },
+      {
+        "@type": "Offer",
+        "name": "Noite — alta temporada",
+        "priceCurrency": "BRL",
+        "price": "1050",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "BRL",
+          "price": "1050",
+          "unitText": "noite"
+        },
+        "availability": "https://schema.org/InStock",
+        "url": "https://www.airbnb.com/h/recantodosipesmg"
+      },
+      {
+        "@type": "Offer",
+        "name": "Noite — feriado/pico",
+        "priceCurrency": "BRL",
+        "price": "1300",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "BRL",
+          "price": "1300",
+          "unitText": "noite"
+        },
+        "availability": "https://schema.org/InStock",
+        "url": "https://www.airbnb.com/h/recantodosipesmg"
+      }
+    ],
     "aggregateRating": {
       "@type": "AggregateRating",
       "ratingValue": "4.95",

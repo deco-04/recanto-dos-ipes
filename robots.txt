@@ -4,9 +4,14 @@ Allow: /
 # Block internal/admin paths from indexing
 Disallow: /api/
 Disallow: /admin
+Disallow: /admin-precos
 Disallow: /dashboard
+Disallow: /confirmar-hospede
+Disallow: /login
+Disallow: /reserva-confirmada
+Disallow: /reserva-solicitada
 
-# Allow all major crawlers explicitly
+# ── Major search crawlers ─────────────────────────────────────────────────
 User-agent: Googlebot
 Allow: /
 
@@ -16,16 +21,45 @@ Allow: /images/
 User-agent: bingbot
 Allow: /
 
+# ── AI / LLM search crawlers — explicit allow (owner can flip to Disallow later) ──
+# OpenAI — ChatGPT training, search index, on-demand browsing
 User-agent: GPTBot
 Allow: /
-
-User-agent: PerplexityBot
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ChatGPT-User
 Allow: /
 
+# Anthropic — training, search, on-demand browsing
 User-agent: anthropic-ai
 Allow: /
-
 User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-SearchBot
+Allow: /
+User-agent: Claude-User
+Allow: /
+
+# Perplexity
+User-agent: PerplexityBot
+Allow: /
+User-agent: Perplexity-User
+Allow: /
+
+# Google Gemini / Bard training
+User-agent: Google-Extended
+Allow: /
+
+# Apple Intelligence
+User-agent: Applebot-Extended
+Allow: /
+
+# Cohere
+User-agent: cohere-ai
+Allow: /
+
+# Meta AI
+User-agent: Meta-ExternalAgent
 Allow: /
 
 # Sitemap
