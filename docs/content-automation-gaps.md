@@ -40,12 +40,12 @@ GHL Social Planner (`lib/ghl-social.js` — Instagram/Facebook/GBP) · Google Dr
 | 1 | `pushBlogPostToRds` imported but never called; approved BLOG posts never reach the RDS public-site Articles table | `routes/content.js` BLOG→PUBLICADO branch | Fire-and-forget call after update | Small | FIXED in this commit |
 | 2 | `scheduledFor` column exists on `ContentPost` but no UI lets admin set it; GHL always receives `tomorrow 10:00` fallback | `ContentDetail.tsx`, `ghl-social.js:schedulePost` | Add date/time picker + wire through PATCH | Medium | Deferred |
 | 3 | `BrandContentConfig.postingSchedule` JSON field exists but `schedulePost` ignores it — picks tomorrow-10:00 regardless | `lib/ghl-social.js` | Consume postingSchedule to spread posts across the week | Medium | Deferred |
-| 4 | AGENDADO cards never auto-transition to PUBLICADO — GHL is canonical but we have no webhook/poller that reflects the state back | `routes/ghl-social-webhook.js` (new) | GHL Social Planner webhook — Option A (preferred) | Large | FIXED — see commit body |
+| 4 | AGENDADO cards never auto-transition to PUBLICADO — GHL is canonical but we have no webhook/poller that reflects the state back | `routes/ghl-social-webhook.js` (new) | GHL Social Planner webhook — Option A (preferred) | Large | FIXED in 999c675 |
 | 5 | Rejected/flagged posts' `createImprovedAlternative` is triggered on drag-to-rejection but NOT on the manual "Solicitar ajuste" modal path when feedback is absent (silent no-op) | `routes/content.js:200-224` — `if (feedback)` guard | Either require feedback or surface a UI warning | Medium | Deferred |
 | 6 | `parentPostId` is a bare string on `ContentPost` (no Prisma relation) — N+1 on parent titles for older posts; mitigated today by `buildParentTitleMap` but migration to a real FK would be cleaner | `prisma/schema.prisma:964` | Prisma relation migration + refactor | Medium | Deferred |
 | 7 | No retention policy for `ContentPost` rows — stages like PUBLICADO/REJEITADO accumulate indefinitely | — | Add `retention.js` sweep for posts >180d | Medium | Deferred |
 | 8 | `pushBlogPostToRds` is hardcoded to `brandSlug='sitio'`; RDS/CDS BLOG posts would silently land under RDI's slug if they ever used this path | `lib/sync-rds.js:88` | Map brand→slug once more brands onboard blogs | Small-but-premature | Deferred (not yet a live bug — only RDI publishes blogs today) |
-| 9 | `ghlPostId` on PATCH rollback from AGENDADO only cancels on GHL if set; no reconciliation if GHL reports the post was already published | `routes/content.js:288-293` | Read GHL status before canceling | Medium | FIXED — see commit body |
+| 9 | `ghlPostId` on PATCH rollback from AGENDADO only cancels on GHL if set; no reconciliation if GHL reports the post was already published | `routes/content.js:288-293` | Read GHL status before canceling | Medium | FIXED in 55e8a40 |
 
 ## Small fixes applied in this commit
 
