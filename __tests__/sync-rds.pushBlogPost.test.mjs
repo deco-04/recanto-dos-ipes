@@ -74,3 +74,56 @@ describe('pushBlogPostToRds guard branches', () => {
     } finally { restore(); }
   });
 });
+
+describe('BRAND_TO_SLUG mapping (gap #8)', () => {
+  it('maps each brand code to the rds-website property slug', async () => {
+    const { mod, restore } = await loadSync({});
+    try {
+      expect(mod.BRAND_TO_SLUG).toEqual({
+        RDI: 'sitio',
+        RDS: 'recantos-da-serra',
+        CDS: 'cabanas-da-serra',
+      });
+    } finally { restore(); }
+  });
+
+  it('derives propertySlug from post.brand when brandSlug arg omitted', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ slug: 'art' }), { status: 200 })
+    );
+    const { mod, restore } = await loadSync({
+      RDS_SYNC_SECRET: 'shh',
+      RDS_PUBLIC_URL:  'https://rds.test',
+    });
+    try {
+      await mod.pushBlogPostToRds({
+        id: 'p2', title: 't', body: 'b', brand: 'RDS',
+      });
+      const [, init] = fetchSpy.mock.calls[0];
+      expect(JSON.parse(init.body).propertySlug).toBe('recantos-da-serra');
+    } finally {
+      fetchSpy.mockRestore();
+      restore();
+    }
+  });
+
+  it('falls back to "sitio" for unknown brand', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ slug: 'x' }), { status: 200 })
+    );
+    const { mod, restore } = await loadSync({
+      RDS_SYNC_SECRET: 'shh',
+      RDS_PUBLIC_URL:  'https://rds.test',
+    });
+    try {
+      await mod.pushBlogPostToRds({
+        id: 'p3', title: 't', body: 'b', brand: 'NEW_BRAND',
+      });
+      const [, init] = fetchSpy.mock.calls[0];
+      expect(JSON.parse(init.body).propertySlug).toBe('sitio');
+    } finally {
+      fetchSpy.mockRestore();
+      restore();
+    }
+  });
+});

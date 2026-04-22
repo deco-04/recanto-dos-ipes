@@ -962,6 +962,11 @@ model ContentPost {
   imagePrompt  String?        @db.Text
   feedbackNotes String?       @db.Text  // admin feedback when moved to AJUSTE_NECESSARIO or REJEITADO
   parentPostId String?        // original post ID when this is a regenerated alternative
+  // Self-relation lets findMany({ include: { parentPost: { select: { title } }}})
+  // resolve the parent's title in a single round-trip; the column itself stays
+  // a bare String so existing rows pointing at deleted parents don't error.
+  parentPost   ContentPost?   @relation("ContentPostAlternatives", fields: [parentPostId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  alternatives ContentPost[]  @relation("ContentPostAlternatives")
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
