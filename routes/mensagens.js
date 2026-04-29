@@ -482,6 +482,14 @@ router.post('/ghl-message', async (req, res) => {
       },
     });
 
+    // Smart-reply: non-blocking AI FAQ bot. Won't delay the webhook ack;
+    // gated by Property.smartReplyEnabled (default false). See lib/smart-reply.js.
+    require('../lib/smart-reply').maybeAutoReply({
+      conversation,
+      inboundMessage: { body, channel },
+      property,
+    }).catch(e => console.error('[smart-reply] error:', e.message));
+
     // Push to ADMIN (only staff with inboxPushEnabled)
     prisma.staffMember.findMany({
       where: {
