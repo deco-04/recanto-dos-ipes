@@ -490,16 +490,19 @@ router.post('/ghl-message', async (req, res) => {
       property,
     }).catch(e => console.error('[smart-reply] error:', e.message));
 
-    // Push to ADMIN (only staff with inboxPushEnabled)
+    // Push to ADMIN (only staff with inboxPushEnabled). We can't filter
+    // `pushSubscription IS NOT NULL` directly on Json? fields in newer Prisma
+    // versions — sendPushToStaff guards internally and skips rows without
+    // a subscription, so the in-memory filter below is enough.
     prisma.staffMember.findMany({
       where: {
         role: 'ADMIN',
         active: true,
         inboxPushEnabled: true,
-        NOT: { pushSubscription: null },
       },
-      select: { id: true },
-    }).then(admins => {
+      select: { id: true, pushSubscription: true },
+    }).then(rows => {
+      const admins = rows.filter(a => a.pushSubscription);
       const { sendPushToStaff } = require('../lib/push');
       return Promise.allSettled(
         admins.map(a => sendPushToStaff(a.id, {
