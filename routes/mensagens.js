@@ -494,7 +494,19 @@ router.post('/ghl-message', async (req, res) => {
     }
   }
   if (!body || !channel) {
-    return res.status(400).json({ error: 'body and channel required' });
+    // Log received keys + truncated body so we can diagnose GHL workflow
+    // misconfigurations (variable not resolving, wrong field name, etc.)
+    // without leaking full message content into logs.
+    console.warn('[mensagens] ghl-message 400 — missing body/channel. Received keys:',
+      Object.keys(req.body || {}),
+      'body preview:', String(body || '').slice(0, 80) || '(empty)',
+      'channel:', channel || '(empty)');
+    return res.status(400).json({
+      error: 'body and channel required',
+      receivedKeys: Object.keys(req.body || {}),
+      bodyEmpty: !body,
+      channelEmpty: !channel,
+    });
   }
   if (!['INBOUND', 'OUTBOUND'].includes(direction)) {
     return res.status(400).json({ error: 'direction must be INBOUND or OUTBOUND' });
