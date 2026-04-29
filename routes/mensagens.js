@@ -15,6 +15,7 @@ const { sendInstagramDM } = require('../lib/ghl-webhook');
 const { sendText: sendWhatsAppDirect } = require('../lib/whatsapp');
 const { sendInboxEmail } = require('../lib/mailer');
 const { requireStaff } = require('../lib/staff-auth-middleware');
+const ghlConv = require('../lib/ghl-conversations');
 // push imported inline in webhook handler (sendPushToStaff)
 
 const router = express.Router();
@@ -287,7 +288,74 @@ router.post('/:id/mensagens', requireStaff, async (req, res) => {
       select: { name: true, emailSignature: true },
     });
 
-    // Route to correct channel
+    if (!['WHATSAPP', 'INSTAGRAM', 'FACEBOOK', 'GBP', 'EMAIL'].includes(channel)) {
+      return res.status(400).json({ error: 'Canal inválido' });
+    }
+
+    // ── Preferred path: route through GHL Conversations hub ─────────────
+    // GHL handles the actual channel delivery (Meta WA, IG, FB, GMB, Email).
+    // We only fall through to the direct-channel paths below if:
+    //   - GHL_API_KEY is unset
+    //   - the conversation can't be found in GHL by phone match
+    //   - GHL returns auth/server failure
+    // EMAIL stays out of the GHL path for now — Gmail OAuth is the canonical
+    // sender for inbox email and GHL email isn't connected.
+    if (process.env.GHL_API_KEY && channel !== 'EMAIL' && conversation.contactPhone) {
+      const search = await ghlConv.searchConversations({ limit: 20 });
+      if (search.ok) {
+        const localTail = String(conversation.contactPhone || '').replace(/\D/g, '').slice(-11);
+        const ghlConvObj = (search.conversations || []).find(g => {
+          const remoteTail = String(g.phone || '').replace(/\D/g, '').slice(-11);
+          return remoteTail && remoteTail === localTail;
+        });
+        if (ghlConvObj?.id) {
+          const ghlType =
+            channel === 'WHATSAPP'  ? 'WhatsApp' :
+            channel === 'INSTAGRAM' ? 'IG'       :
+            channel === 'FACEBOOK'  ? 'FB'       :
+            channel === 'GBP'       ? 'GMB'      :
+                                      'WhatsApp';
+          const sendResult = await ghlConv.sendMessage({
+            conversationId: ghlConvObj.id,
+            type:           ghlType,
+            body,
+            contactId:      ghlConvObj.contactId || null,
+          });
+          if (sendResult.ok) {
+            const message = await prisma.inboxMessage.create({
+              data: {
+                conversationId: conversation.id,
+                staffId:        req.staff.id,
+                direction:      'OUTBOUND',
+                channel,
+                body,
+                sentAt:         new Date(),
+                readAt:         new Date(),
+                // Stamp ghlMessageId so the 2-min poll doesn't re-mirror
+                // this exact message back into the inbox as a duplicate.
+                ghlMessageId:   sendResult.messageId || null,
+              },
+              include: { staff: { select: { name: true } } },
+            });
+            await prisma.conversation.update({
+              where: { id: conversation.id },
+              data:  { lastMessageAt: new Date() },
+            });
+            return res.json(serializeMessage(message));
+          }
+          console.warn('[mensagens] GHL send failed, falling back to direct:', sendResult.error);
+        }
+        // No matching GHL conversation found — fall through to direct.
+      } else {
+        if (search.status === 401) {
+          console.warn('[mensagens] GHL search 401 — PIT missing scopes; falling back to direct.');
+        } else {
+          console.warn('[mensagens] GHL search failed, falling back to direct:', search.error);
+        }
+      }
+    }
+
+    // ── Fallback: direct per-channel paths ───────────────────────────────
     if (channel === 'WHATSAPP') {
       if (!conversation.contactPhone) {
         return res.status(400).json({ error: 'Contato sem telefone WhatsApp' });
@@ -312,7 +380,8 @@ router.post('/:id/mensagens', requireStaff, async (req, res) => {
         signature: staff?.emailSignature,
       });
     } else {
-      return res.status(400).json({ error: 'Canal inválido' });
+      // FACEBOOK / GBP have no direct path — they only work through GHL.
+      return res.status(400).json({ error: `Canal ${channel} requer GHL Conversations API ativo` });
     }
 
     // Store message

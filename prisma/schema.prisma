@@ -691,6 +691,10 @@ model InboxMessage {
   isAiAgent      Boolean     @default(false)
   sentAt         DateTime    @default(now())
   readAt         DateTime?
+  // GHL conversation message ID — used by the GHL Conversations poll to
+  // dedup mirrors (idempotent on re-runs) and by the staff-send path so a
+  // freshly-sent OUTBOUND message is not re-mirrored on the next poll.
+  ghlMessageId   String?     @unique
 
   @@index([conversationId, sentAt])
 }
