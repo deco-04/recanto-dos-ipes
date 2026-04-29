@@ -703,6 +703,8 @@ enum MsgDirection {
 enum MsgChannel {
   WHATSAPP
   INSTAGRAM
+  FACEBOOK
+  GBP
   EMAIL
 }
 

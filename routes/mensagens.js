@@ -410,7 +410,14 @@ router.post('/ghl-message', async (req, res) => {
   }
 
   // Reject stale webhooks (> 5 minutes old) to prevent replay attacks
-  const { phone, contactName, contactEmail, avatarUrl, body, channel, sentAt } = req.body;
+  const {
+    phone, contactName, contactEmail, avatarUrl, body, channel, sentAt,
+    // GHL hub mirror — when an AI agent or human staff replies inside GHL,
+    // we mirror that as an OUTBOUND message in our inbox so the admin UI
+    // shows the full conversation thread without needing to open GHL.
+    direction = 'INBOUND',
+    isAiAgent = false,
+  } = req.body;
   if (sentAt) {
     const age = Date.now() - new Date(sentAt).getTime();
     if (age > 5 * 60 * 1000) {
@@ -420,10 +427,14 @@ router.post('/ghl-message', async (req, res) => {
   if (!body || !channel) {
     return res.status(400).json({ error: 'body and channel required' });
   }
+  if (!['INBOUND', 'OUTBOUND'].includes(direction)) {
+    return res.status(400).json({ error: 'direction must be INBOUND or OUTBOUND' });
+  }
 
-  // Only WHATSAPP and INSTAGRAM are stored in the inbox.
-  // EMAIL, CHAT WIDGET, OTHER are valid GHL channels but not handled here — ack and skip.
-  const inboxChannels = ['WHATSAPP', 'INSTAGRAM'];
+  // Channels stored in the inbox. Extended for the GHL conversation hub:
+  // WhatsApp + Instagram + Facebook DM + Google Business Profile messaging.
+  // EMAIL / CHAT WIDGET / OTHER stay out of the inbox (handled elsewhere).
+  const inboxChannels = ['WHATSAPP', 'INSTAGRAM', 'FACEBOOK', 'GBP'];
   if (!inboxChannels.includes(channel)) {
     return res.json({ ok: true, skipped: true, reason: `channel ${channel} not handled by inbox` });
   }
@@ -448,6 +459,10 @@ router.post('/ghl-message', async (req, res) => {
       },
     });
 
+    // INBOUND increments unread (admin needs to read it); OUTBOUND doesn't
+    // (it's an AI/staff message LEAVING us — admin already saw the prompt).
+    const isInbound = direction === 'INBOUND';
+
     if (!conversation) {
       conversation = await prisma.conversation.create({
         data: {
@@ -457,7 +472,7 @@ router.post('/ghl-message', async (req, res) => {
           contactEmail:  contactEmail || null,
           avatarUrl:     avatarUrl    || null,
           lastMessageAt: new Date(),
-          unreadCount:   1,
+          unreadCount:   isInbound ? 1 : 0,
         },
       });
     } else {
@@ -465,32 +480,46 @@ router.post('/ghl-message', async (req, res) => {
         where: { id: conversation.id },
         data: {
           lastMessageAt: new Date(),
-          unreadCount:   { increment: 1 },
+          ...(isInbound ? { unreadCount: { increment: 1 } } : {}),
           avatarUrl:     avatarUrl || conversation.avatarUrl,
         },
       });
     }
 
-    // Store message
+    // Store message — direction + isAiAgent come from the GHL payload so
+    // we can faithfully mirror what GHL's conversation log shows.
     await prisma.inboxMessage.create({
       data: {
         conversationId: conversation.id,
-        direction:      'INBOUND',
+        direction,
         channel,
         body,
-        sentAt:         sentAt ? new Date(sentAt) : new Date(),
+        isAiAgent: Boolean(isAiAgent),
+        sentAt: sentAt ? new Date(sentAt) : new Date(),
       },
     });
 
-    // Smart-reply: non-blocking AI FAQ bot. Won't delay the webhook ack;
-    // gated by Property.smartReplyEnabled (default false). See lib/smart-reply.js.
-    require('../lib/smart-reply').maybeAutoReply({
-      conversation,
-      inboundMessage: { body, channel },
-      property,
-    }).catch(e => console.error('[smart-reply] error:', e.message));
+    // Smart-reply (legacy local FAQ bot): only fires for INBOUND when the
+    // property has explicitly opted in. With GHL conversation-hub agents
+    // active (the canonical path for AI replies), every property should
+    // have smartReplyEnabled=false to avoid duplicate replies. The hook
+    // stays in place as a fallback if you ever turn it on per-property.
+    if (isInbound) {
+      require('../lib/smart-reply').maybeAutoReply({
+        conversation,
+        inboundMessage: { body, channel },
+        property,
+      }).catch(e => console.error('[smart-reply] error:', e.message));
+    }
 
-    // Push to ADMIN (only staff with inboxPushEnabled). We can't filter
+    // Push to ADMIN — only on INBOUND. OUTBOUND is just a mirror of what
+    // GHL's AI agent (or human staff in GHL) already sent; admins don't
+    // need a "new message" notification for their own outgoing reply.
+    if (!isInbound) {
+      return res.json({ ok: true, conversationId: conversation.id, mirrored: 'OUTBOUND' });
+    }
+
+    // Only staff with inboxPushEnabled. We can't filter
     // `pushSubscription IS NOT NULL` directly on Json? fields in newer Prisma
     // versions — sendPushToStaff guards internally and skips rows without
     // a subscription, so the in-memory filter below is enough.
