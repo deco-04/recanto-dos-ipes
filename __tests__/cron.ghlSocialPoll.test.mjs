@@ -90,7 +90,10 @@ describe('cron · GHL social poll · pollGhlSocialPost', () => {
     expect(stubs.ghlSocial.getPostStatus).toHaveBeenCalledWith('ghl_abc');
     expect(stubs.prismaClient.contentPost.update).toHaveBeenCalledTimes(1);
     const callArg = stubs.prismaClient.contentPost.update.mock.calls[0][0];
-    expect(callArg.where).toEqual({ id: 'post_1' });
+    // Race idempotency: where-clause includes stage='AGENDADO' so a webhook
+    // that already flipped to PUBLICADO between findMany and this update
+    // makes the call a no-op (P2025) — see "P2025 race" test.
+    expect(callArg.where).toEqual({ id: 'post_1', stage: 'AGENDADO' });
     expect(callArg.data.stage).toBe('PUBLICADO');
     expect(callArg.data.publishedAt).toBe(publishedAt);
     expect(stubs.pushBlogPostToRds).toHaveBeenCalledTimes(1);
@@ -139,6 +142,27 @@ describe('cron · GHL social poll · pollGhlSocialPost', () => {
     expect(stamped).toBeInstanceOf(Date);
     expect(stamped.getTime()).toBeGreaterThanOrEqual(before);
     expect(stamped.getTime()).toBeLessThanOrEqual(after);
+  });
+
+  it('P2025 race → webhook already won, treat as success (alreadyPublished)', async () => {
+    stubs.ghlSocial.getPostStatus = vi.fn(async () => ({
+      status: 'PUBLISHED',
+      publishedAt: new Date(),
+      raw: { status: 'PUBLISHED' },
+    }));
+    // Prisma returns P2025 when the where clause excludes the row — happens
+    // when the webhook flipped stage→PUBLICADO between findMany + this update.
+    const p2025 = Object.assign(new Error('Record to update not found.'), { code: 'P2025' });
+    stubs.prismaClient.contentPost.update = vi.fn(async () => { throw p2025; });
+
+    const result = await pollGhlSocialPost(basePost, stubs);
+
+    expect(result.transitioned).toBe(false);
+    expect(result.alreadyPublished).toBe(true);
+    expect(result.error).toBeUndefined();
+    // Should NOT trigger pushBlogPostToRds — webhook handler already did the
+    // RDS sync (or chose not to).
+    expect(stubs.pushBlogPostToRds).not.toHaveBeenCalled();
   });
 
   it('SCHEDULED → no-op (returns transitioned:false, no DB write)', async () => {
