@@ -140,6 +140,12 @@ function postJson(urlPath, body, headers = {}) {
 describe('POST /api/staff/conversas/:id/mensagens — GHL hub routing', () => {
   beforeEach(async () => {
     Object.values(stubs).forEach(fn => fn.mockReset());
+    // Tests in this suite exercise the direct WhatsApp fallback path.
+    // The route now refuses to fall through if WHATSAPP_PHONE_NUMBER_ID
+    // is unset (returns 502 with a clear message instead of stack-tracing
+    // on the missing env var). For the legacy direct-path scenarios to
+    // remain testable, set a fake phone-number-id here.
+    process.env.WHATSAPP_PHONE_NUMBER_ID = 'test_wa_phone_id';
 
     stubs.staffMemberFindUnique.mockImplementation(async ({ select }) => {
       if (select?.role) {
@@ -165,6 +171,7 @@ describe('POST /api/staff/conversas/:id/mensagens — GHL hub routing', () => {
 
   afterEach(() => {
     delete process.env.GHL_API_KEY;
+    delete process.env.WHATSAPP_PHONE_NUMBER_ID;
   });
 
   it('GHL_API_KEY unset → falls through to direct WhatsApp path (no GHL search)', async () => {
@@ -244,5 +251,28 @@ describe('POST /api/staff/conversas/:id/mensagens — GHL hub routing', () => {
     expect(r.status).toBe(200);
     expect(stubs.ghlSend).not.toHaveBeenCalled();
     expect(stubs.whatsappSendText).toHaveBeenCalled();
+  });
+
+  it('GHL miss + WHATSAPP_PHONE_NUMBER_ID unset → 502 with useful error (no stack-trace toast)', async () => {
+    // RDI's deployment migrated WhatsApp to GHL and unset the direct-Meta
+    // env var. Before this guard, the GHL miss would fall through to
+    // sendText() which throws "WHATSAPP_PHONE_NUMBER_ID not configured"
+    // and surfaces a stack trace toast in the staff app. Now we 502 with
+    // a Portuguese message the staff can act on.
+    process.env.GHL_API_KEY = 'pit_test';
+    delete process.env.WHATSAPP_PHONE_NUMBER_ID;
+    stubs.ghlSearch.mockResolvedValue({
+      ok: true,
+      conversations: [{ id: 'ghl_other', phone: '+5511555555555' }],
+    });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const r = await postJson('/api/staff/conversas/conv_1/mensagens', {
+      channel: 'WHATSAPP',
+      body:    'no match no fallback',
+    });
+    expect(r.status).toBe(502);
+    expect(r.body.code).toBe('GHL_LOOKUP_FAILED_NO_DIRECT_FALLBACK');
+    expect(stubs.whatsappSendText).not.toHaveBeenCalled();
   });
 });

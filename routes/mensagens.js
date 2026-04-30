@@ -95,11 +95,25 @@ function extractGhlMessagePayload(reqBody) {
     if (Number.isNaN(d.getTime()) || d.getUTCFullYear() < 2024) sentAt = null;
   }
 
+  // Channel default: when we have a real body but cannot normalize the
+  // channel string (e.g. GHL contact's "Last Message Channel" field returns
+  // a numeric ID like "19", or the workflow was reconfigured to drop
+  // customData), default to WHATSAPP — that's the dominant channel for
+  // this property and a wrong-default is much less bad than silently
+  // dropping legitimate inbound messages on the floor.
+  let channel = normalizeGhlChannel(rawChannel);
+  let channelDefaulted = false;
+  if (!channel && body) {
+    channel = 'WHATSAPP';
+    channelDefaulted = true;
+  }
+
   return {
     phone, contactName, contactEmail, avatarUrl,
     body,
-    channel: normalizeGhlChannel(rawChannel),
+    channel,
     rawChannel,
+    channelDefaulted,
     direction,
     isAiAgent: Boolean(isAiAgent),
     sentAt,
@@ -396,6 +410,13 @@ router.post('/:id/mensagens', requireStaff, async (req, res) => {
           const remoteTail = String(g.phone || '').replace(/\D/g, '').slice(-11);
           return remoteTail && remoteTail === localTail;
         });
+        // Diagnostic: when the GHL match fails the staff send falls through
+        // to direct WA, which on RDI throws WHATSAPP_PHONE_NUMBER_ID since
+        // the property migrated to GHL. Log enough to debug WHY without
+        // dumping every phone in the location to the logs.
+        if (!ghlConvObj?.id) {
+          console.warn(`[mensagens] GHL match miss — local phone=${conversation.contactPhone} (tail=${localTail}), GHL search returned ${search.conversations?.length || 0} convs, sample phones: ${(search.conversations || []).slice(0, 3).map(g => g.phone).join(', ') || '(none)'}`);
+        }
         if (ghlConvObj?.id) {
           const ghlType =
             channel === 'WHATSAPP'  ? 'WhatsApp' :
@@ -447,6 +468,17 @@ router.post('/:id/mensagens', requireStaff, async (req, res) => {
     if (channel === 'WHATSAPP') {
       if (!conversation.contactPhone) {
         return res.status(400).json({ error: 'Contato sem telefone WhatsApp' });
+      }
+      // RDI has migrated WhatsApp into GHL — there's no longer a working
+      // direct Meta Cloud API path (WHATSAPP_PHONE_NUMBER_ID is unset).
+      // If we got here, the GHL lookup above didn't find the conversation.
+      // Surface a useful error instead of crashing on the missing env var,
+      // and avoid the stack-trace toast in the staff app.
+      if (!process.env.WHATSAPP_PHONE_NUMBER_ID) {
+        return res.status(502).json({
+          error: 'Não foi possível enviar via GHL e o caminho direto WhatsApp não está configurado. Verifique se a conversa existe no GHL desta location.',
+          code: 'GHL_LOOKUP_FAILED_NO_DIRECT_FALLBACK',
+        });
       }
       await sendWhatsAppDirect(conversation.contactPhone, body);
 
@@ -572,9 +604,17 @@ router.post('/ghl-message', async (req, res) => {
   // Webhook actions emit. See extractGhlMessagePayload() above for details.
   const {
     phone, contactName, contactEmail, avatarUrl,
-    body, channel, rawChannel,
+    body, channel, rawChannel, channelDefaulted,
     direction, isAiAgent, sentAt,
   } = extractGhlMessagePayload(req.body);
+
+  // If we had to default the channel because the workflow's mapping
+  // returned a non-normalizable value, surface it in the logs so the
+  // misconfiguration is visible without breaking real traffic.
+  if (channelDefaulted) {
+    console.warn('[mensagens] ghl-message channel defaulted → WHATSAPP. rawChannel was:',
+      JSON.stringify(rawChannel), '— consider hardcoding `channel: WHATSAPP` in the workflow customData.');
+  }
 
   if (sentAt) {
     // Replay window — needs to be wide enough to absorb normal GHL workflow

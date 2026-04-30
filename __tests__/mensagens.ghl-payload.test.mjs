@@ -150,15 +150,33 @@ describe('extractGhlMessagePayload — flat shape (curl/test smoke posts)', () =
   });
 });
 
-describe('extractGhlMessagePayload — failure modes that should still fail', () => {
+describe('extractGhlMessagePayload — failure modes + defaulting', () => {
   it('returns null body when no source has it', () => {
     const got = extractGhlMessagePayload({ customData: { channel: 'WhatsApp' } });
     expect(got.body).toBeNull();
     expect(got.channel).toBe('WHATSAPP');
+    expect(got.channelDefaulted).toBe(false);
   });
-  it('returns null channel when nothing identifies the channel', () => {
-    const got = extractGhlMessagePayload({ customData: { body: 'oi' } });
+
+  it('defaults channel to WHATSAPP when body is present but rawChannel is unparseable (e.g. numeric ID "19" from contact custom field)', () => {
+    // Real-world failure mode captured from production: GHL contact's
+    // "Last Message Channel" custom field returned numeric "19", which
+    // doesn't normalize. Without this default, legitimate inbound WAs
+    // got dropped on the floor with "channel required".
+    const got = extractGhlMessagePayload({
+      'Last Message Channel': '19',
+      message: 'Test',
+    });
+    expect(got.body).toBe('Test');
+    expect(got.channel).toBe('WHATSAPP');
+    expect(got.channelDefaulted).toBe(true);
+    expect(got.rawChannel).toBe('19');
+  });
+
+  it('does NOT default channel when body is also missing — both fields stay null', () => {
+    const got = extractGhlMessagePayload({});
+    expect(got.body).toBeNull();
     expect(got.channel).toBeNull();
-    expect(got.body).toBe('oi');
+    expect(got.channelDefaulted).toBe(false);
   });
 });
