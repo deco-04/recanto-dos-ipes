@@ -157,8 +157,12 @@ function serializeMessage(m) {
 // ── GET /unread-count — total unread across all conversations ────────
 router.get('/unread-count', requireStaff, async (req, res) => {
   try {
+    // Soft-deleted conversations stay on disk for audit/recovery, but their
+    // unread counts must not bleed into the badge — that would let staff
+    // "delete" a thread to clear the unread number, defeating the point.
     const result = await prisma.conversation.aggregate({
-      _sum: { unreadCount: true },
+      where: { status: { not: 'DELETED' } },
+      _sum:  { unreadCount: true },
     });
     res.json({ count: result._sum.unreadCount ?? 0 });
   } catch (err) {
@@ -179,11 +183,15 @@ router.get('/', requireStaff, async (req, res) => {
     if (channel && channel !== 'ALL') {
       where.messages = { some: { channel } };
     }
-    // status filter: 'OPEN' | 'RESOLVED' — defaults to OPEN when not supplied
+    // status filter: 'OPEN' | 'RESOLVED' | 'DELETED' (explicit recovery view)
+    // | 'ALL' (everything except DELETED). Defaults to OPEN.
     if (status && status !== 'ALL') {
       where.status = status;
     } else if (!status) {
       where.status = 'OPEN';
+    } else {
+      // status === 'ALL' — show open + resolved, hide soft-deleted threads
+      where.status = { not: 'DELETED' };
     }
     if (q && q.trim()) {
       const search = q.trim();
@@ -604,6 +612,33 @@ router.patch('/:id/status', requireStaff, async (req, res) => {
   } catch (err) {
     console.error('[mensagens] PATCH status error:', err);
     res.status(500).json({ error: 'Erro ao atualizar status' });
+  }
+});
+
+// ── DELETE /:id — soft-delete a conversation ─────────────────────────────────
+// We don't drop rows from disk — staff might delete by accident, and audit
+// trails matter for guest-facing comms. The conversation is hidden from
+// listings (GET / filter, unread-count aggregate) by switching its status
+// to DELETED. Restoring is just a PATCH /:id/status back to OPEN.
+//
+// Cascade is implicit: InboxMessage rows stay attached to the conversation
+// and are equally invisible because they're loaded via the conversation.
+// If we ever need true purge for compliance, we'll add a separate sweep.
+router.delete('/:id', requireStaff, async (req, res) => {
+  try {
+    const conversation = await prisma.conversation.update({
+      where: { id: req.params.id },
+      data:  { status: 'DELETED' },
+      select: { id: true, status: true },
+    });
+    res.json({ ok: true, id: conversation.id, status: conversation.status });
+  } catch (err) {
+    if (err?.code === 'P2025') {
+      // Prisma "Record to update not found" — conversation already gone or wrong id
+      return res.status(404).json({ error: 'Conversa não encontrada' });
+    }
+    console.error('[mensagens] DELETE /:id error:', err);
+    res.status(500).json({ error: 'Erro ao excluir conversa' });
   }
 });
 

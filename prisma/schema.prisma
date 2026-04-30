@@ -676,6 +676,7 @@ model Conversation {
 enum ConversationStatus {
   OPEN
   RESOLVED
+  DELETED
 }
 
 model InboxMessage {
