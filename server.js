@@ -285,6 +285,10 @@ function staffCors(req, res, next) {
 }
 
 // ── API routes ────────────────────────────────────────────────────────────────
+// Health check — public, mounted first so it stays reachable even if a later
+// route module fails to load. Used by Railway, uptime monitors, and the
+// admin app's "Sistemas" widget.
+app.use('/api/health',      require('./routes/health'));
 app.use('/api/auth',        require('./routes/auth'));
 app.use('/api/bookings',   require('./routes/bookings'));
 app.use('/api/pricing',    require('./routes/pricing'));
