@@ -127,23 +127,49 @@ function looksLikePlaceholder(name) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+function readStdin() {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data',  chunk => { data += chunk; });
+    process.stdin.on('end',   ()    => resolve(data));
+    process.stdin.on('error', reject);
+  });
+}
+
 async function main() {
   const args     = process.argv.slice(2);
   const csvPath  = args.find(a => !a.startsWith('--'));
   const commit   = args.includes('--commit');
 
   if (!csvPath) {
-    console.error('Usage: node scripts/import-airbnb-financial-csv.js <path-to-csv> [--commit]');
-    process.exit(1);
-  }
-  const absCsv = path.resolve(csvPath);
-  if (!fs.existsSync(absCsv)) {
-    console.error(`[import-airbnb] CSV not found: ${absCsv}`);
+    console.error('Usage:');
+    console.error('  node scripts/import-airbnb-financial-csv.js <path-to-csv> [--commit]');
+    console.error('  node scripts/import-airbnb-financial-csv.js - [--commit]   # read from stdin');
     process.exit(1);
   }
 
-  console.log(`[import-airbnb] Reading: ${absCsv}`);
-  const text = fs.readFileSync(absCsv, 'utf8');
+  // The "-" sentinel reads the CSV from stdin so the importer can run
+  // INSIDE a Railway container (where postgres.railway.internal resolves)
+  // while the CSV file lives only on the operator's local machine. Pipe:
+  //   cat path/to.csv | railway ssh -s recanto-dos-ipes node scripts/import-airbnb-financial-csv.js -
+  let text;
+  if (csvPath === '-') {
+    console.log('[import-airbnb] Reading CSV from stdin…');
+    text = await readStdin();
+    if (!text) {
+      console.error('[import-airbnb] stdin was empty — pipe the CSV file in');
+      process.exit(1);
+    }
+  } else {
+    const absCsv = path.resolve(csvPath);
+    if (!fs.existsSync(absCsv)) {
+      console.error(`[import-airbnb] CSV not found: ${absCsv}`);
+      process.exit(1);
+    }
+    console.log(`[import-airbnb] Reading: ${absCsv}`);
+    text = fs.readFileSync(absCsv, 'utf8');
+  }
   const rows = parseCsv(text);
   const reservations = rows.filter(r => r.Type === 'Reservation');
 
