@@ -7,6 +7,12 @@ const session     = require('express-session');
 const PgSession   = require('connect-pg-simple')(session);
 const passport    = require('passport');
 
+// Initialize Sentry FIRST — must happen before any route handlers register
+// so its instrumentation can attach. No-op when SENTRY_DSN is unset, so
+// dev / Railway-without-Sentry deployments are unaffected.
+const { initSentry, expressErrorHandler: sentryErrorHandler } = require('./lib/observability/sentry');
+initSentry();
+
 const app  = express();
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -869,6 +875,11 @@ app.use((req, res, next) => {
   }
   res.sendFile(path.join(ROOT, 'index.html'));
 });
+
+// Sentry error handler — runs BEFORE the JSON 500 below so unhandled
+// exceptions get captured with route/method/staffId tags. No-op when
+// SENTRY_DSN is unset (initSentry() above logs the disabled state).
+app.use(sentryErrorHandler());
 
 // ── Global error handler ──────────────────────────────────────────────────────
 // Logs full error server-side; never exposes internal details to the client.
