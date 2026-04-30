@@ -4368,90 +4368,137 @@ router.get('/dashboard-summary', requireRole('ADMIN'), async (req, res) => {
       checkInsProximos7d:  forecastBookings.filter(b => new Date(b.checkIn) <= in7Days).length,
     };
 
-    // ── Per-property breakdown (only meaningful in ALL scope).
-    // Single-prop callers already have their numbers via /financeiro; there's
-    // nothing to compare against, so we skip the work and return [].
+    // ── MTD rollup: shared by per-property (Visão Geral) and single-scope
+    //   so admin home shows despesas regardless of property selection.
+    //   Sprint 3 E1 (2026-04-30): despesasMes now bundles both:
+    //     1. Operating expenses (Expense model — manual + bank import)
+    //     2. Platform fees (Booking.airbnbHostFee + .commissionAmount)
+    //   Pre-this-PR, only #1 was counted, so margin was optimistic by ~5%
+    //   on every OTA booking.
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const totalDias  = monthEnd.getDate();
+
+    async function computeMtdRollup(propertyId) {
+      const [mtdBookings, upsells, expenses, monthBookings, hospedadosAgora, cabinCount] = await Promise.all([
+        prisma.booking.findMany({
+          where: { propertyId, status: REVENUE_STATUS, checkIn: { gte: monthStart, lte: monthEnd } },
+          // hostFee + commissionAmount: OTA-side platform fees (real data
+          // since the 2026-04-30 Airbnb CSV backfill).
+          select: { totalAmount: true, isInvoiceAggregate: true, airbnbHostFee: true, commissionAmount: true },
+        }),
+        prisma.bookingUpsell.findMany({
+          where: { booking: { propertyId, status: REVENUE_STATUS, checkIn: { gte: monthStart, lte: monthEnd } } },
+          select: { amount: true },
+        }),
+        prisma.expense.findMany({
+          where: { propertyId, date: { gte: monthStart, lte: monthEnd } },
+          select: { amount: true },
+        }),
+        prisma.booking.findMany({
+          where: {
+            propertyId, status: REVENUE_STATUS,
+            isInvoiceAggregate: false,
+            checkIn: { gte: monthStart, lte: monthEnd },
+          },
+          select: { checkIn: true, checkOut: true },
+        }),
+        prisma.booking.count({
+          where: {
+            propertyId,
+            status:     { in: ['CONFIRMED', 'PENDING'] },
+            isInvoiceAggregate: false,
+            checkIn:    { lte: now },
+            checkOut:   { gt: now },
+          },
+        }),
+        prisma.cabin.count({ where: { propertyId } }),
+      ]);
+
+      const receitaBase          = mtdBookings.reduce((s, b) => s + parseFloat(b.totalAmount?.toString() || '0'), 0);
+      const upsellTot            = upsells.reduce((s, u) => s + parseFloat(u.amount?.toString() || '0'), 0);
+      const receitaMes           = receitaBase + upsellTot;
+      const despesasOperacionais = expenses.reduce((s, e) => s + parseFloat(e.amount?.toString() || '0'), 0);
+      // Direct bookings have neither hostFee nor commissionAmount — the
+      // optional-chained `.toString()` keeps each addend at 0.
+      const plataformaFees       = mtdBookings.reduce(
+        (s, b) =>
+          s +
+          parseFloat(b.airbnbHostFee?.toString()    || '0') +
+          parseFloat(b.commissionAmount?.toString() || '0'),
+        0,
+      );
+      const despesasMes = despesasOperacionais + plataformaFees;
+      const resultado   = receitaMes - despesasMes;
+      const margemPct   = receitaMes > 0 ? Math.round((resultado / receitaMes) * 1000) / 10 : 0;
+
+      // Distinct-day occupancy — same formula as /financeiro so the numbers
+      // match when the admin drills into a property from the Visão Geral row.
+      const occupiedDays = new Set();
+      for (const b of monthBookings) {
+        const cur = new Date(b.checkIn);
+        while (cur < new Date(b.checkOut)) {
+          const d = cur.toISOString().split('T')[0];
+          if (cur >= monthStart && cur <= monthEnd) occupiedDays.add(d);
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+      const ocupacaoMesPct = cabinCount > 0 && totalDias > 0
+        ? Math.round((occupiedDays.size / totalDias) * 1000) / 10
+        : 0;
+
+      return {
+        receitaMes, despesasOperacionais, plataformaFees, despesasMes,
+        resultado, margemPct, ocupacaoMesPct, hospedadosAgora, cabinCount,
+      };
+    }
+
+    // ── Per-property breakdown (Visão Geral). Each row uses the rollup helper.
     let perProperty = [];
     if (isAllScope) {
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-      const totalDias  = monthEnd.getDate();
-
       perProperty = await Promise.all(properties.map(async (p) => {
-        const [mtdBookings, upsells, expenses, monthBookings, hospedadosAgora, cabinCount] = await Promise.all([
-          prisma.booking.findMany({
-            where: { propertyId: p.id, status: REVENUE_STATUS, checkIn: { gte: monthStart, lte: monthEnd } },
-            select: { totalAmount: true, isInvoiceAggregate: true },
-          }),
-          prisma.bookingUpsell.findMany({
-            where: { booking: { propertyId: p.id, status: REVENUE_STATUS, checkIn: { gte: monthStart, lte: monthEnd } } },
-            select: { amount: true },
-          }),
-          prisma.expense.findMany({
-            where: { propertyId: p.id, date: { gte: monthStart, lte: monthEnd } },
-            select: { amount: true },
-          }),
-          prisma.booking.findMany({
-            where: {
-              propertyId: p.id, status: REVENUE_STATUS,
-              isInvoiceAggregate: false,
-              checkIn: { gte: monthStart, lte: monthEnd },
-            },
-            select: { checkIn: true, checkOut: true },
-          }),
-          prisma.booking.count({
-            where: {
-              propertyId: p.id,
-              status:     { in: ['CONFIRMED', 'PENDING'] },
-              isInvoiceAggregate: false,
-              checkIn:    { lte: now },
-              checkOut:   { gt: now },
-            },
-          }),
-          prisma.cabin.count({ where: { propertyId: p.id } }),
-        ]);
-
-        const receitaBase = mtdBookings.reduce((s, b) => s + parseFloat(b.totalAmount?.toString() || '0'), 0);
-        const upsellTot   = upsells.reduce((s, u) => s + parseFloat(u.amount?.toString() || '0'), 0);
-        const receitaMes  = receitaBase + upsellTot;
-        const despesasMes = expenses.reduce((s, e) => s + parseFloat(e.amount?.toString() || '0'), 0);
-        const resultado   = receitaMes - despesasMes;
-        const margemPct   = receitaMes > 0 ? Math.round((resultado / receitaMes) * 1000) / 10 : 0;
-
-        // Distinct-day occupancy — same formula as /financeiro so the numbers
-        // match when the admin drills into a property from the Visão Geral row.
-        const occupiedDays = new Set();
-        for (const b of monthBookings) {
-          const cur = new Date(b.checkIn);
-          while (cur < new Date(b.checkOut)) {
-            const d = cur.toISOString().split('T')[0];
-            if (cur >= monthStart && cur <= monthEnd) occupiedDays.add(d);
-            cur.setDate(cur.getDate() + 1);
-          }
-        }
-        const ocupacaoMesPct = cabinCount > 0 && totalDias > 0
-          ? Math.round((occupiedDays.size / totalDias) * 1000) / 10
-          : 0;
-
+        const r = await computeMtdRollup(p.id);
         return {
-          id:                p.id,
-          slug:              p.slug,
-          name:              p.name,
-          receitaBrutaMes:   receitaMes,
-          despesasMes,
-          resultadoLiquidoMes: resultado,
-          margemPct,
-          ocupacaoMesPct,
-          hospedadosAgora,
-          cabinCount,
+          id:                  p.id,
+          slug:                p.slug,
+          name:                p.name,
+          receitaBrutaMes:     r.receitaMes,
+          despesasMes:         r.despesasMes,
+          despesasOperacionais: r.despesasOperacionais,
+          plataformaFees:      r.plataformaFees,
+          resultadoLiquidoMes: r.resultado,
+          margemPct:           r.margemPct,
+          ocupacaoMesPct:      r.ocupacaoMesPct,
+          hospedadosAgora:     r.hospedadosAgora,
+          cabinCount:          r.cabinCount,
         };
       }));
+    }
+
+    // ── Single-property block (Sprint 3 E1).
+    // When the admin views a specific property (not Visão Geral), surface
+    // the same MTD numbers at the top level so the hero card has data.
+    let single = null;
+    if (!isAllScope && properties[0]) {
+      const r = await computeMtdRollup(properties[0].id);
+      single = {
+        propertyId:           properties[0].id,
+        receitaMes:           r.receitaMes,
+        despesasMes:          r.despesasMes,
+        despesasOperacionais: r.despesasOperacionais,
+        plataformaFees:       r.plataformaFees,
+        resultadoLiquidoMes:  r.resultado,
+        margemPct:            r.margemPct,
+        ocupacaoMesPct:       r.ocupacaoMesPct,
+        hospedadosAgora:      r.hospedadosAgora,
+      };
     }
 
     res.json({
       attention,
       forecast30d,
       perProperty,
+      single,
       scope: isAllScope ? 'ALL' : 'SINGLE',
     });
   } catch (err) {
