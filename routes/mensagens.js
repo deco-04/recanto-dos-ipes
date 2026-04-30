@@ -292,9 +292,61 @@ router.post('/', requireStaff, async (req, res) => {
     });
 
     // Send via the correct channel
+    // Track the GHL message id when the GHL hub path is used so we can
+    // dedup against the 2-min OUTBOUND mirror cron and so the InboxMessage
+    // row has a stable cross-system identifier.
+    let ghlMessageIdForFirstMsg = null;
+
     if (channel === 'WHATSAPP') {
       if (!conversation.contactPhone) return res.status(400).json({ error: 'Contato sem telefone WhatsApp' });
-      await sendWhatsAppDirect(conversation.contactPhone, body);
+
+      // Preferred path: upsert contact + send via GHL Conversations API.
+      // GHL accepts a regular text send to a brand-new contact (no existing
+      // conversation, no template required) when the WA number is hosted in
+      // GHL — verified by direct probe before this code shipped. The hosted
+      // setup handles Meta's 24h-window rules internally.
+      if (process.env.GHL_API_KEY) {
+        const [firstName = '', ...rest] = (conversation.contactName || '').split(' ');
+        const lastName = rest.join(' ').trim() || undefined;
+        const upsert = await ghlConv.upsertContact({
+          phone:     conversation.contactPhone,
+          firstName: firstName || undefined,
+          lastName,
+          email:     conversation.contactEmail || undefined,
+        });
+        if (!upsert.ok) {
+          console.warn('[mensagens] POST / GHL contact upsert failed:', upsert.status, upsert.error);
+          return res.status(502).json({
+            error: 'Não foi possível criar o contato no GHL. Verifique a configuração da integração.',
+            code:  'GHL_UPSERT_FAILED',
+          });
+        }
+        const sendResult = await ghlConv.sendMessage({
+          conversationId: undefined,           // GHL auto-creates from contactId
+          type:           'WhatsApp',
+          body,
+          contactId:      upsert.contactId,
+        });
+        if (!sendResult.ok) {
+          console.warn('[mensagens] POST / GHL WA send failed:', sendResult.status, sendResult.error);
+          return res.status(502).json({
+            error: 'Contato criado, mas falha ao enviar a primeira mensagem via WhatsApp. Tente novamente.',
+            code:  'GHL_SEND_FAILED',
+            ghlError: sendResult.error || null,
+          });
+        }
+        ghlMessageIdForFirstMsg = sendResult.messageId || null;
+      } else if (process.env.WHATSAPP_PHONE_NUMBER_ID) {
+        // Legacy direct Meta Cloud API path — only used when GHL_API_KEY is
+        // unset AND the Meta env vars are configured (development /
+        // pre-migration setups).
+        await sendWhatsAppDirect(conversation.contactPhone, body);
+      } else {
+        return res.status(502).json({
+          error: 'WhatsApp não está configurado: nem GHL nem Meta Cloud API estão disponíveis.',
+          code:  'NO_WA_BACKEND',
+        });
+      }
     } else if (channel === 'INSTAGRAM') {
       if (!conversation.contactInstagram) return res.status(400).json({ error: 'Contato sem Instagram vinculado' });
       await sendInstagramDM(conversation.contactInstagram, body, conversation.id);
@@ -319,6 +371,9 @@ router.post('/', requireStaff, async (req, res) => {
         body,
         sentAt:         new Date(),
         readAt:         new Date(),
+        // Stamp the GHL message id when the GHL path was used so the
+        // OUTBOUND mirror cron doesn't re-insert this same message.
+        ...(ghlMessageIdForFirstMsg ? { ghlMessageId: ghlMessageIdForFirstMsg } : {}),
       },
       include: { staff: { select: { name: true } } },
     });
