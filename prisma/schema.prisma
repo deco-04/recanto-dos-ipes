@@ -89,6 +89,15 @@ model Booking {
   externalId            String?       @unique  // iCal UID for OTA bookings (dedup)
   grossAmount           Decimal?      @db.Decimal(10, 2) // guest-facing total price before commission (OTA bookings)
   commissionAmount      Decimal?      @db.Decimal(10, 2) // actual platform commission charged to host
+  // Ground-truth financial fields populated from the Airbnb completed-bookings
+  // CSV via scripts/import-airbnb-financial-csv.js. Pre-2026-04-30, OTA
+  // bookings only carried our heuristic numbers from pricingConfig; these
+  // four columns capture what Airbnb actually charged + paid out, per booking.
+  actualCleaningFee     Decimal?      @db.Decimal(10, 2) // cleaning fee Airbnb actually billed (varies by date — was R$200/250/270 historically)
+  airbnbHostFee         Decimal?      @db.Decimal(10, 2) // host service fee Airbnb deducted from payout (~5%)
+  airbnbGuestFee        Decimal?      @db.Decimal(10, 2) // guest service fee Airbnb charged on top (when derivable from CSV)
+  actualPayout          Decimal?      @db.Decimal(10, 2) // net payout to host (gross + cleaning − host service fee)
+  airbnbReportedAt      DateTime?     // when this row was last refreshed from a CSV import (for staleness checks)
   isInvoiceAggregate    Boolean       @default(false)    // true for monthly payout-invoice placeholders (no individual guest data)
   otaTaskId             String?       // auto-created StaffTask ID for incomplete OTA bookings
   porteirSentAt         DateTime?     // when the guest list was sent to the porteiro
