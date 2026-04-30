@@ -639,14 +639,25 @@ router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
     const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
     const totalDias  = monthEnd.getDate();
 
+    // Revenue helper — for Airbnb, actualPayout (real net Airbnb paid us,
+    // backfilled from CSV 2026-04-30) is the correct revenue source.
+    // Booking.com / Direct: totalAmount is correct (already net of
+    // commission for OTA, full guest amount for direct). Falls back when
+    // actualPayout isn't populated (pre-backfill or never imported).
+    const revenueOf = (b) => {
+      const payout = parseFloat(b.actualPayout?.toString() || '0');
+      const total  = parseFloat(b.totalAmount?.toString()  || '0');
+      return payout > 0 ? payout : total;
+    };
+
     const [bookings, prevBookings, upsells, expenses] = await Promise.all([
       prisma.booking.findMany({
         where: { ...propertyScope, status: REVENUE_STATUS, checkIn: { gte: start, lte: end } },
-        select: { totalAmount: true, source: true, checkIn: true, checkOut: true, nights: true, isInvoiceAggregate: true },
+        select: { totalAmount: true, actualPayout: true, source: true, checkIn: true, checkOut: true, nights: true, isInvoiceAggregate: true },
       }),
       prisma.booking.findMany({
         where: { ...propertyScope, status: REVENUE_STATUS, checkIn: { gte: prevStart, lte: prevEnd } },
-        select: { totalAmount: true },
+        select: { totalAmount: true, actualPayout: true },
       }),
       // Include upsell revenue in faturamento
       prisma.bookingUpsell.findMany({
@@ -673,15 +684,15 @@ router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
     );
 
     const upsellRevenue = upsells.reduce((s, u) => s + parseFloat(u.amount.toString()), 0);
-    const faturamentoBase = bookings.reduce((s, b) => s + parseFloat(b.totalAmount?.toString() || '0'), 0);
+    const faturamentoBase = bookings.reduce((s, b) => s + revenueOf(b), 0);
     const faturamentoTotal = faturamentoBase + upsellRevenue;
-    const prevTotal = prevBookings.reduce((s, b) => s + parseFloat(b.totalAmount?.toString() || '0'), 0);
+    const prevTotal = prevBookings.reduce((s, b) => s + revenueOf(b), 0);
     const variacaoPct = prevTotal > 0 ? Math.round((faturamentoBase - prevTotal) / prevTotal * 1000) / 10 : null;
 
     const realBookings = bookings.filter(b => !b.isInvoiceAggregate);
     const qtdReservas = realBookings.length;
     const diariamedia = qtdReservas > 0
-      ? realBookings.reduce((s, b) => s + parseFloat(b.totalAmount?.toString() || '0') / Math.max(b.nights || 1, 1), 0) / qtdReservas
+      ? realBookings.reduce((s, b) => s + revenueOf(b) / Math.max(b.nights || 1, 1), 0) / qtdReservas
       : 0;
     const ticketMedio = qtdReservas > 0 ? faturamentoTotal / qtdReservas : 0;
 
@@ -706,7 +717,7 @@ router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
     for (const b of bookings) {
       const src = b.source || 'DIRECT';
       if (!sourceMap[src]) sourceMap[src] = { total: 0, qtd: 0 };
-      sourceMap[src].total += parseFloat(b.totalAmount?.toString() || '0');
+      sourceMap[src].total += revenueOf(b);
       sourceMap[src].qtd += 1;
     }
     const porOrigem = Object.entries(sourceMap).map(([origem, data]) => ({
@@ -717,7 +728,7 @@ router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
     const histStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
     const histBookings = await prisma.booking.findMany({
       where: { ...propertyScope, status: REVENUE_STATUS, checkIn: { gte: histStart, lte: monthEnd } },
-      select: { totalAmount: true, checkIn: true },
+      select: { totalAmount: true, actualPayout: true, checkIn: true },
     });
     const monthMap = {};
     for (let i = 5; i >= 0; i--) {
@@ -730,7 +741,7 @@ router.get('/financeiro', requireRole('ADMIN'), async (req, res) => {
     for (const b of histBookings) {
       const d = new Date(b.checkIn);
       const key = `${d.getFullYear()}-${d.getMonth()}`;
-      if (monthMap[key]) monthMap[key].total += parseFloat(b.totalAmount?.toString() || '0');
+      if (monthMap[key]) monthMap[key].total += revenueOf(b);
     }
     const porMes = Object.values(monthMap);
 
@@ -4383,9 +4394,16 @@ router.get('/dashboard-summary', requireRole('ADMIN'), async (req, res) => {
       const [mtdBookings, upsells, expenses, monthBookings, hospedadosAgora, cabinCount] = await Promise.all([
         prisma.booking.findMany({
           where: { propertyId, status: REVENUE_STATUS, checkIn: { gte: monthStart, lte: monthEnd } },
-          // hostFee + commissionAmount: OTA-side platform fees (real data
-          // since the 2026-04-30 Airbnb CSV backfill).
-          select: { totalAmount: true, isInvoiceAggregate: true, airbnbHostFee: true, commissionAmount: true },
+          // actualPayout: real Airbnb host net (from 2026-04-30 CSV backfill)
+          // hostFee + commissionAmount: OTA platform fees — INFORMATIONAL only.
+          //   They're already deducted from actualPayout (Airbnb) and from
+          //   totalAmount (Booking.com — see ReservaDetail's auto-fill at
+          //   line 92: totalAmount = grossAmount - commissionAmount). Adding
+          //   them to despesas would double-count.
+          select: {
+            totalAmount: true, actualPayout: true, source: true,
+            isInvoiceAggregate: true, airbnbHostFee: true, commissionAmount: true,
+          },
         }),
         prisma.bookingUpsell.findMany({
           where: { booking: { propertyId, status: REVENUE_STATUS, checkIn: { gte: monthStart, lte: monthEnd } } },
@@ -4415,20 +4433,43 @@ router.get('/dashboard-summary', requireRole('ADMIN'), async (req, res) => {
         prisma.cabin.count({ where: { propertyId } }),
       ]);
 
-      const receitaBase          = mtdBookings.reduce((s, b) => s + parseFloat(b.totalAmount?.toString() || '0'), 0);
+      // Receita rules (revised 2026-04-30 after the platform-fee bug report):
+      //   Airbnb       → use actualPayout when available (= real net Airbnb
+      //                  paid the host, from the CSV backfill). Falls back
+      //                  to totalAmount when the CSV hasn't been imported
+      //                  for this booking yet.
+      //   Booking.com  → totalAmount is already gross − commissionAmount
+      //                  (see ReservaDetail.tsx auto-fill line 92).
+      //   Direct       → totalAmount is the full amount the guest paid us.
+      // In all three paths, the "revenue" number is what the host actually
+      // received — platform fees are already subtracted at the source.
+      const receitaBase = mtdBookings.reduce((s, b) => {
+        const payout = parseFloat(b.actualPayout?.toString() || '0');
+        const total  = parseFloat(b.totalAmount?.toString()  || '0');
+        // Use actualPayout when populated (>0), fall back to totalAmount.
+        return s + (payout > 0 ? payout : total);
+      }, 0);
       const upsellTot            = upsells.reduce((s, u) => s + parseFloat(u.amount?.toString() || '0'), 0);
       const receitaMes           = receitaBase + upsellTot;
       const despesasOperacionais = expenses.reduce((s, e) => s + parseFloat(e.amount?.toString() || '0'), 0);
-      // Direct bookings have neither hostFee nor commissionAmount — the
-      // optional-chained `.toString()` keeps each addend at 0.
-      const plataformaFees       = mtdBookings.reduce(
+
+      // Plataforma fees — INFORMATIONAL only. NOT added to despesasMes.
+      // They're already deducted from receitaMes via the actualPayout /
+      // net-of-commission convention above. Surfacing them lets the UI
+      // show "Plataforma R$Y já descontada da receita" so the owner sees
+      // platform cost without it being subtracted twice.
+      const plataformaFees = mtdBookings.reduce(
         (s, b) =>
           s +
           parseFloat(b.airbnbHostFee?.toString()    || '0') +
           parseFloat(b.commissionAmount?.toString() || '0'),
         0,
       );
-      const despesasMes = despesasOperacionais + plataformaFees;
+
+      // Despesas = operational only (Expense model). Platform fees stay
+      // out — they're a property of the gross-to-net conversion, not a
+      // separate cash expense.
+      const despesasMes = despesasOperacionais;
       const resultado   = receitaMes - despesasMes;
       const margemPct   = receitaMes > 0 ? Math.round((resultado / receitaMes) * 1000) / 10 : 0;
 

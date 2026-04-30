@@ -149,22 +149,27 @@ describe('GET /api/staff/dashboard-summary — Sprint 3 E1 platform fees', () =>
     if (!server) await startApp();
   });
 
-  describe('ALL scope (Visão Geral) — perProperty[] platform fees', () => {
-    it('rolls Airbnb hostFee + Booking.com commissionAmount into despesasMes', async () => {
-      // The bookingFindMany stub is called multiple times by the route (MTD
-      // bookings + month bookings for occupancy + forecast + count). Return
-      // an array of bookings with platform fees ONLY for the MTD-revenue
-      // call (it's the call that selects airbnbHostFee + commissionAmount).
+  describe('ALL scope (Visão Geral) — perProperty[] revenue + plataformaFees', () => {
+    it('despesasMes is operational only (NOT inflated by platform fees — bug fix 2026-04-30)', async () => {
+      // The original PR-7 added hostFee + commissionAmount to despesas, but
+      // those amounts are already deducted from revenue at the source:
+      //   - Airbnb: actualPayout = gross − host service fee
+      //   - Booking.com: totalAmount = gross − commissionAmount (per
+      //     ReservaDetail's auto-fill at line 92)
+      // Subtracting them again was double-counting. This test pins the
+      // corrected behavior: despesasMes = operational expenses only.
       stubs.bookingFindMany.mockImplementation(async args => {
         if (args?.select?.airbnbHostFee) {
-          // MTD-bookings call
           return [
-            { totalAmount: '1000', isInvoiceAggregate: false, airbnbHostFee: '50',  commissionAmount: null },
-            { totalAmount: '2000', isInvoiceAggregate: false, airbnbHostFee: null,  commissionAmount: '300' },
-            { totalAmount: '500',  isInvoiceAggregate: false, airbnbHostFee: null,  commissionAmount: null },  // direct, no fees
+            // Airbnb: actualPayout (1000) is already net of hostFee (50).
+            // Revenue must be 1000, NOT 950.
+            { totalAmount: 0,      actualPayout: '1000', source: 'AIRBNB',     isInvoiceAggregate: false, airbnbHostFee: '50',  commissionAmount: null },
+            // Booking.com: totalAmount is already gross − commission.
+            { totalAmount: '2000', actualPayout: null,   source: 'BOOKING_COM', isInvoiceAggregate: false, airbnbHostFee: null,  commissionAmount: '300' },
+            // Direct: no platform fees ever.
+            { totalAmount: '500',  actualPayout: null,   source: 'DIRECT',     isInvoiceAggregate: false, airbnbHostFee: null,  commissionAmount: null },
           ];
         }
-        // Other calls (forecast, occupancy month-bookings) — return empty
         return [];
       });
       stubs.expenseFindMany.mockResolvedValue([{ amount: '100' }, { amount: '200' }]); // R$300 manual
@@ -172,24 +177,41 @@ describe('GET /api/staff/dashboard-summary — Sprint 3 E1 platform fees', () =>
       const r = await getJson('/api/staff/dashboard-summary');
       expect(r.status).toBe(200);
       const row = r.body.perProperty[0];
-      // Receita: 1000 + 2000 + 500 = 3500
+      // Receita: 1000 (Airbnb actualPayout) + 2000 (BCom net) + 500 (Direct) = 3500
       expect(row.receitaBrutaMes).toBe(3500);
-      // Operating expenses: 100 + 200 = 300
+      // Operational despesas: 100 + 200 = 300
       expect(row.despesasOperacionais).toBe(300);
-      // Platform fees: 50 + 300 = 350
+      // Plataforma fees informational: 50 + 300 = 350 (NOT added to despesas)
       expect(row.plataformaFees).toBe(350);
-      // Total despesas: 300 + 350 = 650
-      expect(row.despesasMes).toBe(650);
-      // Margin: (3500 - 650) / 3500 = 0.8142... = 81.4%
-      expect(row.margemPct).toBe(81.4);
+      // despesasMes equals operational only — the bug-fix assertion.
+      expect(row.despesasMes).toBe(300);
+      // Margin: (3500 − 300) / 3500 = 91.4% — was 81.4% under the buggy version.
+      expect(row.margemPct).toBe(91.4);
+    });
+
+    it('Airbnb falls back to totalAmount when actualPayout not yet imported', async () => {
+      // Pre-2026-04-30 backfill, OTA bookings had actualPayout=null. After
+      // backfill they have it. We must support both states.
+      stubs.bookingFindMany.mockImplementation(async args => {
+        if (args?.select?.airbnbHostFee) {
+          return [
+            // No actualPayout (booking pre-dates CSV import) — fall back
+            // to the manually-entered totalAmount.
+            { totalAmount: '1500', actualPayout: null, source: 'AIRBNB', isInvoiceAggregate: false, airbnbHostFee: null, commissionAmount: null },
+          ];
+        }
+        return [];
+      });
+      const r = await getJson('/api/staff/dashboard-summary');
+      expect(r.body.perProperty[0].receitaBrutaMes).toBe(1500);
     });
 
     it('zero platform fees when no OTA bookings — direct-only month', async () => {
       stubs.bookingFindMany.mockImplementation(async args => {
         if (args?.select?.airbnbHostFee) {
           return [
-            { totalAmount: '500', isInvoiceAggregate: false, airbnbHostFee: null, commissionAmount: null },
-            { totalAmount: '500', isInvoiceAggregate: false, airbnbHostFee: null, commissionAmount: null },
+            { totalAmount: '500', actualPayout: null, source: 'DIRECT', isInvoiceAggregate: false, airbnbHostFee: null, commissionAmount: null },
+            { totalAmount: '500', actualPayout: null, source: 'DIRECT', isInvoiceAggregate: false, airbnbHostFee: null, commissionAmount: null },
           ];
         }
         return [];
@@ -203,21 +225,22 @@ describe('GET /api/staff/dashboard-summary — Sprint 3 E1 platform fees', () =>
       expect(row.despesasMes).toBe(50);
     });
 
-    it('handles bookings with both fields set (defensive — should not double-count)', async () => {
-      // Defensive case: a single booking somehow has both Airbnb hostFee AND
-      // Booking.com commissionAmount populated. The current helper sums
-      // them — that's correct because they're additive (a single booking
-      // could in principle pay fees to multiple platforms in some bizarre
-      // edge case). We pin this behavior so a future "smart" change that
-      // tries to dedupe doesn't silently halve the platform-fee total.
+    it('handles bookings with BOTH fields set (defensive — sums for plataformaFees, NOT despesas)', async () => {
+      // Defensive: a single booking somehow has both Airbnb hostFee AND
+      // Booking.com commissionAmount populated. plataformaFees still sums
+      // (they could be additive in a bizarre edge case), but neither one
+      // gets re-deducted from receita.
       stubs.bookingFindMany.mockImplementation(async args => {
         if (args?.select?.airbnbHostFee) {
-          return [{ totalAmount: '1000', isInvoiceAggregate: false, airbnbHostFee: '50', commissionAmount: '60' }];
+          return [{ totalAmount: '1000', actualPayout: null, source: 'AIRBNB', isInvoiceAggregate: false, airbnbHostFee: '50', commissionAmount: '60' }];
         }
         return [];
       });
       const r = await getJson('/api/staff/dashboard-summary');
       expect(r.body.perProperty[0].plataformaFees).toBe(110);
+      // despesasMes should be 0 (no operational expenses in this test) —
+      // platform fees do NOT inflate it.
+      expect(r.body.perProperty[0].despesasMes).toBe(0);
     });
   });
 
@@ -232,7 +255,9 @@ describe('GET /api/staff/dashboard-summary — Sprint 3 E1 platform fees', () =>
     it('includes despesasMes / plataformaFees / margemPct (was missing pre-Sprint-3-E1)', async () => {
       stubs.bookingFindMany.mockImplementation(async args => {
         if (args?.select?.airbnbHostFee) {
-          return [{ totalAmount: '1000', isInvoiceAggregate: false, airbnbHostFee: '50', commissionAmount: null }];
+          // Airbnb booking: actualPayout=1000 already net of hostFee=50.
+          // Revenue must use actualPayout, NOT add hostFee back to despesas.
+          return [{ totalAmount: 0, actualPayout: '1000', source: 'AIRBNB', isInvoiceAggregate: false, airbnbHostFee: '50', commissionAmount: null }];
         }
         return [];
       });
@@ -245,13 +270,13 @@ describe('GET /api/staff/dashboard-summary — Sprint 3 E1 platform fees', () =>
       // The `single` block is the new contract this PR adds.
       expect(r.body.single).toMatchObject({
         propertyId:           'rdi',
-        receitaMes:           1000,
+        receitaMes:           1000,    // = actualPayout, NOT totalAmount(0)
         despesasOperacionais: 100,
-        plataformaFees:       50,
-        despesasMes:          150,
+        plataformaFees:       50,      // informational only
+        despesasMes:          100,     // = operational only (NOT 150)
       });
-      // Margin: (1000 - 150) / 1000 = 0.85 = 85%
-      expect(r.body.single.margemPct).toBe(85);
+      // Margin: (1000 - 100) / 1000 = 0.9 = 90% (was 85% under buggy version)
+      expect(r.body.single.margemPct).toBe(90);
     });
 
     it('ALL scope leaves single=null (only populated for SINGLE scope)', async () => {
