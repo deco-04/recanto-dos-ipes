@@ -443,7 +443,14 @@ router.patch('/reservas/:id', requireRole('ADMIN'), async (req, res) => {
 
   const updates = {};
   if (source      !== undefined) updates.source      = sourceReverseMap[source];
-  if (status      !== undefined) updates.status      = status;
+  if (status      !== undefined) {
+    updates.status = status;
+    // Stamp manual override timestamp so the hourly iCal sync respects
+    // this change — without it, the next sync sees the booking missing
+    // from the OTA feed and re-cancels it (real bug reported 2026-04-30
+    // for Roberta Magalhães booking that kept reverting to CANCELLED).
+    updates.statusManuallyOverriddenAt = new Date();
+  }
   if (notes       !== undefined) updates.notes       = notes;
   if (guestName   !== undefined) updates.guestName   = guestName;
   if (guestEmail  !== undefined) updates.guestEmail  = guestEmail || null;

@@ -96,6 +96,11 @@ model Booking {
   cabinId               String?
   surveyStatus          SurveyStatus  @default(NAO_ENVIADO)
   lastCancellationNotifiedAt DateTime?
+  // Stamped whenever an admin manually changes the booking's status via
+  // /reservas PATCH. The hourly iCal sync respects recent overrides
+  // (default 30-day window) so a temporarily-empty Booking.com / Airbnb
+  // feed can't silently re-cancel a booking the admin just confirmed.
+  statusManuallyOverriddenAt DateTime?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
