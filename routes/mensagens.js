@@ -20,6 +20,89 @@ const ghlConv = require('../lib/ghl-conversations');
 
 const router = express.Router();
 
+// ── GHL webhook payload normalization ─────────────────────────────────────────
+// GHL "Custom Webhook" actions wrap user-defined Custom Data fields under a
+// top-level `customData` object — they are NOT spread at the top level. The
+// payload also includes a structured `message` object for message-trigger
+// workflows. This helper extracts our 8 fields from either location and
+// normalizes the GHL channel display string ("WhatsApp") to our enum
+// ("WHATSAPP").
+//
+// Real-world receivedKeys from "Customer Replied" trigger:
+//   [contact_id, first_name, last_name, full_name, phone, email, tags, …
+//    message, workflow, triggerData, contact, attributionSource, customData]
+// Our 8 keys (body, channel, etc.) live inside `customData`.
+function normalizeGhlChannel(raw) {
+  const s = String(raw || '').toUpperCase().replace(/[\s_-]/g, '');
+  if (['WHATSAPP', 'WA', 'WHATSAPPWEB', 'TYPEWHATSAPP'].includes(s)) return 'WHATSAPP';
+  if (['INSTAGRAM', 'IG', 'INSTAGRAMDM', 'TYPEIG'].includes(s)) return 'INSTAGRAM';
+  if (['FACEBOOK', 'FB', 'MESSENGER', 'FACEBOOKMESSENGER', 'TYPEFB'].includes(s)) return 'FACEBOOK';
+  if (['GBP', 'GMB', 'GOOGLEBUSINESS', 'GOOGLEMYBUSINESS', 'GOOGLEBUSINESSPROFILE'].includes(s)) return 'GBP';
+  if (['EMAIL', 'TYPEEMAIL'].includes(s)) return 'EMAIL';
+  return null;
+}
+
+function extractGhlMessagePayload(reqBody) {
+  const top = reqBody || {};
+  const cd  = (top.customData && typeof top.customData === 'object') ? top.customData : {};
+  const ghlMsg = (top.message && typeof top.message === 'object') ? top.message : null;
+
+  // Body: prefer customData.body (user-mapped {{message.body}}), fall back
+  // to top-level structured message.body, top-level message-as-string, then
+  // top-level `body` field (flat curl/test posts).
+  const body = cd.body
+    || ghlMsg?.body
+    || (typeof top.message === 'string' ? top.message : null)
+    || top.body
+    || null;
+
+  // Channel: customData first, then GHL's structured message.type, then any
+  // contact-level "last_message_channel" field surfaced at top level, then
+  // top-level `channel` (flat curl/test posts).
+  const rawChannel = cd.channel
+    || ghlMsg?.type
+    || top['Last Message Channel']
+    || top.last_message_channel
+    || top.channel
+    || null;
+
+  // Contact identifiers — GHL surfaces these at top level for any contact-
+  // bound trigger; customData fallbacks let users override per-workflow.
+  const phone        = cd.phone        || top.phone        || top.contact?.phone        || null;
+  const contactName  = cd.contactName  || top.contactName  || top.full_name    || top.contact?.full_name
+                     || [top.first_name, top.last_name].filter(Boolean).join(' ').trim() || null;
+  const contactEmail = cd.contactEmail || top.contactEmail || top.email        || top.contact?.email        || null;
+  const avatarUrl    = cd.avatarUrl    || top.avatarUrl    || top.profilePhoto || top.contact?.profilePhoto || null;
+
+  // direction & isAiAgent — accept boolean OR string from customData
+  const direction = String(cd.direction || top.direction || 'INBOUND').toUpperCase();
+  const isAiAgent = cd.isAiAgent === true
+    || String(cd.isAiAgent || '').toLowerCase() === 'true'
+    || top.isAiAgent === true;
+
+  // sentAt — only accept it if it parses to a sensible recent date. GHL's
+  // {{right_now.hour}} returns just "14"; Node happily parses it as year
+  // 2014, which would (a) bypass the replay guard since the date is real
+  // and (b) silently store a wildly-wrong sentAt. We require the parsed
+  // year to be >= 2024 (when this codebase was written) so single-digit
+  // garbage is rejected without a regex hack on the raw string.
+  let sentAt = cd.sentAt || ghlMsg?.dateAdded || top.date_created || null;
+  if (sentAt) {
+    const d = new Date(sentAt);
+    if (Number.isNaN(d.getTime()) || d.getUTCFullYear() < 2024) sentAt = null;
+  }
+
+  return {
+    phone, contactName, contactEmail, avatarUrl,
+    body,
+    channel: normalizeGhlChannel(rawChannel),
+    rawChannel,
+    direction,
+    isAiAgent: Boolean(isAiAgent),
+    sentAt,
+  };
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function serializeConversation(c) {
   const last = c.messages?.[0];
@@ -478,15 +561,16 @@ router.post('/ghl-message', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  // Reject stale webhooks (> 5 minutes old) to prevent replay attacks
+  // Extract our 8 inbox fields from GHL's actual payload shape — handles
+  // both the flat shape (curl-style POSTs from tests) and the nested shape
+  // ({ customData: {...}, message: {...}, contact: {...} }) that GHL Custom
+  // Webhook actions emit. See extractGhlMessagePayload() above for details.
   const {
-    phone, contactName, contactEmail, avatarUrl, body, channel, sentAt,
-    // GHL hub mirror — when an AI agent or human staff replies inside GHL,
-    // we mirror that as an OUTBOUND message in our inbox so the admin UI
-    // shows the full conversation thread without needing to open GHL.
-    direction = 'INBOUND',
-    isAiAgent = false,
-  } = req.body;
+    phone, contactName, contactEmail, avatarUrl,
+    body, channel, rawChannel,
+    direction, isAiAgent, sentAt,
+  } = extractGhlMessagePayload(req.body);
+
   if (sentAt) {
     const age = Date.now() - new Date(sentAt).getTime();
     if (age > 5 * 60 * 1000) {
@@ -499,13 +583,17 @@ router.post('/ghl-message', async (req, res) => {
     // without leaking full message content into logs.
     console.warn('[mensagens] ghl-message 400 — missing body/channel. Received keys:',
       Object.keys(req.body || {}),
+      'customData keys:', Object.keys(req.body?.customData || {}),
       'body preview:', String(body || '').slice(0, 80) || '(empty)',
-      'channel:', channel || '(empty)');
+      'rawChannel:', rawChannel || '(empty)',
+      'normalized channel:', channel || '(empty)');
     return res.status(400).json({
       error: 'body and channel required',
       receivedKeys: Object.keys(req.body || {}),
+      customDataKeys: Object.keys(req.body?.customData || {}),
       bodyEmpty: !body,
       channelEmpty: !channel,
+      rawChannel: rawChannel || null,
     });
   }
   if (!['INBOUND', 'OUTBOUND'].includes(direction)) {
@@ -631,4 +719,7 @@ router.post('/ghl-message', async (req, res) => {
   }
 });
 
+// Exported for unit testing — `router` is the default; helpers are attached
+// for direct test access without spinning up an Express app.
+router.__test__ = { extractGhlMessagePayload, normalizeGhlChannel };
 module.exports = router;
