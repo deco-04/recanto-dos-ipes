@@ -182,8 +182,56 @@ async function main() {
   const rows = parseCsv(text);
   const reservations = rows.filter(r => r.Type === 'Reservation');
 
-  console.log(`[import-airbnb] Parsed ${rows.length} rows · ${reservations.length} are reservations`);
   console.log(`[import-airbnb] Mode: ${commit ? 'COMMIT' : 'DRY RUN — no DB writes'}`);
+
+  const summary = await runImport(text, { commit });
+
+  console.log(`[import-airbnb] Parsed ${summary.parsedRows} rows · ${summary.reservations} are reservations`);
+  console.log('');
+  console.log(`[import-airbnb] === Summary ===`);
+  console.log(`[import-airbnb]   Reservations in CSV:        ${summary.reservations}`);
+  console.log(`[import-airbnb]   Matched to DB booking:      ${summary.matched}`);
+  console.log(`[import-airbnb]   Updated (or would update):  ${summary.updated}`);
+  console.log(`[import-airbnb]   Guest name fixed:           ${summary.nameFixed}`);
+  console.log(`[import-airbnb]   Unmatched (no DB row):      ${summary.unmatched}`);
+  if (summary.unmatchedSample.length > 0) {
+    console.log(`[import-airbnb]   Sample unmatched:`);
+    summary.unmatchedSample.forEach(u => {
+      console.log(`[import-airbnb]     · ${u.code} · ${u.guestCsv || '(no name)'} · start ${u.startDate}`);
+    });
+  }
+  console.log('');
+  if (!commit) {
+    console.log(`[import-airbnb] Dry run complete. Re-run with --commit to apply changes.`);
+  } else {
+    console.log(`[import-airbnb] Done.`);
+  }
+}
+
+/**
+ * Programmatic entry point for the import — usable from a route handler
+ * (POST /api/admin/airbnb-import) or any other caller that already has the
+ * CSV text in memory. Returns the same summary the CLI prints, so the
+ * caller can render it as JSON or log it.
+ *
+ * @param {string} text       full CSV file contents
+ * @param {object} [opts]
+ * @param {boolean} [opts.commit=false]     when true, actually writes to DB
+ * @param {object}  [opts.prismaClient]     defaults to module-level prisma
+ * @returns {Promise<{
+ *   parsedRows:        number,
+ *   reservations:      number,
+ *   matched:           number,
+ *   unmatched:         number,
+ *   updated:           number,
+ *   nameFixed:         number,
+ *   unmatchedSample:   Array<{ code: string, guestCsv: string, startDate: string }>,
+ *   committed:         boolean,
+ * }>}
+ */
+async function runImport(text, { commit = false, prismaClient = prisma } = {}) {
+  const rows         = parseCsv(text);
+  const reservations = rows.filter(r => r.Type === 'Reservation');
 
   let matched = 0;
   let unmatched = 0;
@@ -197,15 +245,11 @@ async function main() {
     const cleaning = toMoney(r['Cleaning fee']);
     const hostFee  = toMoney(r['Service fee']);
     const amount   = toMoney(r['Amount']);
-    const gross    = toMoney(r['Gross earnings']);
 
     const candidates = externalIdCandidates(code);
-    const booking = await prisma.booking.findFirst({
+    const booking = await prismaClient.booking.findFirst({
       where:  { externalId: { in: candidates } },
-      select: {
-        id: true, externalId: true, guestName: true,
-        actualCleaningFee: true, airbnbHostFee: true, actualPayout: true,
-      },
+      select: { id: true, externalId: true, guestName: true },
     });
 
     if (!booking) {
@@ -221,24 +265,16 @@ async function main() {
       actualCleaningFee: cleaning,
       airbnbHostFee:     hostFee,
       actualPayout:      amount,
-      // Airbnb's CSV doesn't break out the guest service fee directly, but
-      // we can derive it as a residual when needed: guestFee = gross −
-      // (amount + hostFee). Many rows will have this be 0 because Airbnb
-      // collected the guest fee on top and paid us only host-side numbers.
-      // Leave airbnbGuestFee null for now — derivable later from gross
-      // when needed for a guest-paid total.
       airbnbReportedAt:  new Date(),
     };
 
-    // Only overwrite guestName when it currently looks like a placeholder.
-    // Admin-edited names (real Brazilian guest names) are preserved.
     if (guestCsv && looksLikePlaceholder(booking.guestName)) {
       updatePayload.guestName = guestCsv;
       nameFixed++;
     }
 
     if (commit) {
-      await prisma.booking.update({
+      await prismaClient.booking.update({
         where: { id: booking.id },
         data:  updatePayload,
       });
@@ -246,29 +282,20 @@ async function main() {
     updated++;
   }
 
-  console.log('');
-  console.log(`[import-airbnb] === Summary ===`);
-  console.log(`[import-airbnb]   Reservations in CSV:        ${reservations.length}`);
-  console.log(`[import-airbnb]   Matched to DB booking:      ${matched}`);
-  console.log(`[import-airbnb]   Updated (or would update):  ${updated}`);
-  console.log(`[import-airbnb]   Guest name fixed:           ${nameFixed}`);
-  console.log(`[import-airbnb]   Unmatched (no DB row):      ${unmatched}`);
-  if (unmatchedSample.length > 0) {
-    console.log(`[import-airbnb]   Sample unmatched:`);
-    unmatchedSample.forEach(u => {
-      console.log(`[import-airbnb]     · ${u.code} · ${u.guestCsv || '(no name)'} · start ${u.startDate}`);
-    });
-  }
-  console.log('');
-  if (!commit) {
-    console.log(`[import-airbnb] Dry run complete. Re-run with --commit to apply changes.`);
-  } else {
-    console.log(`[import-airbnb] Done.`);
-  }
+  return {
+    parsedRows:      rows.length,
+    reservations:    reservations.length,
+    matched,
+    unmatched,
+    updated,
+    nameFixed,
+    unmatchedSample,
+    committed:       commit,
+  };
 }
 
-// Run main() only when invoked as a CLI; when imported by tests, expose
-// the pure helpers without auto-executing.
+// Run main() only when invoked as a CLI; when imported by tests / route
+// handlers, expose the pure helpers + runImport() without auto-executing.
 if (require.main === module) {
   main()
     .catch(err => {
@@ -287,4 +314,5 @@ module.exports = {
   toMMDDYYYY,
   externalIdCandidates,
   looksLikePlaceholder,
+  runImport,
 };

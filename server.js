@@ -308,6 +308,10 @@ app.use('/api/staff/cron',              require('./routes/cron'));
 app.use('/api/staff',                   staffCors, require('./routes/staff-portal'));
 app.use('/api/admin/staff', staffCors, require('./routes/admin-staff'));
 app.use('/api/staff/admin', staffCors, require('./routes/admin-access-requests'));
+// Airbnb host CSV → per-booking financial backfill. Admin-only. POST the
+// CSV body and append ?commit=true to actually write. See route file for
+// operator usage notes.
+app.use('/api/admin/airbnb-import', staffCors, require('./routes/admin-airbnb-import'));
 app.use('/api/admin/obra',  staffCors, require('./routes/obra'));
 app.use('/api/uploads',     staffCors, require('./routes/uploads').router);
 app.use('/api/reviews',    require('./routes/reviews'));
