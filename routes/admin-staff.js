@@ -876,6 +876,61 @@ router.patch('/properties/:id/pricing', async (req, res) => {
   }
 });
 
+// ── PATCH /api/admin/staff/properties/:id/pricing/cleaning-fee ────────────────
+// Dedicated endpoint that updates ONLY the cleaningFee on Property.pricingConfig
+// without requiring the caller to send back the entire config blob. Lets the
+// admin "Taxa de limpeza" UI on /admin/configuracoes/precos save just the one
+// field without accidentally clobbering tiers / extraGuestPerNight / baseGuests
+// when the local view is stale.
+//
+// Reported 2026-04-30:
+//   "não estou encontrando onde eu altero o valor da limpeza, segue constando
+//    como R$240ish, mas preciso alterar pois o preço praticado atualmente é
+//    de R$270 mas pode ser que tenha alteração"
+//
+// Cleaning fee bounds: 1–2000 BRL. The lower bound rejects accidental "0"
+// inputs; the upper guards against typos that would inflate guest checkout
+// totals dramatically. RDI's actual fee floats R$200–270; CDS may go higher
+// but 2000 is a sensible ceiling.
+router.patch('/properties/:id/pricing/cleaning-fee', async (req, res) => {
+  const schema = z.object({
+    cleaningFee: z.number().min(1).max(2000),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error:   'Taxa de limpeza inválida (deve ser entre R$ 1 e R$ 2000)',
+      details: parsed.error.errors,
+    });
+  }
+
+  try {
+    const current = await prisma.property.findUnique({
+      where:  { id: req.params.id },
+      select: { id: true, pricingConfig: true },
+    });
+    if (!current) return res.status(404).json({ error: 'Propriedade não encontrada' });
+
+    // Merge with existing config so the other fields (tiers / baseGuests /
+    // extraGuestPerNight) survive untouched even when this is the first
+    // ever cleaningFee write.
+    const existing = current.pricingConfig && typeof current.pricingConfig === 'object'
+      ? current.pricingConfig
+      : {};
+    const updatedConfig = { ...existing, cleaningFee: parsed.data.cleaningFee };
+
+    const prop = await prisma.property.update({
+      where:  { id: req.params.id },
+      data:   { pricingConfig: updatedConfig },
+      select: { id: true, name: true, pricingConfig: true },
+    });
+    res.json({ id: prop.id, name: prop.name, pricing: prop.pricingConfig });
+  } catch (err) {
+    console.error('[admin-staff] PATCH cleaning-fee error:', err);
+    res.status(500).json({ error: 'Erro ao salvar taxa de limpeza' });
+  }
+});
+
 // ── POST /api/admin/staff/sync-pricing-now ───────────────────────────────────
 router.post('/sync-pricing-now', requireAdmin, async (req, res) => {
   try {
