@@ -13,7 +13,7 @@ const prisma     = require('../lib/db');
 const { maybeCompleteOtaTask } = require('../lib/tasks');
 const { sendPorteiroMessage }  = require('../lib/ghl-webhook');
 const { sendPushToRole, sendPushToStaff } = require('../lib/push');
-const { requireStaff, requireRole } = require('../lib/staff-auth-middleware');
+const { requireStaff, requireRole, applyPropertyScope } = require('../lib/staff-auth-middleware');
 const { toE164 } = require('../lib/phone');
 const ghlClient  = require('../lib/ghl-client');
 const { computeOccupancy } = require('../lib/occupancy');
@@ -766,16 +766,19 @@ router.get('/casa/proximas', async (req, res) => {
   try {
     const start = new Date();
     const end = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-    const propertyId = req.query.propertyId;
 
+    // Property scoping: a non-admin GOVERNANTA from RDS used to be able to
+    // see RDI/CDS bookings here because the route only filtered when
+    // ?propertyId= was passed. The staff app calls without that param, so
+    // every non-admin saw every property. applyPropertyScope() limits
+    // non-admin staff to their StaffPropertyAssignment rows.
+    const scope = await applyPropertyScope({ req, res, requestedPropertyId: req.query.propertyId });
+    if (scope === null) return;
     const where = {
       status:    { in: ['CONFIRMED', 'PENDING'] },
       checkIn:   { gte: start, lte: end },
-      propertyId: { not: null },  // never show orphans
+      ...scope,
     };
-    if (propertyId && propertyId !== 'ALL') {
-      where.propertyId = propertyId;
-    }
 
     const bookings = await prisma.booking.findMany({
       where,
@@ -808,14 +811,14 @@ router.get('/casa/proximas-saidas', async (req, res) => {
     const days = parseInt(req.query.days) || 2;
     const start = new Date();
     const end   = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-    const propertyId = req.query.propertyId;
 
+    const scope = await applyPropertyScope({ req, res, requestedPropertyId: req.query.propertyId });
+    if (scope === null) return;
     const where = {
       status:     { in: ['CONFIRMED', 'PENDING'] },
       checkOut:   { gte: start, lte: end },
-      propertyId: { not: null },  // never show orphans
+      ...scope,
     };
-    if (propertyId && propertyId !== 'ALL') where.propertyId = propertyId;
 
     const bookings = await prisma.booking.findMany({
       where,
@@ -852,16 +855,16 @@ router.get('/casa/proximas-saidas', async (req, res) => {
 router.get('/casa/em-curso', async (req, res) => {
   try {
     const now = new Date();
-    const propertyId = req.query.propertyId;
 
+    const scope = await applyPropertyScope({ req, res, requestedPropertyId: req.query.propertyId });
+    if (scope === null) return;
     const where = {
-      status:     { in: ['CONFIRMED', 'PENDING'] },
-      checkIn:    { lte: now },
-      checkOut:   { gt: now },
-      propertyId: { not: null },
+      status:             { in: ['CONFIRMED', 'PENDING'] },
+      checkIn:            { lte: now },
+      checkOut:           { gt: now },
       isInvoiceAggregate: false,   // never surface Booking.com monthly payout placeholders
+      ...scope,
     };
-    if (propertyId && propertyId !== 'ALL') where.propertyId = propertyId;
 
     const bookings = await prisma.booking.findMany({
       where,
@@ -895,11 +898,15 @@ router.get('/casa/calendario', async (req, res) => {
     const past = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const future = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
 
+    const scope = await applyPropertyScope({ req, res, requestedPropertyId: req.query.propertyId });
+    if (scope === null) return;
+
     const bookings = await prisma.booking.findMany({
       where: {
-        status: { in: ['CONFIRMED', 'PENDING'] },
+        status:  { in: ['CONFIRMED', 'PENDING'] },
         checkIn: { gte: past },
         checkOut: { lte: future },
+        ...scope,
       },
       orderBy: { checkIn: 'asc' },
       include: {
@@ -1633,8 +1640,15 @@ router.get('/piscina/proximas', async (req, res) => {
     const start = new Date();
     const end = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
+    const scope = await applyPropertyScope({ req, res, requestedPropertyId: req.query.propertyId });
+    if (scope === null) return;
+
     const bookings = await prisma.booking.findMany({
-      where: { status: { in: ['CONFIRMED', 'PENDING'] }, checkIn: { gte: start, lte: end } },
+      where: {
+        status:  { in: ['CONFIRMED', 'PENDING'] },
+        checkIn: { gte: start, lte: end },
+        ...scope,
+      },
       orderBy: { checkIn: 'asc' },
       include: {
         user: { select: { name: true } },
