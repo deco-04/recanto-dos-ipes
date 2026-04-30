@@ -139,22 +139,31 @@ function readStdin() {
 
 async function main() {
   const args     = process.argv.slice(2);
-  const csvPath  = args.find(a => !a.startsWith('--'));
+  // Strip surrounding quotes that some shell pipelines (Windows + railway ssh
+  // wrapper) accidentally inject around the "-" stdin sentinel.
+  const rawPath  = args.find(a => !a.startsWith('--'));
+  const csvPath  = (rawPath || '').replace(/^['"]+|['"]+$/g, '');
   const commit   = args.includes('--commit');
 
-  if (!csvPath) {
+  // Detect whether stdin is being piped in. When the importer runs inside
+  // a Railway container via `railway ssh ... node script.js -` we read the
+  // CSV from stdin because the file lives on the operator's local machine
+  // (uploads/ is gitignored, never deployed).
+  const stdinAvailable = !process.stdin.isTTY;
+
+  // Decide source: stdin if explicitly requested OR piped in with no path.
+  const useStdin = csvPath === '-' || (!csvPath && stdinAvailable);
+
+  if (!csvPath && !stdinAvailable) {
     console.error('Usage:');
     console.error('  node scripts/import-airbnb-financial-csv.js <path-to-csv> [--commit]');
     console.error('  node scripts/import-airbnb-financial-csv.js - [--commit]   # read from stdin');
+    console.error('  cat file.csv | node scripts/import-airbnb-financial-csv.js [--commit]   # auto-stdin');
     process.exit(1);
   }
 
-  // The "-" sentinel reads the CSV from stdin so the importer can run
-  // INSIDE a Railway container (where postgres.railway.internal resolves)
-  // while the CSV file lives only on the operator's local machine. Pipe:
-  //   cat path/to.csv | railway ssh -s recanto-dos-ipes node scripts/import-airbnb-financial-csv.js -
   let text;
-  if (csvPath === '-') {
+  if (useStdin) {
     console.log('[import-airbnb] Reading CSV from stdin…');
     text = await readStdin();
     if (!text) {
