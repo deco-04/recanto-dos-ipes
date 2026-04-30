@@ -80,13 +80,16 @@ function extractGhlMessagePayload(reqBody) {
     || String(cd.isAiAgent || '').toLowerCase() === 'true'
     || top.isAiAgent === true;
 
-  // sentAt — only accept it if it parses to a sensible recent date. GHL's
-  // {{right_now.hour}} returns just "14"; Node happily parses it as year
-  // 2014, which would (a) bypass the replay guard since the date is real
-  // and (b) silently store a wildly-wrong sentAt. We require the parsed
-  // year to be >= 2024 (when this codebase was written) so single-digit
-  // garbage is rejected without a regex hack on the raw string.
-  let sentAt = cd.sentAt || ghlMsg?.dateAdded || top.date_created || null;
+  // sentAt — must be the message timestamp, NOT the contact creation date.
+  // We previously fell back to top.date_created (contact's first-seen date)
+  // which is months old and tripped the replay guard for legitimate webhooks.
+  // Order: customData.sentAt → GHL's structured message.dateAdded → null.
+  // GHL's {{right_now.hour}} returns just "14"; Node happily parses it as
+  // year 2014, which would (a) bypass the replay guard since the date is
+  // real and (b) silently store a wildly-wrong sentAt. We require the
+  // parsed year to be >= 2024 (when this codebase was written) so single-
+  // digit garbage is rejected without a regex hack on the raw string.
+  let sentAt = cd.sentAt || ghlMsg?.dateAdded || null;
   if (sentAt) {
     const d = new Date(sentAt);
     if (Number.isNaN(d.getTime()) || d.getUTCFullYear() < 2024) sentAt = null;
@@ -384,7 +387,9 @@ router.post('/:id/mensagens', requireStaff, async (req, res) => {
     // EMAIL stays out of the GHL path for now — Gmail OAuth is the canonical
     // sender for inbox email and GHL email isn't connected.
     if (process.env.GHL_API_KEY && channel !== 'EMAIL' && conversation.contactPhone) {
-      const search = await ghlConv.searchConversations({ limit: 20 });
+      // Pass the phone as a query so GHL filters server-side instead of
+      // returning the first 20 conversations and hoping ours is in there.
+      const search = await ghlConv.searchConversations({ limit: 20, query: conversation.contactPhone });
       if (search.ok) {
         const localTail = String(conversation.contactPhone || '').replace(/\D/g, '').slice(-11);
         const ghlConvObj = (search.conversations || []).find(g => {
@@ -572,8 +577,12 @@ router.post('/ghl-message', async (req, res) => {
   } = extractGhlMessagePayload(req.body);
 
   if (sentAt) {
+    // Replay window — needs to be wide enough to absorb normal GHL workflow
+    // queue latency (we've seen 5-10 min in practice on busy locations).
+    // The static URL secret already provides the primary auth; this guard
+    // exists only to bound how long an exfiltrated payload remains useful.
     const age = Date.now() - new Date(sentAt).getTime();
-    if (age > 5 * 60 * 1000) {
+    if (age > 30 * 60 * 1000) {
       return res.status(400).json({ error: 'Webhook payload too old (replay prevention)' });
     }
   }
